@@ -249,7 +249,7 @@ def pikachu_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   if play:
     twist_cmd = cfg.commands["twist"]
     assert isinstance(twist_cmd, UniformVelocityCommandCfg)
-    twist_cmd.ranges.lin_vel_x = (-1.5, 2.0)
+    twist_cmd.ranges.lin_vel_x = (-1.0, 1.0)
     twist_cmd.ranges.ang_vel_z = (-0.7, 0.7)
 
   return cfg
