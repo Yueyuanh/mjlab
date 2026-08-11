@@ -5,6 +5,19 @@ Changelog
 Upcoming version (not yet released)
 -----------------------------------
 
+Added
+^^^^^
+
+- Added ``uv run viewer <TASK>``, a live collision-body tuning viewer that
+  opens any registered task directly (mimicking ``play`` argument parsing).
+  By default the robot is suspended in the air (``--suspend-height``) with
+  physics paused so its collision bodies can be inspected from any angle;
+  ``--zero`` / ``--random`` enable simulation and let it land. Supports
+  ``--xml <path>`` to override the robot MJCF with hot-reload on save,
+  highlights collision bodies (``*_collision`` geoms or ``group=3``), and
+  exposes console commands ``list`` / ``scale`` / ``pos`` / ``color`` /
+  ``r`` / ``q`` for in-memory geometry tuning.
+
 Version 1.6.0 (August 8, 2026)
 ------------------------------
 
