@@ -117,7 +117,15 @@
 
             <!-- 视觉类 -->
             <default class="visual">
-            <geom contype="0" conaffinity="0" group="2"/>
+                <geom type="mesh" density="0" contype="0" conaffinity="0" group="2"/>
+            </default>
+
+            <!-- 碰撞类：几何体只写 name/pos/size，公共属性继承自本类 -->
+            <default class="collision">
+                <geom group="3" rgba=".2 .6 .2 .3" type="capsule" contype="1" conaffinity="1"/>
+                <default class="foot_capsule">
+                <geom type="capsule" size="0.01"/>
+                </default>
             </default>
 
         </default>

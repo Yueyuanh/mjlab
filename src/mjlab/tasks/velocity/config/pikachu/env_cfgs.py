@@ -8,8 +8,8 @@
 与 G1 的主要差异（Pikachu 资产特性）：
   - 躯干 body 名是 ``base_link``（G1 是 ``torso_link``）。
   - 足部 site 是 ``left_foot`` / ``right_foot``（已加入 ankle body）。
-  - 脚底碰撞几何在 ``left_ankle_link`` / ``right_ankle_link`` body 的子树内
-    （即 ``left_ankle_link_collision`` / ``right_ankle_link_collision``），
+  - 脚底碰撞几何是 G1 风格脚部胶囊 ``left/right_foot1~7_collision``，
+    挂在 ``left_ankle_link`` / ``right_ankle_link`` body 的子树内，
     因此脚底接触传感器用 ``subtree`` 匹配整个 ankle body。
   - 关节为 14 个：``hip_pitch / hip_roll / hip_yaw / knee / ankle /
     arm_pitch / arm_roll``（左右各一），没有 waist/shoulder/elbow/wrist，
@@ -17,7 +17,6 @@
 """
 
 from mjlab.asset_zoo.robots import (
-  PIKACHU_ACTION_SCALE,
   get_pikachu_robot_cfg,
 )
 from mjlab.envs import ManagerBasedRlEnvCfg
@@ -37,9 +36,11 @@ from mjlab.tasks.velocity import mdp
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 
-# 足部 site 与碰撞几何名（Pikachu 资产）。
+# 足部 site 与碰撞几何名（Pikachu 资产，脚部为 G1 风格 foot1~7 胶囊）。
 SITE_NAMES = ("left_foot", "right_foot")
-FOOT_GEOM_NAMES = ("left_ankle_link_collision", "right_ankle_link_collision")
+FOOT_GEOM_NAMES = tuple(
+  f"{side}_foot{i}_collision" for side in ("left", "right") for i in range(1, 8)
+)
 # 躯干（基座）body 名。
 TORSO_BODY = "base_link"
 

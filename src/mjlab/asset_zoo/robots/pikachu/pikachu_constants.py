@@ -41,7 +41,8 @@ PIKACHU_XML: Path = (
   / "pikachu"
   / "xmls"
   / "mjcf_14dof_lite"
-  / "Pikachu_V025_flat_14dof_lite.xml"
+  # / "Pikachu_V025_flat_14dof_lite.xml"  # 原始碰撞体
+  / "Pikachu_V025_flat_14dof_capsule.xml"  # 简化碰撞体
 )
 assert PIKACHU_XML.exists()
 
@@ -110,7 +111,7 @@ ACTUATOR_J4310 = ElectricActuator(
 ACTUATOR_J3507 = ElectricActuator(
   reflected_inertia=ARMATURE_J3507,
   # 最终的输出为经过1：3减速之后的关节速度和力矩
-  velocity_limit=30.0 / 3, # 限速31(300rpm)  VMAX:50()  
+  velocity_limit=30.0 / 3,  # 限速31(300rpm)  VMAX:50()
   effort_limit=5.0 * 3,
 )
 
@@ -220,7 +221,7 @@ KNEES_BENT_KEYFRAME = EntityCfg.InitialStateCfg(
 ##
 
 # 注意：Pikachu 的碰撞 geom 在 XML 中已显式命名——每个 link 两个 geom，
-# 视觉 geom 为 ``<link>_visual``（``contype=0, conaffinity=0, group=1``），
+# 视觉 geom 为 ``<link>_visual``（``contype=0, conaffinity=0, group=2``），
 # 碰撞 geom 为 ``<link>_collision``（参与碰撞）。因此下面的正则统一匹配
 # ``.*_collision``，视觉 geom 由 disable_other_geoms 自动禁用碰撞。
 #
@@ -230,17 +231,19 @@ KNEES_BENT_KEYFRAME = EntityCfg.InitialStateCfg(
 # =\"plane\")``）。若保留该 floor，它会被这里的 disable_other_geoms 清零，
 # 并与场景地形重叠产生双重地面。
 
+
 # 全身碰撞：启用所有 ``.*_collision`` geom 的碰撞（含自碰撞）。
-# 脚底（ankle）用 condim=3（平面接触），其余用 condim=1（点接触）。
-# 注意 geom 名 = mesh 名（``left_ankle_link``）+ ``_collision`` 后缀。
+# 脚部胶囊（foot1~7）用 condim=3（平面接触）、priority=1、friction=0.6，
+# 其余用 condim=1（点接触）、priority=0。
 FULL_COLLISION = CollisionCfg(
   geom_names_expr=(".*_collision",),
   contype=1,
   conaffinity=1,
-  condim={r"^(left|right)_ankle_link_collision$": 3, ".*_collision": 1},
-  priority={r"^(left|right)_ankle_link_collision$": 1, ".*_collision": 0},
-  friction={r"^(left|right)_ankle_link_collision$": (0.6,)},
+  condim={r"^(left|right)_foot[1-7]_collision$": 3, ".*_collision": 1},
+  priority={r"^(left|right)_foot[1-7]_collision$": 1, ".*": 0},
+  friction={r"^(left|right)_foot[1-7]_collision$": (0.6,)},
 )
+
 
 # 无自碰撞版本：contype=0 使机器人自身 geom 之间不产生接触，
 # 但仍保留与地面（contype=1）的碰撞能力由 conaffinity=1 表达。
@@ -250,17 +253,17 @@ FULL_COLLISION_WITHOUT_SELF = CollisionCfg(
   geom_names_expr=(".*_collision",),
   contype=0,
   conaffinity=1,
-  condim={r"^(left|right)_ankle_link_collision$": 3, ".*_collision": 1},
-  priority={r"^(left|right)_ankle_link_collision$": 1, ".*_collision": 0},
-  friction={r"^(left|right)_ankle_link_collision$": (0.6,)},
+  condim={r"^(left|right)_foot[1-7]_collision$": 3, ".*_collision": 1},
+  priority={r"^(left|right)_foot[1-7]_collision$": 1, ".*": 0},
+  friction={r"^(left|right)_foot[1-7]_collision$": (0.6,)},
 )
 
-# 仅脚底碰撞：只保留左右踝（脚底）与地面接触，其余 geom 全部禁用
+# 仅脚底碰撞：只保留脚部胶囊与地面接触，其余 geom 全部禁用
 # （disable_other_geoms=True 会把未匹配 geom 的 contype/conaffinity 清零）。
 # 适合平地行走训练——Pikachu 的自碰撞对已在 contact.xml 中大量排除，
 # 训练时通常只需脚-地接触。
 FEET_ONLY_COLLISION = CollisionCfg(
-  geom_names_expr=(r"^(left|right)_ankle_link_collision$",),
+  geom_names_expr=(r"^(left|right)_foot[1-7]_collision$",),
   contype=1,
   conaffinity=1,
   condim=3,  # 脚底为平面接触（3 维法向 + 切向）
