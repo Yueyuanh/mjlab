@@ -57,6 +57,7 @@ dependencies = [
   "Source" = "https://github.com/mujocolab/mjlab"
 
 [project.scripts]
+exp = "mjlab.scripts.exp:main"
 train = "mjlab.scripts.train:main"
 play = "mjlab.scripts.play:main"
 demo = "mjlab.scripts.demo:main"
