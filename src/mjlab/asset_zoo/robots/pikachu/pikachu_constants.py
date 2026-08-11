@@ -109,8 +109,9 @@ ACTUATOR_J4310 = ElectricActuator(
 )
 ACTUATOR_J3507 = ElectricActuator(
   reflected_inertia=ARMATURE_J3507,
-  velocity_limit=31.0, # 限速31(300rpm)  VMAX:50()
-  effort_limit=5.0,
+  # 最终的输出为经过1：3减速之后的关节速度和力矩
+  velocity_limit=30.0 / 3, # 限速31(300rpm)  VMAX:50()  
+  effort_limit=5.0 * 3,
 )
 
 # PD 位置控制器的固有频率与阻尼比。

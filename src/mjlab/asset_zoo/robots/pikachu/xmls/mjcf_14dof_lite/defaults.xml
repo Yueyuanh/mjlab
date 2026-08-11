@@ -14,13 +14,13 @@
 
                 <default class="left_hip_pitch">
                     <!-- 4310    armature 转子惯量！！！-->
-                    <joint range="-2.44 0"
+                    <joint range="-2.44 0.698"
                             damping="0.4" armature="0.00" frictionloss="0.01"/>
                 </default>
 
                  <default class="right_hip_pitch">
                     <!-- 4310    armature 转子惯量！！！-->
-                    <joint range="0 2.44"
+                    <joint range="-0.698 2.44"
                             damping="0.4" armature="0.00" frictionloss="0.01"/>
                 </default>
 
