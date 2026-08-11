@@ -109,9 +109,26 @@ def pikachu_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.scene.terrain.terrain_generator.curriculum = True
 
   # 关节位置动作使用 Pikachu 的动作缩放系数（由执行器 PD 增益推导）。
+  #
+  # 重要：PIKACHU_ACTION_SCALE = 0.25 * effort_limit / stiffness 是按
+  # 电机力矩预算推导的，对小电机（J3507 仅 5 N·m）会得到很保守的数值
+  # （踝/髋roll/yaw 仅 0.101 rad，约 5.8°，相对关节限位 1.57 rad 只用了
+  # 6%）。实测 PD 对阶跃目标跟踪率 >99%，物理完全能迈步——卡住前进的
+  # 瓶颈是动作幅度不足。因此这里放宽到与 G1 相当的步态幅度：
+  #   hip_pitch / knee：±0.5 rad（G1 为 0.55）
+  #   hip_roll / hip_yaw / ankle / arm：±0.35 rad（G1 为 0.35~0.44）
+  # 若电机力矩跟不上升级为抽搐/打滑，再回调。
   joint_pos_action = cfg.actions["joint_pos"]
   assert isinstance(joint_pos_action, JointPositionActionCfg)
-  joint_pos_action.scale = PIKACHU_ACTION_SCALE
+  joint_pos_action.scale = {
+    r".*_hip_pitch_joint": 0.5,
+    r".*_knee_joint": 0.5,
+    r".*_hip_roll_joint": 0.35,
+    r".*_hip_yaw_joint": 0.35,
+    r".*_ankle_joint": 0.35,
+    r".*_arm_pitch_joint": 0.35,
+    r".*_arm_roll_joint": 0.35,
+  }
 
   # 查看器跟踪躯干。
   cfg.viewer.body_name = TORSO_BODY
@@ -161,12 +178,13 @@ def pikachu_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.rewards[reward_name].params["asset_cfg"].site_names = SITE_NAMES
 
   # 奖励权重：轻微抑制躯干旋转与角动量。
-  # air_time 当前为 0.0（与 G1 参考实现一致，G1 关闭 air_time 也能学会走路）。
-  # 若训练后步态无抬脚，可在此提高（配合 command_threshold=0.5 门控，
+  # air_time 设为 1.0：激励抬脚迈步（配合 command_threshold=0.5 门控，
   # 只在指令速度 >0.5 m/s 时生效，站立时不会诱导跳跃）。
+  # 上一轮（trial-02）air_time=0 且 action scale 过小，策略学会"站着转"
+  # 的局部最优；放宽动作幅度后配合 air_time 正奖励，引导它真正抬脚前进。
   cfg.rewards["body_ang_vel"].weight = -0.05
   cfg.rewards["angular_momentum"].weight = -0.02
-  cfg.rewards["air_time"].weight = 0.0
+  cfg.rewards["air_time"].weight = 1.0
 
   # 自碰撞惩罚（力超过阈值计为一次碰撞）。
   cfg.rewards["self_collisions"] = RewardTermCfg(
