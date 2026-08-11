@@ -1,0 +1,25 @@
+<!-- sensors.xml -->
+<mujoco>
+    <sensor>
+        <!-- 躯干姿态传感器（IMU）：全部挂在 imu site 上。
+             命名与 Unitree G1 对齐：velocity 任务通过 mdp.builtin_sensor 读取
+             robot/imu_ang_vel（base_ang_vel 观测）与 robot/imu_lin_vel
+             （base_lin_vel 观测），angular_momentum 奖励读取 robot/root_angmom。
+
+             注意：关节位置/速度/力矩传感器（jointpos / jointvel /
+             jointactuatorfrc，原版 42 个）已删除——mjlab 的 joint_pos_rel /
+             joint_vel_rel 观测直接读模型关节状态（Entity.data），不经过 XML
+             传感器，这些残留传感器在 mjlab 代码库中 0 引用。imu_quat / imu_acc /
+             frame_pos / frame_vel 目前也未被引用，保留作为 IMU 完整感知集。 -->
+        <framequat name="imu_quat" objtype="site" objname="imu" />
+        <gyro name="imu_ang_vel" site="imu" />
+        <velocimeter name="imu_lin_vel" site="imu" />
+        <accelerometer name="imu_acc" site="imu" />
+
+        <framepos name="frame_pos" objtype="site" objname="imu" />
+        <framelinvel name="frame_vel" objtype="site" objname="imu" />
+
+        <!-- 身体角动量（整机绕基座质心的角动量，用于 angular_momentum 奖励） -->
+        <subtreeangmom name="root_angmom" body="base_link"/>
+    </sensor>
+</mujoco>
