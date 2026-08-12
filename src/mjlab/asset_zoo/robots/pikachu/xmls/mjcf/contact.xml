@@ -1,0 +1,125 @@
+<!-- contact.xml -->
+<mujoco>
+
+
+<contact>
+  <!-- ========== 躯干与其他部分的排除 ========== -->
+  <exclude body1="base_link" body2="left_hip_pitch_link"/>
+  <exclude body1="base_link" body2="left_hip_roll_link"/>
+  <exclude body1="base_link" body2="left_hip_yaw_link"/>
+  <exclude body1="base_link" body2="right_hip_pitch_link"/>
+  <exclude body1="base_link" body2="right_hip_roll_link"/>
+  <exclude body1="base_link" body2="right_hip_yaw_link"/>
+  <exclude body1="base_link" body2="left_arm_pitch_link"/>
+  <exclude body1="base_link" body2="left_arm_roll_link"/>
+  <exclude body1="base_link" body2="left_arm_yaw_link"/>
+  <exclude body1="base_link" body2="right_arm_pitch_link"/>
+  <exclude body1="base_link" body2="right_arm_roll_link"/>
+  <exclude body1="base_link" body2="right_arm_yaw_link"/>
+
+
+  <!-- ========== 左腿内部关节间排除 ========== -->
+  <exclude body1="left_hip_pitch_link" body2="left_hip_roll_link"/>
+  <exclude body1="left_hip_pitch_link" body2="left_hip_yaw_link"/>
+  <exclude body1="left_hip_pitch_link" body2="left_knee_link"/>
+  <exclude body1="left_hip_pitch_link" body2="left_ankle_link"/>
+  
+  <exclude body1="left_hip_roll_link" body2="left_hip_yaw_link"/>
+  <exclude body1="left_hip_roll_link" body2="left_knee_link"/>
+  <exclude body1="left_hip_roll_link" body2="left_ankle_link"/>
+  
+  <exclude body1="left_hip_yaw_link" body2="left_knee_link"/>
+  <exclude body1="left_hip_yaw_link" body2="left_ankle_link"/>
+  
+  <exclude body1="left_knee_link" body2="left_ankle_link"/>
+
+  <!-- ========== 右腿内部关节间排除 ========== -->
+  <exclude body1="right_hip_pitch_link" body2="right_hip_roll_link"/>
+  <exclude body1="right_hip_pitch_link" body2="right_hip_yaw_link"/>
+  <exclude body1="right_hip_pitch_link" body2="right_knee_link"/>
+  <exclude body1="right_hip_pitch_link" body2="right_ankle_link"/>
+  
+  <exclude body1="right_hip_roll_link" body2="right_hip_yaw_link"/>
+  <exclude body1="right_hip_roll_link" body2="right_knee_link"/>
+  <exclude body1="right_hip_roll_link" body2="right_ankle_link"/>
+  
+  <exclude body1="right_hip_yaw_link" body2="right_knee_link"/>
+  <exclude body1="right_hip_yaw_link" body2="right_ankle_link"/>
+  
+  <exclude body1="right_knee_link" body2="right_ankle_link"/>
+
+  <!-- ========== 左臂内部关节间排除 ========== -->
+  <exclude body1="left_arm_pitch_link" body2="left_arm_roll_link"/>
+  <exclude body1="left_arm_pitch_link" body2="left_arm_yaw_link"/>
+  
+  <exclude body1="left_arm_roll_link" body2="left_arm_yaw_link"/>
+  
+
+  <!-- ========== 右臂内部关节间排除 ========== -->
+  <exclude body1="right_arm_pitch_link" body2="right_arm_roll_link"/>
+  <exclude body1="right_arm_pitch_link" body2="right_arm_yaw_link"/>
+  
+  <exclude body1="right_arm_roll_link" body2="right_arm_yaw_link"/>
+  
+
+
+  <!-- ========== 左右腿之间的交叉排除 ========== -->
+  <exclude body1="left_hip_pitch_link" body2="right_hip_pitch_link"/>
+  <exclude body1="left_hip_pitch_link" body2="right_hip_roll_link"/>
+  <exclude body1="left_hip_pitch_link" body2="right_hip_yaw_link"/>
+  <exclude body1="left_hip_pitch_link" body2="right_knee_link"/>
+  <exclude body1="left_hip_pitch_link" body2="right_ankle_link"/>
+  
+  <exclude body1="left_hip_roll_link" body2="right_hip_pitch_link"/>
+  <exclude body1="left_hip_roll_link" body2="right_hip_roll_link"/>
+  <exclude body1="left_hip_roll_link" body2="right_hip_yaw_link"/>
+  <exclude body1="left_hip_roll_link" body2="right_knee_link"/>
+  <exclude body1="left_hip_roll_link" body2="right_ankle_link"/>
+  
+  <exclude body1="left_hip_yaw_link" body2="right_hip_pitch_link"/>
+  <exclude body1="left_hip_yaw_link" body2="right_hip_roll_link"/>
+  <exclude body1="left_hip_yaw_link" body2="right_hip_yaw_link"/>
+  <exclude body1="left_hip_yaw_link" body2="right_knee_link"/>
+  <exclude body1="left_hip_yaw_link" body2="right_ankle_link"/>
+  
+  <exclude body1="left_knee_link" body2="right_hip_pitch_link"/>
+  <exclude body1="left_knee_link" body2="right_hip_roll_link"/>
+  <exclude body1="left_knee_link" body2="right_hip_yaw_link"/>
+  <exclude body1="left_knee_link" body2="right_knee_link"/>
+  <exclude body1="left_knee_link" body2="right_ankle_link"/>
+  
+  <exclude body1="left_ankle_link" body2="right_hip_pitch_link"/>
+  <exclude body1="left_ankle_link" body2="right_hip_roll_link"/>
+  <exclude body1="left_ankle_link" body2="right_hip_yaw_link"/>
+  <exclude body1="left_ankle_link" body2="right_knee_link"/>
+  <exclude body1="left_ankle_link" body2="right_ankle_link"/>
+
+  <!-- ========== 左右臂之间的交叉排除 ========== -->
+  <exclude body1="left_arm_pitch_link" body2="right_arm_pitch_link"/>
+  <exclude body1="left_arm_pitch_link" body2="right_arm_roll_link"/>
+  <exclude body1="left_arm_pitch_link" body2="right_arm_yaw_link"/>
+  
+  <exclude body1="left_arm_roll_link" body2="right_arm_pitch_link"/>
+  <exclude body1="left_arm_roll_link" body2="right_arm_roll_link"/>
+  <exclude body1="left_arm_roll_link" body2="right_arm_yaw_link"/>
+  
+  <exclude body1="left_arm_yaw_link" body2="right_arm_pitch_link"/>
+  <exclude body1="left_arm_yaw_link" body2="right_arm_roll_link"/>
+  <exclude body1="left_arm_yaw_link" body2="right_arm_yaw_link"/>
+  
+
+  <!-- ========== 腿与臂之间的交叉排除 ========== -->
+  <exclude body1="left_hip_pitch_link" body2="left_arm_pitch_link"/>
+  <exclude body1="left_hip_pitch_link" body2="left_arm_roll_link"/>
+  <exclude body1="left_hip_pitch_link" body2="left_arm_yaw_link"/>
+  <exclude body1="left_hip_pitch_link" body2="right_arm_pitch_link"/>
+  <exclude body1="left_hip_pitch_link" body2="right_arm_roll_link"/>
+  <exclude body1="left_hip_pitch_link" body2="right_arm_yaw_link"/>
+  
+  <!-- 类似的排除可以继续添加其他腿-臂组合，但通常只需要排除相邻的 -->
+  <!-- 这里简化：只排除同侧腿和臂 -->
+
+
+  
+</contact>
+</mujoco>

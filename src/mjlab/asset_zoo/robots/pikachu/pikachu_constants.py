@@ -215,6 +215,48 @@ KNEES_BENT_KEYFRAME = EntityCfg.InitialStateCfg(
   joint_vel={".*": 0.0},
 )
 
+# 双足（biped）模式标称姿态：状态转换任务的"双足态"基准。
+# 复用 KNEES_BENT_KEYFRAME（微蹲起跑，左右轴反向已按 XML 对齐）。
+BIPED_KEYFRAME = KNEES_BENT_KEYFRAME
+
+# 四足（quadruped）模式标称姿态：base 前俯 + 双手撑地 + 双脚撑地。
+#
+# ✅ 几何已验证（scripts/calibrate_quad_keyframe.py）：base 前俯 90°（水平
+# 趴地，g_b≈(+1,0,0)）+ arm_pitch ±1.2 + pos.z=0.075 时，双手/双脚同时着地、
+# 躯干离地约 3.5cm，无 body 陷地。这是"手脚四点支撑"的几何自洽初值。
+# ⚠️ TODO(手动微调): 若希望更"四足感"（躯干前俯 <90°、臀部抬高），在
+# viewer 中手动调 rot / arm_pitch / hip_pitch / pos.z，并用校准脚本复查
+# 手脚着地 + 躯干不陷地。
+#   - 符号约定：左右关节转轴反向，left/right 值互为相反数（left 为负=向前
+#     屈/摆，与 KNEES_BENT 一致）。
+#   - arm_pitch 陷阱：增大 |arm_pitch| 超过约 1.5 rad 时手臂会向前挥过头、
+#     手反而上扬，因此手臂前伸角应控制在 [0, 1.5] 附近微调。
+#   - 关节限位参考 defaults.xml：left_hip_pitch [-2.44, 0.698]、left_knee
+#     [-1.57, 0]、left_ankle [-1.05, 0.52]、left_arm_pitch [-3.14, 1.05]。
+QUAD_KEYFRAME = EntityCfg.InitialStateCfg(
+  pos=(0, 0, 0.075),  # TODO(微调): base 离地高度
+  rot=(0.7071, 0.0, 0.7071, 0.0),  # TODO(微调): 绕 world y 前俯 90°（w=cos45, z=sin45）
+  joint_pos={
+    # 腿：后支撑（四足时腿在 base 后方弯曲），左右取反
+    "left_hip_pitch_joint": -0.5,  # TODO: 大腿前后倾角
+    "right_hip_pitch_joint": 0.5,
+    "left_hip_roll_joint": 0.0,
+    "right_hip_roll_joint": 0.0,
+    "left_hip_yaw_joint": 0.0,
+    "right_hip_yaw_joint": 0.0,
+    "left_knee_joint": -0.8,  # TODO: 膝弯曲角
+    "right_knee_joint": 0.8,
+    "left_ankle_joint": -0.4,  # TODO: 踝补偿（保持脚底水平着地）
+    "right_ankle_joint": 0.4,
+    # 臂：前撑地（负角=向前摆），roll 小外展
+    "left_arm_pitch_joint": -1.2,  # 已验证着地；>1.5 挥过头手上扬
+    "right_arm_pitch_joint": 1.2,
+    "left_arm_roll_joint": 0.2,
+    "right_arm_roll_joint": -0.2,
+  },
+  joint_vel={".*": 0.0},
+)
+
 
 ##
 # Collision config.
@@ -249,13 +291,26 @@ FULL_COLLISION = CollisionCfg(
 # 但仍保留与地面（contype=1）的碰撞能力由 conaffinity=1 表达。
 # 注意：MuJoCo 要求双方 contype & conaffinity 同时匹配才产生接触，
 # 因此此配置下机器人只与 contype=1 且 conaffinity=1 的环境物体接触。
+# 手（arm_yaw_link_collision）也配 condim=3 + friction：四足状态转换任务里
+# 双手撑地，condim=1（点接触无摩擦）会打滑，无法稳定支撑。
 FULL_COLLISION_WITHOUT_SELF = CollisionCfg(
   geom_names_expr=(".*_collision",),
   contype=0,
   conaffinity=1,
-  condim={r"^(left|right)_foot[1-7]_collision$": 3, ".*_collision": 1},
-  priority={r"^(left|right)_foot[1-7]_collision$": 1, ".*": 0},
-  friction={r"^(left|right)_foot[1-7]_collision$": (0.6,)},
+  condim={
+    r"^(left|right)_foot[1-7]_collision$": 3,
+    r"^(left|right)_arm_yaw_link_collision$": 3,  # 手撑地：平面接触（摩擦）
+    ".*_collision": 1,
+  },
+  priority={
+    r"^(left|right)_foot[1-7]_collision$": 1,
+    r"^(left|right)_arm_yaw_link_collision$": 1,
+    ".*": 0,
+  },
+  friction={
+    r"^(left|right)_foot[1-7]_collision$": (0.6,),
+    r"^(left|right)_arm_yaw_link_collision$": (0.6,),
+  },
 )
 
 # 仅脚底碰撞：只保留脚部胶囊与地面接触，其余 geom 全部禁用
@@ -294,7 +349,9 @@ def get_pikachu_robot_cfg() -> EntityCfg:
   """
   return EntityCfg(
     init_state=KNEES_BENT_KEYFRAME,  # 默认从微蹲姿态起跑，更稳定
-    collisions=(FEET_ONLY_COLLISION,),
+    collisions=(
+      FULL_COLLISION_WITHOUT_SELF,
+    ),  # FEET_ONLY_COLLISION   FULL_COLLISION_WITHOUT_SELF
     spec_fn=get_spec,
     articulation=PIKACHU_ARTICULATION,
   )

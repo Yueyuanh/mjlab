@@ -8,6 +8,27 @@ Upcoming version (not yet released)
 Added
 ^^^^^
 
+- Added ``mjlab.mocap``, a MuJoCo data-recording environment for Pikachu
+  (PD keyframe + interpolation → CSV, aligned with ``csv_to_npz.py`` input).
+  It loads the Pikachu robot on flat terrain, drives joints via position
+  actuators while guiding the floating root kinematically along the
+  interpolated keyframe path, and writes per-frame root pose (xyzw quat) +
+  14 DOF joint angles as 21-column CSV. Interpolation is configurable
+  (fps / easing / slerp). Includes a ``record_cli`` and example keyframes.
+- Added ``csv_to_npz_pikachu.py``, a Pikachu port of the G1 motion
+  ``csv_to_npz.py`` converter: same input CSV contract and ``motion.npz``
+  output schema, but loads the Pikachu robot and maps its 14 joint names
+  directly (no manual ``joint_names`` substitution). It also adds an
+  opt-in ``--wandb`` flag (upload disabled by default).
+- Added ``mjlab.mocap.preview``, an interactive viewer preview for keyframe
+  motions: it plays the interpolated trajectory in a native MuJoCo window
+  (``mujoco.viewer``) in either ``kinematic`` mode (interpolated target
+  poses) or ``pd`` mode (the same PD execution used by recording), with
+  space-to-pause and optional looping. Backed by ``MocapEnv.sync_to_mj_data``
+  which copies the latest warp state into the host ``MjData`` for rendering.
+- ``mjlab.mocap.record_cli`` now also accepts positional ``keyframes`` /
+  ``out_csv`` arguments (e.g. ``record_cli config.json out.csv --fps 30``),
+  in addition to the ``--keyframes`` / ``--out-csv`` flags.
 - Added ``uv run viewer <TASK>``, a live collision-body tuning viewer that
   opens any registered task directly (mimicking ``play`` argument parsing).
   By default the robot is suspended in the air (``--suspend-height``) with
@@ -17,6 +38,46 @@ Added
   highlights collision bodies (``*_collision`` geoms or ``group=3``), and
   exposes console commands ``list`` / ``scale`` / ``pos`` / ``color`` /
   ``r`` / ``q`` for in-memory geometry tuning.
+- ``mjlab.mocap.preview`` now overlays the whole-robot center of mass (COM)
+  and its ground projection in the viewer by default: a green dot at the
+  COM, a vertical yellow line down to the ground, and a red dot at the
+  projection point — useful for judging balance (whether the COM projection
+  stays inside the support polygon) in pure joint-angle mode. Disable with
+  ``--show-com False``.
+- Added ``mjlab.mocap.replay``, a viewer replay for **recorded** motions
+  (``replay_cli``): it loads either the ``record_cli`` CSV (21-column
+  mocap format, ``--input-fps`` required) or the ``csv_to_npz_pikachu``
+  output npz (fps read from the file) and plays the captured root pose +
+  14 DOF joints back in a native MuJoCo window in ``kinematic`` mode
+  (write the recorded trajectory directly). A ``pd`` mode is available
+  for **CSV** recordings only (approximating the recorded PD dynamics,
+  optional ``--write-root``); for ``npz`` — a purely kinematic reference
+  sequence consumed by tracking training, unrelated to dynamics — ``pd``
+  is meaningless and is forced back to ``kinematic``. Reuses the COM
+  projection overlay and space-to-pause / loop / fast interactions from
+  ``preview`` — useful to inspect recording results before training.
+
+Changed
+^^^^^^^
+
+- ``mjlab.mocap`` now drives the floating base with **pure dynamics by
+  default**. ``MocapEnv`` initializes the root from
+  ``default_root_state`` instead of the compiled ``qpos0`` (whose free-joint
+  segment left the robot embedded in the ground and flipped), and
+  ``record_to_csv`` / ``record_cli`` / ``preview`` default to
+  ``write_root=False``, so keyframe JSONs only need to specify joint angles
+  and the recorded root pose/position is the robot's real floating-base
+  dynamics response (root is free to evolve, balance or fall over).
+  ``write_root=True`` keeps the old guided mode (root kinematically pinned to
+  the interpolated path) for debugging keyframe poses or large root
+  re-orientations such as the quadruped pitch-over transition. A pure
+  joint-angle example is added at ``mocap/configs/biped_squat_stand.json``.
+- ``csv_to_npz_pikachu.py`` now writes its ``.npz`` output to the project by
+  default: ``src/mjlab/mocap/npz/{output_name}.npz`` (created on demand,
+  one file per distinct ``--output-name``) instead of a hardcoded
+  ``/tmp/motion.npz``. A new ``--output-file <path>`` flag overrides the
+  destination. This also changes the wandb artifact source: with ``--wandb``,
+  the artifact now uploads from the project ``npz`` path.
 
 Version 1.6.0 (August 8, 2026)
 ------------------------------
