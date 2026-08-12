@@ -34,6 +34,11 @@ from mjlab.utils.spec_config import CollisionCfg
 ##
 
 # Pikachu 的 MJCF 文件位于
+#
+# 本模块（pikachu_constants.py）固定使用 **capsule 碰撞体** XML。想对比
+# lite 碰撞体（原始全身碰撞体）时，用独立模块 ``pikachu_constants_lite.py``
+# （导出同名 get_pikachu_robot_cfg / PIKACHU_FOOT_GEOM_NAMES，切换只需改
+# 任务 env_cfg 的 import 来源），不要再改这里的 XML 行。
 PIKACHU_XML: Path = (
   MJLAB_SRC_PATH
   / "asset_zoo"
@@ -41,8 +46,7 @@ PIKACHU_XML: Path = (
   / "pikachu"
   / "xmls"
   / "mjcf_14dof_lite"
-  # / "Pikachu_V025_flat_14dof_lite.xml"  # 原始碰撞体
-  / "Pikachu_V025_flat_14dof_capsule.xml"  # 简化碰撞体
+  / "Pikachu_V025_flat_14dof_capsule.xml"  # 简化碰撞体（胶囊脚底）
 )
 assert PIKACHU_XML.exists()
 
@@ -274,6 +278,16 @@ QUAD_KEYFRAME = EntityCfg.InitialStateCfg(
 # 并与场景地形重叠产生双重地面。
 
 
+# 本文件（pikachu_constants.py）对应 **capsule 碰撞体** XML：
+# Pikachu_V025_flat_14dof_capsule.xml —— 脚底为 G1 风格 7 个脚趾胶囊
+# （foot1~7）。若想对比 **lite 碰撞体**（原始全身碰撞体，脚底为整块
+# ankle 网格），用 ``pikachu_constants_lite.py``（见其模块 docstring）。
+
+# 脚底碰撞 geom 正则（capsule：G1 风格脚趾胶囊，挂在 ankle body 子树内）。
+# 供任务 env_cfg 的 foot_friction 事件（``geom_friction``）按机器人资产匹配，
+# 也用于下面的碰撞配置。
+PIKACHU_FOOT_GEOM_NAMES = r"^(left|right)_foot[1-7]_collision$"
+
 # 全身碰撞：启用所有 ``.*_collision`` geom 的碰撞（含自碰撞）。
 # 脚部胶囊（foot1~7）用 condim=3（平面接触）、priority=1、friction=0.6，
 # 其余用 condim=1（点接触）、priority=0。
@@ -281,9 +295,9 @@ FULL_COLLISION = CollisionCfg(
   geom_names_expr=(".*_collision",),
   contype=1,
   conaffinity=1,
-  condim={r"^(left|right)_foot[1-7]_collision$": 3, ".*_collision": 1},
-  priority={r"^(left|right)_foot[1-7]_collision$": 1, ".*": 0},
-  friction={r"^(left|right)_foot[1-7]_collision$": (0.6,)},
+  condim={PIKACHU_FOOT_GEOM_NAMES: 3, ".*_collision": 1},
+  priority={PIKACHU_FOOT_GEOM_NAMES: 1, ".*": 0},
+  friction={PIKACHU_FOOT_GEOM_NAMES: (0.6,)},
 )
 
 
@@ -298,17 +312,17 @@ FULL_COLLISION_WITHOUT_SELF = CollisionCfg(
   contype=0,
   conaffinity=1,
   condim={
-    r"^(left|right)_foot[1-7]_collision$": 3,
+    PIKACHU_FOOT_GEOM_NAMES: 3,
     r"^(left|right)_arm_yaw_link_collision$": 3,  # 手撑地：平面接触（摩擦）
     ".*_collision": 1,
   },
   priority={
-    r"^(left|right)_foot[1-7]_collision$": 1,
+    PIKACHU_FOOT_GEOM_NAMES: 1,
     r"^(left|right)_arm_yaw_link_collision$": 1,
     ".*": 0,
   },
   friction={
-    r"^(left|right)_foot[1-7]_collision$": (0.6,),
+    PIKACHU_FOOT_GEOM_NAMES: (0.6,),
     r"^(left|right)_arm_yaw_link_collision$": (0.6,),
   },
 )
@@ -318,7 +332,7 @@ FULL_COLLISION_WITHOUT_SELF = CollisionCfg(
 # 适合平地行走训练——Pikachu 的自碰撞对已在 contact.xml 中大量排除，
 # 训练时通常只需脚-地接触。
 FEET_ONLY_COLLISION = CollisionCfg(
-  geom_names_expr=(r"^(left|right)_foot[1-7]_collision$",),
+  geom_names_expr=(PIKACHU_FOOT_GEOM_NAMES,),
   contype=1,
   conaffinity=1,
   condim=3,  # 脚底为平面接触（3 维法向 + 切向）
