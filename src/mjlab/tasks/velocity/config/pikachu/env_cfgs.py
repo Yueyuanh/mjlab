@@ -8,15 +8,26 @@
 与 G1 的主要差异（Pikachu 资产特性）：
   - 躯干 body 名是 ``base_link``（G1 是 ``torso_link``）。
   - 足部 site 是 ``left_foot`` / ``right_foot``（已加入 ankle body）。
-  - 脚底碰撞几何是 G1 风格脚部胶囊 ``left/right_foot1~7_collision``，
-    挂在 ``left_ankle_link`` / ``right_ankle_link`` body 的子树内，
-    因此脚底接触传感器用 ``subtree`` 匹配整个 ankle body。
+  - 脚底碰撞几何默认是 G1 风格脚部胶囊 ``left/right_foot1~7_collision``
+    （capsule 碰撞体），挂在 ``left_ankle_link`` / ``right_ankle_link`` body
+    的子树内，因此脚底接触传感器用 ``subtree`` 匹配整个 ankle body。
+    切到 lite 碰撞体时脚底为 ``ankle_link`` 自身网格（见下）。
   - 关节为 14 个：``hip_pitch / hip_roll / hip_yaw / knee / ankle /
     arm_pitch / arm_roll``（左右各一），没有 waist/shoulder/elbow/wrist，
     因此 pose 奖励的正则按这些关节名配置。
 """
 
-from mjlab.asset_zoo.robots import (
+# 碰撞体选择：capsule（默认，G1 风格脚趾胶囊）或 lite（原始全身碰撞体，
+# 脚底=ankle_link 网格，见 pikachu_constants_lite.py 的 docstring）。
+# 对比两种碰撞体对训练/部署的影响时，把下面 import 来源整体换成
+# ``pikachu_constants_lite``（两模块导出同名，仅脚底 geom 不同）：
+#
+#   from mjlab.asset_zoo.robots.pikachu.pikachu_constants_lite import (
+#     PIKACHU_FOOT_GEOM_NAMES,
+#     get_pikachu_robot_cfg,
+#   )
+from mjlab.asset_zoo.robots.pikachu.pikachu_constants import (
+  PIKACHU_FOOT_GEOM_NAMES,
   get_pikachu_robot_cfg,
 )
 from mjlab.envs import ManagerBasedRlEnvCfg
@@ -36,11 +47,8 @@ from mjlab.tasks.velocity import mdp
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
 
-# 足部 site 与碰撞几何名（Pikachu 资产，脚部为 G1 风格 foot1~7 胶囊）。
+# 足部 site 名（Pikachu 资产，两个碰撞体 XML 里都有 left_foot/right_foot）。
 SITE_NAMES = ("left_foot", "right_foot")
-FOOT_GEOM_NAMES = tuple(
-  f"{side}_foot{i}_collision" for side in ("left", "right") for i in range(1, 8)
-)
 # 躯干（基座）body 名。
 TORSO_BODY = "base_link"
 
@@ -140,7 +148,8 @@ def pikachu_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   twist_cmd.viz.z_offset = 0.15
 
   # 域随机化：脚底摩擦系数 + 质心偏移作用在躯干上。
-  cfg.events["foot_friction"].params["asset_cfg"].geom_names = FOOT_GEOM_NAMES
+  # 脚底 geom 从常量模块取（与机器人实体同一碰撞体）。
+  cfg.events["foot_friction"].params["asset_cfg"].geom_names = PIKACHU_FOOT_GEOM_NAMES
   cfg.events["base_com"].params["asset_cfg"].body_names = (TORSO_BODY,)
 
   # pose 奖励的关节标准差（rad）：规定各关节在站立/行走/跑步时的"放松度"。

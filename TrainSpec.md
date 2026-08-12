@@ -104,3 +104,10 @@ uv run play Mjlab-Velocity-Flat-Pikachu \
 
 uv run play Mjlab-Tracking-Flat-Pikachu-Down --checkpoint-file logs/rsl_rl/pikachu_tracking/2026-08-12_17-05-14_trail-pikachu-transition-down-test/mod
 el_499.pt  --motion-file src/mjlab/mocap/npz/Pikachu-Transition-Down.npz   --viewer viser
+
+
+# scp rsync
+
+拉到本地play
+
+rsync -avz --progress yons@192.168.0.117:/home/yons/pikachu/mjlab/logs/ /home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/4090-logs

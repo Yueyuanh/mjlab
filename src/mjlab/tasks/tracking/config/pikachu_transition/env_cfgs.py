@@ -25,7 +25,20 @@
 from typing import Literal
 
 from mjlab import MJLAB_SRC_PATH
-from mjlab.asset_zoo.robots import get_pikachu_robot_cfg
+
+# 碰撞体选择：capsule（默认，G1 风格脚趾胶囊）或 lite（原始全身碰撞体，
+# 脚底=ankle_link 网格，见 pikachu_constants_lite.py 的 docstring）。
+# 对比两种碰撞体对训练/部署的影响时，把下面 import 来源整体换成
+# ``pikachu_constants_lite``（两模块导出同名，仅脚底 geom 不同）：
+#
+#   from mjlab.asset_zoo.robots.pikachu.pikachu_constants_lite import (
+#     PIKACHU_FOOT_GEOM_NAMES,
+#     get_pikachu_robot_cfg,
+#   )
+from mjlab.asset_zoo.robots.pikachu.pikachu_constants import (
+  PIKACHU_FOOT_GEOM_NAMES,
+  get_pikachu_robot_cfg,
+)
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
@@ -66,8 +79,8 @@ EE_BODY_NAMES: tuple[str, ...] = (
   "right_arm_yaw_link",
 )
 
-# 脚底碰撞几何（Pikachu 为 G1 风格 foot1~7 胶囊，挂在 ankle body 子树内）。
-FOOT_GEOM_NAMES = r"^(left|right)_foot[1-7]_collision$"
+# 脚底碰撞几何：从常量模块导入（capsule=foot1~7 胶囊 / lite=ankle_link 网格），
+# 与上面机器人实体使用同一碰撞体，切换时只改 import 来源。
 
 # 动作缩放：与 velocity 任务的 Pikachu 配置保持一致（hip_pitch/knee 幅度更大，
 # 其余较小；见 tasks/velocity/config/pikachu/env_cfgs.py 的说明）。
@@ -131,7 +144,7 @@ def pikachu_transition_env_cfg(
     motion_cmd.motion_file = TRANSITION_UP_MOTION_FILE
 
   # 事件：脚底摩擦随机化 + 质心偏移作用在 base_link 上。
-  cfg.events["foot_friction"].params["asset_cfg"].geom_names = FOOT_GEOM_NAMES
+  cfg.events["foot_friction"].params["asset_cfg"].geom_names = PIKACHU_FOOT_GEOM_NAMES
   cfg.events["base_com"].params["asset_cfg"].body_names = (ANCHOR_BODY_NAME,)
 
   # 终止：末端（手脚）脱离参考 z 阈值提前终止。

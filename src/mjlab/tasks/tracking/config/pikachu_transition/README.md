@@ -247,6 +247,30 @@ uv run python src/mjlab/tasks/tracking/scripts/evaluate.py \
 | `terminations.ee_body_pos` | 手+脚 4 个 body | 末端脱离参考 z 提前终止 |
 | 碰撞 | `FULL_COLLISION_WITHOUT_SELF` | 手 `arm_yaw_link` condim=3+摩擦，四足撑地不打滑 |
 
+### 碰撞体切换（capsule ↔ lite）
+
+Pikachu 有两套碰撞体 XML，机器人实体与脚底摩擦随机化必须使用同一套：
+
+- **capsule（默认）**：`pikachu_constants.py` → `Pikachu_V025_flat_14dof_capsule.xml`，
+  碰撞 geom 稀疏（base/hip_roll/knee/arm_yaw），脚底为 G1 风格 foot1~7 胶囊。
+- **lite**：`pikachu_constants_lite.py` → `Pikachu_V025_flat_14dof_lite.xml`，
+  原始全身碰撞体（每个 link 一个 `_collision` geom），脚底为 `ankle_link`
+  自身网格。
+
+对比两种碰撞体对训练/部署的影响时，把本文件顶部 import 来源整体换成
+`pikachu_constants_lite`（两模块导出同名，仅脚底 geom 不同）：
+
+```python
+from mjlab.asset_zoo.robots.pikachu.pikachu_constants_lite import (
+  PIKACHU_FOOT_GEOM_NAMES,
+  get_pikachu_robot_cfg,
+)
+```
+
+改这一处即可——机器人实体（`get_pikachu_robot_cfg`）和 `foot_friction` 事件
+（`PIKACHU_FOOT_GEOM_NAMES`）会自动跟随。velocity 任务的
+`tasks/velocity/config/pikachu/env_cfgs.py` 同理。
+
 ## 与三模型架构的关系
 
 ```
