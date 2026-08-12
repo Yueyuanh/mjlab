@@ -49,6 +49,13 @@ class PlayConfig:
   viewer: Literal["auto", "native", "viser"] = "auto"
   no_terminations: bool = False
   """Disable all termination conditions (useful for viewing motions with dummy agents)."""
+  sampling_mode: Literal["adaptive", "uniform", "start"] | None = None
+  """Override the tracking motion command's sampling mode.
+
+  ``start`` fixes every episode's initial frame to reference frame 0 (useful to
+  match the training initial state). Defaults to the env cfg value (adaptive).
+  Ignored for non-tracking tasks.
+  """
   log_root: str = "logs/rsl_rl"
   """Root directory under which experiment logs are written."""
 
@@ -86,6 +93,11 @@ def run_play(task_id: str, cfg: PlayConfig):
   if is_tracking_task:
     motion_cmd = env_cfg.commands["motion"]
     assert isinstance(motion_cmd, MotionCommandCfg)
+
+    # Optionally fix the initial frame (e.g. --sampling-mode start to match the
+    # training initial state). Defaults to the env cfg value (adaptive).
+    if cfg.sampling_mode is not None:
+      motion_cmd.sampling_mode = cfg.sampling_mode
 
     # Check for local motion file first (works for both dummy and trained modes).
     if cfg.motion_file is not None and Path(cfg.motion_file).exists():

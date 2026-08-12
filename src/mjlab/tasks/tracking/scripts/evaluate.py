@@ -37,6 +37,12 @@ class EvaluateConfig:
   """W&B run path in format 'entity/project/run_id'."""
   wandb_checkpoint_name: str | None = None
   """Optional checkpoint name within the W&B run to load (e.g. 'model_4000.pt')."""
+  motion_file: str | None = None
+  """Local motion npz to evaluate against.
+
+  When set, overrides the W&B run's ``motions`` artifact (useful for runs trained
+  with a local ``--env.commands.motion.motion-file``, which have no artifact).
+  """
   num_envs: int = 1024
   """Number of parallel environments (= number of episodes to evaluate)."""
   device: str | None = None
@@ -60,13 +66,20 @@ def run_evaluate(task_id: str, cfg: EvaluateConfig) -> dict[str, float]:
   if not isinstance(motion_cmd, MotionCommandCfg):
     raise ValueError(f"Task {task_id} is not a tracking task.")
 
-  # Load motion file from W&B run.
-  api = wandb.Api()
-  run = api.run(cfg.wandb_run_path)
-  art = next((a for a in run.used_artifacts() if a.type == "motions"), None)
-  if art is None:
-    raise RuntimeError("No motion artifact found in the run.")
-  motion_cmd.motion_file = str(Path(art.download()) / "motion.npz")
+  # Load motion file: prefer a local --motion-file, else pull the W&B run's
+  # "motions" artifact (only present when training used --registry-name).
+  if cfg.motion_file is not None:
+    motion_cmd.motion_file = cfg.motion_file
+  else:
+    api = wandb.Api()
+    run = api.run(cfg.wandb_run_path)
+    art = next((a for a in run.used_artifacts() if a.type == "motions"), None)
+    if art is None:
+      raise RuntimeError(
+        "No motion artifact found in the run. Either train with --registry-name "
+        "(so the run uses a 'motions' artifact) or pass --motion-file <local.npz>."
+      )
+    motion_cmd.motion_file = str(Path(art.download()) / "motion.npz")
 
   # Evaluation config.
   motion_cmd.sampling_mode = "start"

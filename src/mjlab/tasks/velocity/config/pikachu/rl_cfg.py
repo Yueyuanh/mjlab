@@ -12,8 +12,15 @@ from mjlab.rl import (
 )
 
 
-def pikachu_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
+def pikachu_ppo_runner_cfg(
+  wandb_project: str,
+  wandb_tags: tuple[str, ...],
+) -> RslRlOnPolicyRunnerCfg:
   """Create RL runner configuration for Pikachu velocity task.
+
+  Args:
+    wandb_project: W&B project 名，按任务分开（如 ``pikachu-velocity-flat``）。
+    wandb_tags: W&B run 标签，如 ``("velocity", "flat")``。
 
   Returns:
     一个 PPO 训练配置实例。网络为 actor/critic 双 MLP（512→256→128），
@@ -53,6 +60,8 @@ def pikachu_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
     ),
     # 实验名：决定 checkpoint 与 W&B run 的目录名。
     experiment_name="pikachu_velocity",
+    wandb_project=wandb_project,
+    wandb_tags=wandb_tags,
     save_interval=50,
     num_steps_per_env=24,
     max_iterations=30_000,

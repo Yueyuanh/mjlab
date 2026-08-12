@@ -18,7 +18,10 @@ register_mjlab_task(
   task_id="Mjlab-Velocity-Rough-Pikachu",
   env_cfg=pikachu_rough_env_cfg(),
   play_env_cfg=pikachu_rough_env_cfg(play=True),
-  rl_cfg=pikachu_ppo_runner_cfg(),
+  rl_cfg=pikachu_ppo_runner_cfg(
+    wandb_project="pikachu-velocity-rough",
+    wandb_tags=("velocity", "rough"),
+  ),
   runner_cls=VelocityOnPolicyRunner,
 )
 
@@ -27,6 +30,9 @@ register_mjlab_task(
   task_id="Mjlab-Velocity-Flat-Pikachu",
   env_cfg=pikachu_flat_env_cfg(),
   play_env_cfg=pikachu_flat_env_cfg(play=True),
-  rl_cfg=pikachu_ppo_runner_cfg(),
+  rl_cfg=pikachu_ppo_runner_cfg(
+    wandb_project="pikachu-velocity-flat",
+    wandb_tags=("velocity", "flat"),
+  ),
   runner_cls=VelocityOnPolicyRunner,
 )
