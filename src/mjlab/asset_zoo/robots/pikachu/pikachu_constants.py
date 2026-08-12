@@ -224,7 +224,7 @@ BIPED_KEYFRAME = KNEES_BENT_KEYFRAME
 # ✅ 几何已验证（scripts/calibrate_quad_keyframe.py）：base 前俯 90°（水平
 # 趴地，g_b≈(+1,0,0)）+ arm_pitch ±1.2 + pos.z=0.075 时，双手/双脚同时着地、
 # 躯干离地约 3.5cm，无 body 陷地。这是"手脚四点支撑"的几何自洽初值。
-# ⚠️ TODO(手动微调): 若希望更"四足感"（躯干前俯 <90°、臀部抬高），在
+# ⚠️ (手动微调): 若希望更"四足感"（躯干前俯 <90°、臀部抬高），在
 # viewer 中手动调 rot / arm_pitch / hip_pitch / pos.z，并用校准脚本复查
 # 手脚着地 + 躯干不陷地。
 #   - 符号约定：左右关节转轴反向，left/right 值互为相反数（left 为负=向前
@@ -335,7 +335,7 @@ PIKACHU_ARTICULATION = EntityArticulationInfoCfg(
     PIKACHU_ACTUATOR_J4310,
     PIKACHU_ACTUATOR_J3507,
   ),
-  soft_joint_pos_limit_factor=0.9,  # 关节限位软边界系数（保留 10% 余量）
+  soft_joint_pos_limit_factor=1.0,  # 软限位 = 硬限位（不保留余量，避免参考动作被 clip）
 )
 
 

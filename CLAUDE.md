@@ -51,6 +51,19 @@ Added/Changed/Fixed categories. Reference issues with `:issue:\`123\``
 - PR and commit messages are rendered on GitHub, so don't hard-wrap them
   at 88 columns. Let each sentence flow on one line.
 
+# W&B experiment tracking
+
+- Every registered task must pass **distinct** `wandb_project` and `wandb_tags`
+  to its `*_ppo_runner_cfg()` factory. Name the project `<robot>-<task>-<variant>`
+  (e.g. `pikachu-transition-down`, `pikachu-velocity-flat`) and tag runs with the
+  task semantics (e.g. `("transition", "down")`). Never let multiple tasks share
+  the default `mjlab` project — otherwise their training curves mix together and
+  cannot be told apart by task.
+- These two parameters are **required** (the factory signature has no defaults), so
+  adding a new task forces an explicit value.
+- You can still override at train time with `--agent.wandb-project` /
+  `--agent.wandb-tags`.
+
 Some style guidelines to follow:
 - Line length limit is 88 columns. This applies to code, comments, and docstrings.
 - Avoid local imports unless they are strictly necessary (e.g. circular imports).
