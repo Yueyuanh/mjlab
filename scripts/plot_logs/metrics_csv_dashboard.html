@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pikachu Metrics CSV Dashboard</title>
+<script src="/echarts.min.js" charset="utf-8"
+        onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js';document.head.appendChild(s);"></script>
+<style>
+  :root {
+    --bg:#f3f5f9; --card:#fff; --ink:#17233b; --muted:#66748c;
+    --faint:#94a3b8; --line:#e2e8f1; --line2:#cfd8e6;
+    --accent:#e8590c; --accent2:#c74408; --soft:#fdece2;
+    --left:#2563eb; --right:#dc2626; --ok:#0f9d58; --err:#d93025;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --shadow:0 1px 2px rgba(23,35,59,.04),0 2px 10px rgba(23,35,59,.05);
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; min-height:100%; }
+  body {
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",
+      Arial,"PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  button,input { font:inherit; }
+  header {
+    background:linear-gradient(180deg,#fff,#fafbfd); border-bottom:1px solid var(--line);
+    padding:14px 22px; display:flex; gap:16px; align-items:center;
+    justify-content:space-between; flex-wrap:wrap;
+  }
+  .brand { display:flex; align-items:center; gap:12px; }
+  .dot { width:10px; height:10px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 4px var(--soft); }
+  .eyebrow { font:10px var(--mono); letter-spacing:.14em; color:var(--faint); margin-bottom:3px; }
+  h1 { margin:0; font-size:18px; font-weight:680; }
+  .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .btn {
+    border:1px solid var(--line2); background:#fff; color:var(--ink);
+    border-radius:8px; padding:8px 13px; cursor:pointer; font-size:13px;
+    box-shadow:var(--shadow); transition:.15s;
+  }
+  .btn:hover { background:#f7f9fc; border-color:#aebbd0; }
+  .btn:disabled { opacity:.42; cursor:not-allowed; }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn.primary:hover { background:var(--accent2); }
+  .btn.on { color:var(--accent2); border-color:var(--accent); background:var(--soft); }
+  #file-input { display:none; }
+  #status {
+    max-width:520px; padding:7px 10px; border:1px solid var(--line);
+    border-radius:7px; background:#fff; color:var(--muted); font:12px var(--mono);
+    overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+  }
+  .drop-zone {
+    margin:14px 22px 0; padding:14px 18px; border:1px dashed var(--line2);
+    border-radius:10px; background:rgba(255,255,255,.72); color:var(--muted);
+    text-align:center; font-size:13px; transition:.15s;
+  }
+  .drop-zone.drag { border-color:var(--accent); background:var(--soft); color:var(--accent2); }
+  .meta {
+    display:grid; grid-template-columns:repeat(5,minmax(130px,1fr)); gap:10px;
+    margin:14px 22px;
+  }
+  .meta-card { background:var(--card); border:1px solid var(--line); border-radius:9px; padding:10px 12px; box-shadow:var(--shadow); }
+  .meta-k { font:10px var(--mono); letter-spacing:.08em; color:var(--faint); text-transform:uppercase; }
+  .meta-v { margin-top:5px; font:13px var(--mono); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  nav {
+    position:sticky; top:0; z-index:10; display:flex; gap:6px; flex-wrap:wrap;
+    padding:8px 22px; background:rgba(243,245,249,.94); backdrop-filter:blur(6px);
+    border-block:1px solid var(--line);
+  }
+  nav button {
+    border:1px solid transparent; background:transparent; color:var(--muted);
+    border-radius:8px; padding:7px 13px; cursor:pointer; font-size:13px;
+  }
+  nav button:hover { background:#fff; border-color:var(--line); color:var(--ink); }
+  nav button.active { background:#fff; color:var(--accent2); border-color:var(--line2); box-shadow:var(--shadow); font-weight:650; }
+  .layout { display:grid; grid-template-columns:300px minmax(0,1fr); gap:14px; max-width:1600px; margin:14px auto 40px; padding:0 22px; }
+  aside,.panel { background:var(--card); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow); }
+  aside { align-self:start; position:sticky; top:58px; max-height:calc(100vh - 74px); display:flex; flex-direction:column; overflow:hidden; }
+  .aside-head { padding:14px; border-bottom:1px solid var(--line); }
+  .aside-head h2 { margin:0 0 5px; font-size:14px; }
+  .aside-head p { margin:0; color:var(--muted); font-size:11.5px; line-height:1.55; }
+  .search { margin:10px 12px 6px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; width:calc(100% - 24px); color:var(--ink); }
+  .search:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(232,89,12,.12); }
+  .quick { display:grid; grid-template-columns:repeat(2,1fr); gap:6px; padding:4px 12px 8px; }
+  .quick .btn { padding:6px 8px; box-shadow:none; }
+  #term-list { overflow:auto; padding:3px 9px 12px; }
+  .term {
+    display:flex; gap:8px; align-items:center; padding:6px 7px; margin:2px 0;
+    border:1px solid transparent; border-radius:7px; cursor:pointer; font-size:12px;
+  }
+  .term:hover { background:#f5f7fb; border-color:var(--line); }
+  .term:has(input:checked) { background:var(--soft); border-color:#f4baa0; }
+  .term input { accent-color:var(--accent); margin:0; }
+  .term-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:11px var(--mono); }
+  .tag { border-radius:99px; padding:2px 7px; font:9px var(--mono); background:#eef2f8; color:var(--muted); }
+  .tag.left { color:var(--left); background:#e8f0ff; }
+  .tag.right { color:var(--right); background:#feecec; }
+  main { min-width:0; display:flex; flex-direction:column; gap:14px; }
+  .panel { padding:14px; }
+  .panel-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:8px; flex-wrap:wrap; }
+  .panel-head h2 { margin:0 0 4px; font-size:15px; }
+  .panel-head p { margin:0; color:var(--muted); font-size:11.5px; line-height:1.55; }
+  .panel-actions { display:flex; gap:7px; flex-wrap:wrap; }
+  #overview { height:600px; }
+  #pair-section[hidden] { display:none; }
+  .pair-grid { display:grid; grid-template-columns:1fr; gap:10px; }
+  .pair-card { height:280px; border:1px solid var(--line); border-radius:8px; background:#fff; }
+  .range-row { display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:center; }
+  .range-label { font:11px var(--mono); color:var(--muted); white-space:nowrap; }
+  .range-stack { position:relative; height:26px; }
+  .range-stack input {
+    position:absolute; inset:0; width:100%; margin:0; pointer-events:none;
+    appearance:none; background:transparent;
+  }
+  .range-stack input::-webkit-slider-thumb {
+    appearance:none; width:16px; height:16px; border-radius:50%; background:#fff;
+    border:2px solid var(--accent); box-shadow:0 1px 4px rgba(23,35,59,.25); pointer-events:auto; cursor:ew-resize;
+  }
+  .range-stack input::-moz-range-thumb {
+    width:14px; height:14px; border-radius:50%; background:#fff;
+    border:2px solid var(--accent); pointer-events:auto; cursor:ew-resize;
+  }
+  .range-track { position:absolute; left:0; right:0; top:10px; height:6px; border-radius:99px; background:var(--line2); }
+  .range-fill { position:absolute; top:10px; height:6px; border-radius:99px; background:var(--accent); opacity:.45; }
+  .table-wrap { overflow:auto; max-height:560px; border:1px solid var(--line); border-radius:8px; }
+  table { width:100%; border-collapse:collapse; font-size:11px; }
+  th,td { padding:7px 9px; border-bottom:1px solid var(--line); text-align:right; white-space:nowrap; font-family:var(--mono); }
+  th { position:sticky; top:0; background:#f7f9fc; color:var(--muted); z-index:2; }
+  th:first-child,td:first-child { text-align:left; }
+  tr:hover td { background:#f7f9fc; }
+  .empty { padding:70px 20px; text-align:center; color:var(--faint); }
+  footer { text-align:center; color:var(--faint); font-size:11px; padding:12px 20px 36px; }
+  @media(max-width:900px) {
+    .meta { grid-template-columns:repeat(2,1fr); }
+    .layout { grid-template-columns:1fr; }
+    aside { position:static; max-height:420px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="dot"></span>
+    <div><div class="eyebrow">SIMULATION TELEMETRY · CSV INSPECTOR</div><h1>Pikachu Metrics 数据分析</h1></div>
+  </div>
+  <div class="actions">
+    <input id="file-input" type="file" accept=".csv,text/csv">
+    <button class="btn primary" onclick="document.getElementById('file-input').click()">加载 CSV</button>
+    <button class="btn" id="save-overview" onclick="saveOverviewPng()" disabled>保存当前总览 PNG</button>
+    <button class="btn" id="save-pairs" onclick="savePairsPng()" disabled>保存左右 1×7 PNG</button>
+    <button class="btn" id="save-csv" onclick="saveSelectedCsv()" disabled>保存所选数据 CSV</button>
+    <span id="status">请选择 Viser Metrics 录制的 CSV</span>
+  </div>
+</header>
+
+<div id="drop-zone" class="drop-zone">拖放 CSV 到这里，或点击“加载 CSV”。文件仅在当前浏览器中解析，不会上传。</div>
+
+<div class="meta">
+  <div class="meta-card"><div class="meta-k">File</div><div class="meta-v" id="m-file">—</div></div>
+  <div class="meta-card"><div class="meta-k">Network</div><div class="meta-v" id="m-network">—</div></div>
+  <div class="meta-card"><div class="meta-k">Samples</div><div class="meta-v" id="m-samples">—</div></div>
+  <div class="meta-card"><div class="meta-k">Duration</div><div class="meta-v" id="m-duration">—</div></div>
+  <div class="meta-card"><div class="meta-k">Environments</div><div class="meta-v" id="m-envs">—</div></div>
+</div>
+
+<nav id="tabs"><button class="active">等待数据</button></nav>
+
+<div class="layout">
+  <aside>
+    <div class="aside-head">
+      <h2>曲线选择</h2>
+      <p>按 CSV 列名自动分类。勾选决定网页曲线、图片导出和筛选 CSV 的字段。</p>
+    </div>
+    <input id="search" class="search" placeholder="搜索关节或指标…" oninput="renderTermList()">
+    <div class="quick">
+      <button class="btn" onclick="selectTerms('all')">全选</button>
+      <button class="btn" onclick="selectTerms('none')">全不选</button>
+      <button class="btn" onclick="selectTerms('left')">仅左侧</button>
+      <button class="btn" onclick="selectTerms('right')">仅右侧</button>
+    </div>
+    <div id="term-list"><div class="empty">加载 CSV 后显示字段</div></div>
+  </aside>
+
+  <main>
+    <div class="panel">
+      <div class="panel-head">
+        <div><h2>数据区间</h2><p>同步控制总览、左右对比、统计和导出 CSV；图内仍可滚轮缩放。</p></div>
+        <button class="btn" onclick="resetRange()">恢复全量</button>
+      </div>
+      <div class="range-row">
+        <span class="range-label" id="range-start">—</span>
+        <div class="range-stack">
+          <div class="range-track"></div><div class="range-fill" id="range-fill"></div>
+          <input id="range-min" type="range" min="0" max="100" step=".1" value="0" oninput="onRangeChange()">
+          <input id="range-max" type="range" min="0" max="100" step=".1" value="100" oninput="onRangeChange()">
+        </div>
+        <span class="range-label" id="range-end">—</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div><h2 id="overview-title">分类总览</h2><p>同类型所选信号叠加；左侧为实线，右侧为虚线。支持框选、滚轮缩放和悬停读取。</p></div>
+      </div>
+      <div id="overview"><div class="empty">加载 CSV 后显示曲线</div></div>
+    </div>
+
+    <div class="panel" id="pair-section" hidden>
+      <div class="panel-head">
+        <div><h2>左右同名关节对比（1列×7行）</h2><p>蓝色为左侧，红色为右侧；即使字段缺失也保留固定七行，便于逐关节排查。</p></div>
+      </div>
+      <div id="pair-grid" class="pair-grid"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div><h2>统计摘要</h2><p>基于当前时间区间和所选字段，重点展示峰值、RMS 与绝对值 P95。</p></div>
+      </div>
+      <div class="table-wrap" id="stats"><div class="empty">暂无统计数据</div></div>
+    </div>
+  </main>
+</div>
+<footer>建议通过 <code>python -m http.server 8000 -d scripts/plot_logs</code> 打开；直接双击也可读取本地 CSV。</footer>
+
+<script>
+const META_COLUMNS = new Set(['sample','sim_step','time_s','env_idx','network']);
+const JOINT_GROUPS = {
+  joint_position:{prefix:'joint_position_rad/', label:'关节位置', unit:'rad'},
+  joint_velocity:{prefix:'joint_velocity_rad_s/', label:'关节速度', unit:'rad/s'},
+  joint_torque:{prefix:'joint_torque_nm/', label:'关节扭矩', unit:'N·m'},
+};
+const PAIRS = ['hip_pitch','hip_roll','hip_yaw','knee','ankle','arm_pitch','arm_roll'];
+const CATEGORY_ORDER = ['joint_position','joint_velocity','joint_torque','base','foot','command','reward','contact','other'];
+const METRIC_COLORS = ['#2563eb','#0891b2','#7c3aed','#059669','#4f46e5','#0284c7','#0d9488',
+                       '#dc2626','#ea580c','#db2777','#c026d3','#e11d48','#d97706','#b91c1c'];
+const MAX_RENDER_POINTS = 6000;
+
+let DATA = null;
+let FILE_NAME = '';
+let TERM_META = {};
+let CATEGORIES = {};
+let ACTIVE = '';
+let SELECTED = new Set();
+let OVERVIEW = null;
+let PAIR_CHARTS = [];
+let RANGE = [0,100];
+
+function waitEcharts(){
+  if(window.echarts) return Promise.resolve();
+  return new Promise((resolve,reject)=>{
+    let n=0; const timer=setInterval(()=>{
+      if(window.echarts){ clearInterval(timer); resolve(); }
+      else if(++n>100){ clearInterval(timer); reject(new Error('ECharts 加载失败，请检查网络或放置 /echarts.min.js')); }
+    },100);
+  });
+}
+
+function setStatus(text,error=false){
+  const el=document.getElementById('status');
+  el.textContent=text; el.style.color=error?'var(--err)':'var(--muted)';
+}
+
+function parseCsv(text){
+  const rows=[]; let row=[]; let field=''; let quoted=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(quoted){
+      if(c==='"' && text[i+1]==='"'){ field+='"'; i++; }
+      else if(c==='"'){ quoted=false; }
+      else field+=c;
+    }else if(c==='"'){ quoted=true;
+    }else if(c===','){ row.push(field); field='';
+    }else if(c==='\n'){ row.push(field); rows.push(row); row=[]; field='';
+    }else if(c!=='\r'){ field+=c; }
+  }
+  if(field.length || row.length){ row.push(field); rows.push(row); }
+  if(!rows.length) throw new Error('CSV 为空');
+  const headers=rows[0].map((v,i)=>(i===0?v.replace(/^\uFEFF/,''):v).trim());
+  if(!headers.includes('time_s')) throw new Error('CSV 缺少 time_s 列');
+  const columns=Object.fromEntries(headers.map(h=>[h,[]]));
+  for(let r=1;r<rows.length;r++){
+    if(rows[r].length===1 && rows[r][0]==='') continue;
+    for(let c=0;c<headers.length;c++) columns[headers[c]].push(rows[r][c]??'');
+  }
+  const time=columns.time_s.map(Number);
+  if(!time.length || time.some(v=>!Number.isFinite(v))) throw new Error('time_s 含空值或非数字');
+  for(let i=1;i<time.length;i++) if(time[i]<time[i-1]) throw new Error('time_s 必须单调递增');
+  const values={};
+  for(const h of headers){
+    if(META_COLUMNS.has(h)) continue;
+    const nums=columns[h].map(v=>v===''?NaN:Number(v));
+    if(nums.some(Number.isFinite)) values[h]=nums;
+  }
+  if(!Object.keys(values).length) throw new Error('CSV 中没有可绘制的数值 Metrics 列');
+  return {headers,columns,time,values};
+}
+
+function classifyTerm(name){
+  for(const [key,cfg] of Object.entries(JOINT_GROUPS)){
+    if(!name.startsWith(cfg.prefix)) continue;
+    const joint=name.slice(cfg.prefix.length);
+    const m=joint.match(/^(left|right)_(.+)_joint$/);
+    return {category:key, side:m?m[1]:'', joint:m?m[2]:joint, label:joint};
+  }
+  const low=name.toLowerCase();
+  for(const key of ['base','foot','command','reward','contact']){
+    if(low.startsWith(key+'_') || low.startsWith(key+'/') || low.includes('/'+key+'_'))
+      return {category:key,side:'',joint:'',label:name};
+  }
+  const slash=name.indexOf('/');
+  const dynamic=slash>0?name.slice(0,slash).replace(/[^a-zA-Z0-9_-]/g,'_'):'other';
+  return {category:dynamic||'other',side:'',joint:'',label:name};
+}
+
+function categoryLabel(key){
+  if(JOINT_GROUPS[key]) return JOINT_GROUPS[key].label;
+  const labels={base:'机体状态',foot:'足部状态',command:'指令',reward:'奖励',contact:'接触',other:'其他'};
+  return labels[key]||key;
+}
+
+function buildTaxonomy(){
+  TERM_META={}; CATEGORIES={};
+  for(const name of Object.keys(DATA.values)){
+    const meta=classifyTerm(name); TERM_META[name]=meta;
+    (CATEGORIES[meta.category]??=[]).push(name);
+  }
+  for(const terms of Object.values(CATEGORIES)){
+    terms.sort((a,b)=>{
+      const ma=TERM_META[a], mb=TERM_META[b];
+      const sa=ma.side==='left'?0:ma.side==='right'?1:2;
+      const sb=mb.side==='left'?0:mb.side==='right'?1:2;
+      const ja=PAIRS.indexOf(ma.joint), jb=PAIRS.indexOf(mb.joint);
+      return sa-sb || (ja<0?99:ja)-(jb<0?99:jb) || a.localeCompare(b);
+    });
+  }
+}
+
+function orderedCategories(){
+  return Object.keys(CATEGORIES).sort((a,b)=>{
+    const ia=CATEGORY_ORDER.indexOf(a), ib=CATEGORY_ORDER.indexOf(b);
+    return (ia<0?99:ia)-(ib<0?99:ib)||a.localeCompare(b);
+  });
+}
+
+async function loadFile(file){
+  try{
+    setStatus('正在解析 '+file.name+'…');
+    await waitEcharts();
+    DATA=parseCsv(await file.text()); FILE_NAME=file.name; buildTaxonomy();
+    SELECTED=new Set(Object.keys(DATA.values)); ACTIVE=orderedCategories()[0]; RANGE=[0,100];
+    document.getElementById('m-file').textContent=file.name;
+    document.getElementById('m-network').textContent=DATA.columns.network?.find(Boolean)||'unknown';
+    document.getElementById('m-samples').textContent=DATA.time.length.toLocaleString();
+    document.getElementById('m-duration').textContent=(DATA.time.at(-1)-DATA.time[0]).toFixed(3)+' s';
+    document.getElementById('m-envs').textContent=new Set(DATA.columns.env_idx||[]).size||'—';
+    for(const id of ['save-overview','save-csv']) document.getElementById(id).disabled=false;
+    renderTabs(); renderTermList(); resetRange(); renderAll();
+    setStatus('已加载 '+file.name+' · '+Object.keys(DATA.values).length+' 条曲线');
+  }catch(err){ setStatus(err.message||String(err),true); }
+}
+
+document.getElementById('file-input').addEventListener('change',e=>{
+  if(e.target.files?.[0]) loadFile(e.target.files[0]);
+});
+const drop=document.getElementById('drop-zone');
+for(const ev of ['dragenter','dragover']) drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag');});
+for(const ev of ['dragleave','drop']) drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag');});
+drop.addEventListener('drop',e=>{const f=e.dataTransfer.files?.[0];if(f)loadFile(f);});
+
+function renderTabs(){
+  const nav=document.getElementById('tabs'); nav.innerHTML='';
+  for(const key of orderedCategories()){
+    const b=document.createElement('button'); b.textContent=categoryLabel(key)+' · '+CATEGORIES[key].length;
+    b.className=key===ACTIVE?'active':''; b.onclick=()=>{ACTIVE=key;renderTabs();renderTermList();renderAll();};
+    nav.appendChild(b);
+  }
+}
+
+function renderTermList(){
+  const root=document.getElementById('term-list');
+  if(!DATA){ root.innerHTML='<div class="empty">加载 CSV 后显示字段</div>'; return; }
+  const q=document.getElementById('search').value.trim().toLowerCase();
+  root.innerHTML='';
+  for(const name of CATEGORIES[ACTIVE].filter(n=>n.toLowerCase().includes(q))){
+    const meta=TERM_META[name], label=document.createElement('label'); label.className='term';
+    const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=SELECTED.has(name);
+    cb.onchange=()=>{cb.checked?SELECTED.add(name):SELECTED.delete(name);renderAll();};
+    const text=document.createElement('span'); text.className='term-name'; text.textContent=name; text.title=name;
+    const tag=document.createElement('span'); tag.className='tag '+meta.side; tag.textContent=meta.side||meta.category;
+    label.append(cb,text,tag); root.appendChild(label);
+  }
+  if(!root.children.length) root.innerHTML='<div class="empty">没有匹配字段</div>';
+}
+
+function selectTerms(mode){
+  if(!DATA) return;
+  for(const name of CATEGORIES[ACTIVE]){
+    const side=TERM_META[name].side;
+    if(mode==='all' || mode===side) SELECTED.add(name);
+    else if(mode==='none' || mode==='left' || mode==='right') SELECTED.delete(name);
+  }
+  renderTermList(); renderAll();
+}
+
+function rangeIndices(){
+  if(!DATA) return [0,0];
+  const n=DATA.time.length;
+  return [Math.floor(RANGE[0]/100*(n-1)), Math.max(1,Math.ceil(RANGE[1]/100*(n-1))+1)];
+}
+
+function sampledData(name){
+  const [start,end]=rangeIndices(), count=end-start, stride=Math.max(1,Math.ceil(count/MAX_RENDER_POINTS));
+  const out=[]; for(let i=start;i<end;i+=stride) out.push([DATA.time[i],DATA.values[name][i]]);
+  if(end-1>=start && out.at(-1)?.[0]!==DATA.time[end-1]) out.push([DATA.time[end-1],DATA.values[name][end-1]]);
+  return out;
+}
+
+function seriesColor(name,index){
+  const meta=TERM_META[name], base=METRIC_COLORS[index%METRIC_COLORS.length];
+  if(meta.side==='left') return METRIC_COLORS[PAIRS.indexOf(meta.joint)%7];
+  if(meta.side==='right') return METRIC_COLORS[7+(PAIRS.indexOf(meta.joint)%7)];
+  return base;
+}
+
+function shortName(name){
+  const m=TERM_META[name];
+  return m.side?m.side[0].toUpperCase()+' '+m.joint:name;
+}
+
+function overviewOption(names,exporting=false){
+  const unit=JOINT_GROUPS[ACTIVE]?.unit||'value';
+  return {
+    animation:false, backgroundColor:'#fff',
+    title:exporting?{text:categoryLabel(ACTIVE)+' · '+FILE_NAME,subtext:'Network: '+(DATA.columns.network?.find(Boolean)||'unknown'),left:'center'}:undefined,
+    grid:{left:75,right:35,top:exporting?100:45,bottom:85},
+    tooltip:{trigger:'axis',axisPointer:{type:'cross'}},
+    legend:{type:'scroll',top:exporting?58:4,left:20,right:20},
+    toolbox:exporting?undefined:{right:15,feature:{dataZoom:{},restore:{},saveAsImage:{name:'metrics_'+ACTIVE,pixelRatio:2}}},
+    xAxis:{type:'value',name:'Time (s)',nameLocation:'middle',nameGap:32,scale:true},
+    yAxis:{type:'value',name:unit,scale:true},
+    dataZoom:[{type:'inside',filterMode:'none'},{type:'slider',bottom:20,height:22,filterMode:'none'}],
+    series:names.map((name,i)=>({
+      name:shortName(name), type:'line', data:sampledData(name), showSymbol:false,
+      connectNulls:false, sampling:'lttb', lineStyle:{width:1.6,type:TERM_META[name].side==='right'?'dashed':'solid'},
+      itemStyle:{color:seriesColor(name,i)}, emphasis:{focus:'series'}, large:true,
+    })),
+  };
+}
+
+function renderOverview(){
+  const el=document.getElementById('overview');
+  if(OVERVIEW){OVERVIEW.dispose();OVERVIEW=null;}
+  el.innerHTML=''; OVERVIEW=echarts.init(el,null,{renderer:'canvas'});
+  const names=CATEGORIES[ACTIVE].filter(n=>SELECTED.has(n));
+  document.getElementById('overview-title').textContent=categoryLabel(ACTIVE)+' · 分类总览';
+  OVERVIEW.setOption(overviewOption(names));
+}
+
+function pairedTerm(side,joint){
+  return CATEGORIES[ACTIVE].find(n=>TERM_META[n].side===side&&TERM_META[n].joint===joint);
+}
+
+function disposePairs(){ for(const c of PAIR_CHARTS)c.dispose(); PAIR_CHARTS=[]; }
+function renderPairs(){
+  disposePairs();
+  const jointCategory=Boolean(JOINT_GROUPS[ACTIVE]), section=document.getElementById('pair-section');
+  document.getElementById('save-pairs').disabled=!jointCategory;
+  section.hidden=!jointCategory; if(!jointCategory)return;
+  const root=document.getElementById('pair-grid');root.innerHTML='';
+  for(const joint of PAIRS){
+    const div=document.createElement('div');div.className='pair-card';root.appendChild(div);
+    const chart=echarts.init(div), series=[];
+    for(const [side,color] of [['left','#2563eb'],['right','#dc2626']]){
+      const name=pairedTerm(side,joint);
+      if(name&&SELECTED.has(name)) series.push({name:side==='left'?'Left':'Right',type:'line',data:sampledData(name),showSymbol:false,lineStyle:{width:1.7},itemStyle:{color}});
+    }
+    chart.setOption({
+      animation:false,title:{text:joint,left:12,top:6,textStyle:{fontSize:13}},
+      grid:{left:70,right:25,top:45,bottom:55},tooltip:{trigger:'axis'},
+      legend:{top:8,right:20},xAxis:{type:'value',name:'Time (s)',scale:true},
+      yAxis:{type:'value',name:JOINT_GROUPS[ACTIVE].unit,scale:true},
+      dataZoom:[{type:'inside',filterMode:'none'}],series,
+    });
+    PAIR_CHARTS.push(chart);
+  }
+}
+
+function statsFor(values,start,end){
+  const a=[]; for(let i=start;i<end;i++)if(Number.isFinite(values[i]))a.push(values[i]);
+  if(!a.length)return null;
+  let min=Infinity,max=-Infinity,sum=0,sumSq=0,peak=0;
+  for(const v of a){min=Math.min(min,v);max=Math.max(max,v);sum+=v;sumSq+=v*v;peak=Math.max(peak,Math.abs(v));}
+  const abs=a.map(Math.abs).sort((x,y)=>x-y), p95=abs[Math.min(abs.length-1,Math.floor(.95*(abs.length-1)))];
+  return {n:a.length,min,max,mean:sum/a.length,rms:Math.sqrt(sumSq/a.length),peak,p95};
+}
+
+function fmt(v){return Number.isFinite(v)?v.toPrecision(6):'—';}
+function renderStats(){
+  const root=document.getElementById('stats'),[start,end]=rangeIndices();
+  const rows=CATEGORIES[ACTIVE].filter(n=>SELECTED.has(n)).map(n=>[n,statsFor(DATA.values[n],start,end)]).filter(x=>x[1]);
+  if(!rows.length){root.innerHTML='<div class="empty">当前分类没有已选数据</div>';return;}
+  root.innerHTML='<table><thead><tr><th>Metric</th><th>N</th><th>Min</th><th>Max</th><th>Mean</th><th>RMS</th><th>Peak |x|</th><th>P95 |x|</th></tr></thead><tbody>'+
+    rows.map(([n,s])=>`<tr><td title="${n}">${n}</td><td>${s.n}</td><td>${fmt(s.min)}</td><td>${fmt(s.max)}</td><td>${fmt(s.mean)}</td><td>${fmt(s.rms)}</td><td>${fmt(s.peak)}</td><td>${fmt(s.p95)}</td></tr>`).join('')+
+    '</tbody></table>';
+}
+
+function renderAll(){
+  if(!DATA||!window.echarts)return;
+  renderOverview();renderPairs();renderStats();
+}
+
+function onRangeChange(){
+  let a=Number(document.getElementById('range-min').value),b=Number(document.getElementById('range-max').value);
+  if(a>b)[a,b]=[b,a]; RANGE=[a,b];
+  const [start,end]=rangeIndices(),fill=document.getElementById('range-fill');
+  fill.style.left=a+'%';fill.style.width=(b-a)+'%';
+  document.getElementById('range-start').textContent=DATA?DATA.time[start].toFixed(3)+' s':'—';
+  document.getElementById('range-end').textContent=DATA?DATA.time[Math.max(start,end-1)].toFixed(3)+' s':'—';
+  renderAll();
+}
+function resetRange(){
+  RANGE=[0,100];document.getElementById('range-min').value=0;document.getElementById('range-max').value=100;onRangeChange();
+}
+
+function downloadUrl(url,name){const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function downloadBlob(blob,name){downloadUrl(URL.createObjectURL(blob),name);}
+function safeStem(){return FILE_NAME.replace(/\.csv$/i,'').replace(/[^\w.-]+/g,'-')||'metrics';}
+
+function saveOverviewPng(){
+  if(!DATA)return;
+  const names=CATEGORIES[ACTIVE].filter(n=>SELECTED.has(n));
+  if(!names.length){setStatus('请先勾选至少一条当前分类曲线',true);return;}
+  exportOffscreen(1920,1080,overviewOption(names,true),safeStem()+'_'+ACTIVE+'_overview.png');
+}
+
+function pairExportOption(){
+  const grids=[],xAxis=[],yAxis=[],series=[],titles=[];
+  const top0=4,gap=13.4,height=10.8;
+  PAIRS.forEach((joint,row)=>{
+    grids.push({left:115,right:45,top:(top0+row*gap)+'%',height:height+'%'});
+    xAxis.push({type:'value',gridIndex:row,name:row===6?'Time (s)':'',axisLabel:{show:row===6},scale:true});
+    yAxis.push({type:'value',gridIndex:row,name:JOINT_GROUPS[ACTIVE].unit,scale:true});
+    titles.push({text:joint,left:16,top:(top0+row*gap+3)+'%',textStyle:{fontSize:14}});
+    for(const [side,color] of [['left','#2563eb'],['right','#dc2626']]){
+      const name=pairedTerm(side,joint);
+      if(name&&SELECTED.has(name))series.push({name:(side==='left'?'Left ':'Right ')+joint,type:'line',xAxisIndex:row,yAxisIndex:row,data:sampledData(name),showSymbol:false,lineStyle:{width:1.7},itemStyle:{color}});
+    }
+  });
+  return {animation:false,backgroundColor:'#fff',title:titles,grid:grids,xAxis,yAxis,series,tooltip:{trigger:'axis'},legend:{show:false}};
+}
+function savePairsPng(){
+  if(!DATA||!JOINT_GROUPS[ACTIVE])return;
+  exportOffscreen(1920,3780,pairExportOption(),safeStem()+'_'+ACTIVE+'_left_right_1x7.png');
+}
+
+function exportOffscreen(width,height,option,name){
+  const div=document.createElement('div');Object.assign(div.style,{position:'fixed',left:'-10000px',top:'0',width:width+'px',height:height+'px'});
+  document.body.appendChild(div);const chart=echarts.init(div,null,{renderer:'canvas',width,height});
+  chart.setOption(option);requestAnimationFrame(()=>{
+    const url=chart.getDataURL({type:'png',pixelRatio:1,backgroundColor:'#fff'});
+    downloadUrl(url,name);chart.dispose();div.remove();setStatus('已生成 '+name);
+  });
+}
+
+function csvEscape(v){const s=String(v??'');return /[",\r\n]/.test(s)?'"'+s.replaceAll('"','""')+'"':s;}
+function saveSelectedCsv(){
+  if(!DATA)return;
+  const selected=Object.keys(DATA.values).filter(n=>SELECTED.has(n));
+  if(!selected.length){setStatus('请至少勾选一条曲线',true);return;}
+  const metadata=DATA.headers.filter(h=>META_COLUMNS.has(h)),headers=[...metadata,...selected],[start,end]=rangeIndices();
+  const lines=[headers.map(csvEscape).join(',')];
+  for(let i=start;i<end;i++)lines.push(headers.map(h=>csvEscape(DATA.columns[h]?.[i]??DATA.values[h]?.[i]??'')).join(','));
+  downloadBlob(new Blob([lines.join('\n')+'\n'],{type:'text/csv;charset=utf-8'}),safeStem()+'_'+ACTIVE+'_selected.csv');
+  setStatus('已导出 '+selected.length+' 个字段、'+(end-start)+' 行');
+}
+
+window.addEventListener('resize',()=>{
+  OVERVIEW?.resize();for(const c of PAIR_CHARTS)c.resize();
+});
+</script>
+</body>
+</html>
