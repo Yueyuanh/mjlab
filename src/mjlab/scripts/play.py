@@ -299,10 +299,28 @@ def run_play(task_id: str, cfg: PlayConfig):
   else:
     resolved_viewer = cfg.viewer
 
+  metrics_output_dir = log_dir or (
+    Path(cfg.log_root) / agent_cfg.experiment_name
+  ).resolve()
+
+  def metrics_source_name() -> str:
+    checkpoint_name = (
+      ckpt_manager.current_name
+      if ckpt_manager is not None
+      else (resume_path.name if resume_path is not None else cfg.agent)
+    )
+    return f"{task_id}__{Path(checkpoint_name).stem}"
+
   if resolved_viewer == "native":
     NativeMujocoViewer(env, policy).run()
   elif resolved_viewer == "viser":
-    ViserPlayViewer(env, policy, checkpoint_manager=ckpt_manager).run()
+    ViserPlayViewer(
+      env,
+      policy,
+      checkpoint_manager=ckpt_manager,
+      metrics_output_dir=metrics_output_dir,
+      metrics_source_name=metrics_source_name,
+    ).run()
   else:
     raise RuntimeError(f"Unsupported viewer backend: {resolved_viewer}")
 

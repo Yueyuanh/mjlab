@@ -102,10 +102,24 @@ uv run play Mjlab-Velocity-Flat-Pikachu \
     --checkpoint-file logs/rsl_rl/pikachu_velocity/2026-08-11_12-37-14_trial-hip-pitch-3507/model_4999.pt \
     --viewer viser
 
+# 所有 Pikachu 任务的 Viser Metrics 页都可逐关节勾选实时曲线，也可用
+# Joint plots 下的 Position / Velocity / Torque 一键显示同类信号。单位分别为
+# rad、rad/s、N·m；TensorBoard 的 Episode_Metrics 记录每回合最大绝对值。
+# CSV data 中先勾选曲线，再点 Record selected / Stop & save；CSV 默认保存在
+# checkpoint 所在目录。Saved CSV + Open saved CSV 可直接打开服务器文件，
+# Upload CSV 可从当前浏览器选文件，Return to live 恢复实时曲线。
+# 加载 CSV 后可勾选需要的曲线并点 Save selected plots + comparisons。图片保存到
+# CSV 同级的 images/<CSV文件名>/，关节数据再按 joint_position / joint_velocity /
+# joint_torque 和 left / right 分类；同时生成单侧总览、同类型总览和 1列×7行左右对比图。
+# 独立 CSV 分析页：scripts/plot_logs/metrics_csv_dashboard.html
+# 推荐启动：python -m http.server 8000 -d scripts/plot_logs
+# 然后打开：http://localhost:8000/metrics_csv_dashboard.html
+
 uv run play Mjlab-Tracking-Flat-Pikachu-Down --checkpoint-file logs/rsl_rl/pikachu_tracking/2026-08-12_17-05-14_trail-pikachu-transition-down-test/mod
 el_499.pt  --motion-file src/mjlab/mocap/npz/Pikachu-Transition-Down.npz   --viewer viser
 
 
+uv run play Mjlab-Tracking-Flat-Pikachu-Up --checkpoint-file logs/rsl_rl/pikachu_tracking/2026-08-12_17-05-14_trail-pikachu-transition-up-test/model_499.pt  --motion-file src/mjlab/mocap/npz/Pikachu-Transition-Up.npz   --viewer viser
 # scp rsync
 
 拉到本地play

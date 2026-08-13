@@ -43,6 +43,7 @@ from mjlab.sensor import (
   RingPatternCfg,
   TerrainHeightSensorCfg,
 )
+from mjlab.tasks.pikachu_metrics import add_pikachu_telemetry_metrics
 from mjlab.tasks.velocity import mdp
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
@@ -146,6 +147,28 @@ def pikachu_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   twist_cmd = cfg.commands["twist"]
   assert isinstance(twist_cmd, UniformVelocityCommandCfg)
   twist_cmd.viz.z_offset = 0.15
+  # Pikachu 腿长约 0.16 m，2~3 m/s 的课程会逼迫策略进入跑跳步态。
+  # 前进、后退、侧向各分配 25% 的纯方向样本，剩余 25% 学习混合指令。
+  twist_cmd.rel_forward_envs = 0.25
+  twist_cmd.rel_backward_envs = 0.25
+  twist_cmd.rel_lateral_envs = 0.25
+  twist_cmd.ranges.lin_vel_x = (-0.4, 0.5)
+  twist_cmd.ranges.lin_vel_y = (-0.35, 0.35)
+  twist_cmd.ranges.ang_vel_z = (-0.3, 0.3)
+  cfg.curriculum["command_vel"].params["velocity_stages"] = [
+    {
+      "step": 0,
+      "lin_vel_x": (-0.4, 0.5),
+      "lin_vel_y": (-0.35, 0.35),
+      "ang_vel_z": (-0.3, 0.3),
+    },
+    {
+      "step": 2000 * 24,
+      "lin_vel_x": (-0.6, 0.8),
+      "lin_vel_y": (-0.5, 0.5),
+      "ang_vel_z": (-0.5, 0.5),
+    },
+  ]
 
   # 域随机化：脚底摩擦系数 + 质心偏移作用在躯干上。
   # 脚底 geom 从常量模块取（与机器人实体同一碰撞体）。
@@ -161,11 +184,11 @@ def pikachu_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # 跑步（running）约为行走（walking）的 1.5~2 倍，以适应更大动作幅度。
   cfg.rewards["pose"].params["std_standing"] = {".*": 0.05}
   cfg.rewards["pose"].params["std_walking"] = {
-    r".*hip_pitch.*": 0.3,
+    r".*hip_pitch.*": 0.4,
     r".*hip_roll.*": 0.15,
     r".*hip_yaw.*": 0.15,
-    r".*knee.*": 0.35,
-    r".*ankle.*": 0.25,
+    r".*knee.*": 0.5,
+    r".*ankle.*": 0.35,
     r".*arm_pitch.*": 0.15,
     r".*arm_roll.*": 0.15,
   }
@@ -178,6 +201,7 @@ def pikachu_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     r".*arm_pitch.*": 0.3,
     r".*arm_roll.*": 0.2,
   }
+  cfg.rewards["pose"].params["running_threshold"] = 2.0
 
   # 躯干直立、躯干角速度惩罚作用在 base_link 上。
   cfg.rewards["upright"].params["asset_cfg"].body_names = (TORSO_BODY,)
@@ -187,14 +211,57 @@ def pikachu_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   for reward_name in ["foot_clearance", "foot_slip"]:
     cfg.rewards[reward_name].params["asset_cfg"].site_names = SITE_NAMES
 
-  # 奖励权重：轻微抑制躯干旋转与角动量。
-  # air_time 设为 1.0：激励抬脚迈步（配合 command_threshold=0.5 门控，
-  # 只在指令速度 >0.5 m/s 时生效，站立时不会诱导跳跃）。
-  # 上一轮（trial-02）air_time=0 且 action scale 过小，策略学会"站着转"
-  # 的局部最优；放宽动作幅度后配合 air_time 正奖励，引导它真正抬脚前进。
+  # 奖励权重：奖励有支撑脚时的交替落脚，显式抑制双脚腾空和躯干弹跳。
+  # 原逐帧 air_time 奖励可在双脚同时悬空时持续累积，是跳跃步态的捷径。
   cfg.rewards["body_ang_vel"].weight = -0.05
   cfg.rewards["angular_momentum"].weight = -0.02
-  cfg.rewards["air_time"].weight = 1.0
+  cfg.rewards["air_time"] = RewardTermCfg(
+    func=mdp.alternating_feet_air_time,
+    weight=3.0,
+    params={
+      "sensor_name": feet_ground_cfg.name,
+      "target_air_time": 0.22,
+      "std": 0.08,
+      "command_name": "twist",
+      "command_threshold": 0.15,
+    },
+  )
+  cfg.rewards["flight"] = RewardTermCfg(
+    func=mdp.feet_flight_time,
+    weight=-2.0,
+    params={
+      "sensor_name": feet_ground_cfg.name,
+      "grace_period": 0.04,
+      "command_name": "twist",
+      "command_threshold": 0.15,
+    },
+  )
+  cfg.rewards["base_vertical_velocity"] = RewardTermCfg(
+    func=mdp.base_vertical_velocity_penalty,
+    weight=-0.5,
+  )
+  cfg.rewards["base_height"] = RewardTermCfg(
+    func=mdp.base_height_penalty,
+    weight=-0.2,
+    # 零动作稳定 root_link 高度约 0.188 m；目标降低约 1.8 cm。
+    params={"target_height": 0.17, "std": 0.015},
+  )
+
+  # 第二轮日志的实际峰值约 10.6 mm，因此把目标提高到 4 cm，并增强落脚
+  # 峰值约束；交替支撑和双脚腾空惩罚继续防止通过跳跃获取高度。
+  cfg.rewards["foot_clearance"].params["target_height"] = 0.04
+  cfg.rewards["foot_clearance"].weight = -4.0
+  cfg.rewards["foot_swing_height"].params["target_height"] = 0.04
+  cfg.rewards["foot_swing_height"].weight = -2.0
+  cfg.rewards["soft_landing"].weight = -2e-3
+  cfg.rewards["action_rate_l2"].weight = -0.15
+  cfg.rewards["action_acc_l2"] = RewardTermCfg(
+    func=envs_mdp.action_acc_l2,
+    weight=-0.02,
+  )
+
+  # 共享的 Pikachu 机体高度与逐关节位置/速度/扭矩 Metrics。
+  add_pikachu_telemetry_metrics(cfg)
 
   # 自碰撞惩罚（力超过阈值计为一次碰撞）。
   cfg.rewards["self_collisions"] = RewardTermCfg(
@@ -259,7 +326,8 @@ def pikachu_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   if play:
     twist_cmd = cfg.commands["twist"]
     assert isinstance(twist_cmd, UniformVelocityCommandCfg)
-    twist_cmd.ranges.lin_vel_x = (-1.0, 1.0)
-    twist_cmd.ranges.ang_vel_z = (-0.7, 0.7)
+    twist_cmd.ranges.lin_vel_x = (-0.6, 0.8)
+    twist_cmd.ranges.lin_vel_y = (-0.5, 0.5)
+    twist_cmd.ranges.ang_vel_z = (-0.5, 0.5)
 
   return cfg

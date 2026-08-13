@@ -118,3 +118,69 @@ def test_mid_episode_resample_does_not_write_velocity(device):
     torch.zeros_like(robot.data.root_link_lin_vel_b),
     atol=1e-6,
   )
+
+
+@pytest.mark.parametrize("direction", ["forward", "backward", "lateral"])
+def test_directional_command_buckets_are_pure_and_bounded(device, direction):
+  scene, sim = make_scene_and_sim(
+    device, load_fixture_xml("floating_base_articulated"), sensors=(), num_envs=32
+  )
+  env = cast(
+    "ManagerBasedRlEnv",
+    SimpleNamespace(scene=scene, sim=sim, num_envs=32, device=device),
+  )
+  cfg = UniformVelocityCommandCfg(
+    entity_name="robot",
+    resampling_time_range=(1e9, 1e9),
+    heading_command=True,
+    rel_heading_envs=1.0,
+    rel_world_envs=1.0,
+    rel_forward_envs=float(direction == "forward"),
+    rel_backward_envs=float(direction == "backward"),
+    rel_lateral_envs=float(direction == "lateral"),
+    ranges=UniformVelocityCommandCfg.Ranges(
+      lin_vel_x=(-0.6, 0.8),
+      lin_vel_y=(-0.5, 0.5),
+      ang_vel_z=(-0.5, 0.5),
+      heading=(-torch.pi, torch.pi),
+    ),
+  )
+  term = cfg.build(env)
+  env_ids = torch.arange(32, device=device)
+
+  term._resample_command(env_ids)
+
+  assert not term.is_heading_env.any()
+  assert not term.is_world_env.any()
+  assert torch.all(term.vel_command_b[:, 2] == 0.0)
+  if direction == "forward":
+    assert term.is_forward_env.all()
+    assert torch.all((term.vel_command_b[:, 0] >= 0.3))
+    assert torch.all((term.vel_command_b[:, 0] <= 0.8))
+    assert torch.all(term.vel_command_b[:, 1] == 0.0)
+  elif direction == "backward":
+    assert term.is_backward_env.all()
+    assert torch.all((term.vel_command_b[:, 0] <= -0.3))
+    assert torch.all((term.vel_command_b[:, 0] >= -0.6))
+    assert torch.all(term.vel_command_b[:, 1] == 0.0)
+  else:
+    assert term.is_lateral_env.all()
+    assert torch.all(term.vel_command_b[:, 0] == 0.0)
+    assert torch.all(torch.abs(term.vel_command_b[:, 1]) >= 0.2)
+    assert torch.all(torch.abs(term.vel_command_b[:, 1]) <= 0.5)
+
+
+def test_directional_command_fractions_cannot_exceed_one():
+  with pytest.raises(ValueError, match="sum to at most 1.0"):
+    UniformVelocityCommandCfg(
+      entity_name="robot",
+      resampling_time_range=(1.0, 1.0),
+      rel_forward_envs=0.5,
+      rel_backward_envs=0.5,
+      rel_lateral_envs=0.5,
+      ranges=UniformVelocityCommandCfg.Ranges(
+        lin_vel_x=(-1.0, 1.0),
+        lin_vel_y=(-1.0, 1.0),
+        ang_vel_z=(-0.5, 0.5),
+      ),
+    )

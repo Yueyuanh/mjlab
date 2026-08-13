@@ -42,6 +42,7 @@ from mjlab.asset_zoo.robots.pikachu.pikachu_constants import (
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
+from mjlab.tasks.pikachu_metrics import add_pikachu_telemetry_metrics
 from mjlab.tasks.tracking.mdp import MotionCommandCfg
 from mjlab.tasks.tracking.tracking_env_cfg import make_tracking_env_cfg
 
@@ -152,6 +153,9 @@ def pikachu_transition_env_cfg(
 
   # 查看器跟踪躯干。
   cfg.viewer.body_name = ANCHOR_BODY_NAME
+
+  # 与 velocity 任务共享同一套电机与机体状态 Metrics。
+  add_pikachu_telemetry_metrics(cfg)
 
   # 过渡涉及手脚四点支撑，接触较多，放宽接触/约束数组上限。
   cfg.sim.nconmax = 70

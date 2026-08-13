@@ -10,7 +10,13 @@ import torch
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import RayCastData, RayCastSensor
-from mjlab.tasks.velocity.mdp.rewards import upright
+from mjlab.tasks.velocity.mdp.rewards import (
+  alternating_feet_air_time,
+  base_height_penalty,
+  base_vertical_velocity_penalty,
+  feet_flight_time,
+  upright,
+)
 from mjlab.utils.lab_api.math import quat_from_euler_xyz
 
 
@@ -188,3 +194,115 @@ def test_batch_consistency():
   assert r[1].item() > 0.99
   assert r[2].item() < 0.7
   assert r[3].item() > 0.99
+
+
+def _make_gait_reward_env() -> MagicMock:
+  sensor = MagicMock()
+  sensor.data.current_air_time = torch.tensor(
+    [
+      [0.0, 0.0],
+      [0.0, 0.0],
+      [0.1, 0.1],
+      [0.0, 0.0],
+    ]
+  )
+  sensor.data.last_air_time = torch.tensor(
+    [
+      [0.22, 0.0],
+      [0.22, 0.22],
+      [0.0, 0.0],
+      [0.22, 0.0],
+    ]
+  )
+  sensor.data.current_contact_time = torch.tensor(
+    [
+      [0.02, 0.2],
+      [0.02, 0.02],
+      [0.0, 0.0],
+      [0.02, 0.2],
+    ]
+  )
+  sensor.compute_first_contact.return_value = torch.tensor(
+    [
+      [True, False],
+      [True, True],
+      [False, False],
+      [True, False],
+    ]
+  )
+
+  env = MagicMock()
+  env.scene = {"feet": sensor}
+  env.step_dt = 0.02
+  env.extras = {"log": {}}
+  env.command_manager.get_command.return_value = torch.tensor(
+    [
+      [0.5, 0.0, 0.0],
+      [0.5, 0.0, 0.0],
+      [0.5, 0.0, 0.0],
+      [0.0, 0.0, 0.0],
+    ]
+  )
+  return env
+
+
+def test_alternating_air_time_requires_existing_support():
+  """Only a commanded landing with another established stance foot is rewarded."""
+  env = _make_gait_reward_env()
+
+  reward = alternating_feet_air_time(
+    env,
+    sensor_name="feet",
+    target_air_time=0.22,
+    std=0.08,
+    command_name="twist",
+    command_threshold=0.15,
+  )
+
+  torch.testing.assert_close(reward, torch.tensor([1.0, 0.0, 0.0, 0.0]))
+
+
+def test_flight_time_only_penalizes_sustained_double_flight():
+  env = _make_gait_reward_env()
+
+  cost = feet_flight_time(
+    env,
+    sensor_name="feet",
+    grace_period=0.04,
+    command_name="twist",
+    command_threshold=0.15,
+  )
+
+  torch.testing.assert_close(cost, torch.tensor([0.0, 0.0, 1.0, 0.0]))
+
+
+def test_base_vertical_velocity_penalty_is_squared():
+  env = MagicMock()
+  asset = MagicMock()
+  asset.data.root_link_lin_vel_w = torch.tensor(
+    [[0.0, 0.0, 0.2], [0.0, 0.0, -0.3], [0.0, 0.0, 0.0]]
+  )
+  env.scene = {"robot": asset}
+  env.extras = {"log": {}}
+
+  cost = base_vertical_velocity_penalty(env)
+
+  torch.testing.assert_close(cost, torch.tensor([0.04, 0.09, 0.0]))
+
+
+def test_base_height_penalty_tracks_lower_target():
+  env = MagicMock()
+  asset = MagicMock()
+  asset.data.root_link_pos_w = torch.tensor(
+    [[0.0, 0.0, 0.17], [0.0, 0.0, 0.185], [0.0, 0.0, 0.155]]
+  )
+  env.scene = MagicMock()
+  env.scene.__getitem__.return_value = asset
+  env.scene.env_origins = torch.tensor(
+    [[0.0, 0.0, 0.02], [0.0, 0.0, 0.02], [0.0, 0.0, 0.02]]
+  )
+  env.extras = {"log": {}}
+
+  cost = base_height_penalty(env, target_height=0.15, std=0.015)
+
+  torch.testing.assert_close(cost, torch.tensor([0.0, 1.0, 1.0]))

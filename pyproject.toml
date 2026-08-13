@@ -43,6 +43,7 @@ dependencies = [
   "viser>=1.0.27",
   "mjviser>=0.0.14",
   "mediapy>=1.2.7",
+  "matplotlib>=3.10",
   "numpy",
   "imageio-ffmpeg",
   "tensordict",

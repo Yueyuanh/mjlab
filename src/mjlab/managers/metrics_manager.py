@@ -14,7 +14,7 @@ from mjlab.managers.manager_base import ManagerBase, ManagerTermBaseCfg
 if TYPE_CHECKING:
   from mjlab.envs.manager_based_rl_env import ManagerBasedRlEnv
 
-REDUCE_OPTIONS = ("last", "max", "mean", "sum")
+REDUCE_OPTIONS = ("last", "max", "max_abs", "mean", "sum")
 
 
 @dataclass(kw_only=True)
@@ -34,13 +34,16 @@ class MetricsTermCfg(ManagerTermBaseCfg):
         timesteps.
       - ``"max"`` reports the highest value seen during the episode, useful
         for peak metrics like maximum power or contact force.
+      - ``"max_abs"`` reports the largest absolute magnitude while preserving
+        signed per-step values for live plots. This is useful for motor sizing
+        metrics such as joint position, velocity, and torque.
       - ``"sum"`` reports the accumulated total over the episode, useful for
         cumulative quantities like episodic reward or total distance
         traveled.
   """
 
   per_substep: bool = False
-  reduce: Literal["last", "max", "mean", "sum"] = "mean"
+  reduce: Literal["last", "max", "max_abs", "mean", "sum"] = "mean"
 
 
 class MetricsManager(ManagerBase):
@@ -78,7 +81,7 @@ class MetricsManager(ManagerBase):
         self.num_envs, dtype=torch.float, device=self.device
       )
 
-      if self._term_cfgs[idx].reduce == "max":
+      if self._term_cfgs[idx].reduce in ("max", "max_abs"):
         self._episode_max[term_name] = torch.full(
           (self.num_envs,), float("-inf"), dtype=torch.float, device=self.device
         )
@@ -130,7 +133,7 @@ class MetricsManager(ManagerBase):
     safe_counts = torch.clamp(counts, min=1.0)
     for idx, key in enumerate(self._episode_sums):
       reduce = self._term_cfgs[idx].reduce
-      if reduce == "max":
+      if reduce in ("max", "max_abs"):
         extras["Episode_Metrics/" + key] = torch.mean(self._episode_max[key][env_ids])
         self._episode_max[key][env_ids] = float("-inf")
 
@@ -177,7 +180,10 @@ class MetricsManager(ManagerBase):
         self._step_values[:, idx] = avg
         max_buf = self._substep_episode_max[i]
         if max_buf is not None:
-          torch.maximum(max_buf, avg, out=max_buf)
+          max_value = (
+            torch.abs(avg) if self._term_cfgs[idx].reduce == "max_abs" else avg
+          )
+          torch.maximum(max_buf, max_value, out=max_buf)
         self._substep_accum[i].zero_()
       self._substep_count = 0
     for idx in self._step_term_indices:
@@ -186,7 +192,10 @@ class MetricsManager(ManagerBase):
       self._episode_sums[name] += value
       self._step_values[:, idx] = value
       if name in self._episode_max:
-        torch.maximum(self._episode_max[name], value, out=self._episode_max[name])
+        max_value = (
+          torch.abs(value) if self._term_cfgs[idx].reduce == "max_abs" else value
+        )
+        torch.maximum(self._episode_max[name], max_value, out=self._episode_max[name])
 
   def get_active_iterable_terms(
     self, env_idx: int

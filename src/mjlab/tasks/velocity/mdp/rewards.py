@@ -238,6 +238,111 @@ def feet_air_time(
   return reward
 
 
+def alternating_feet_air_time(
+  env: ManagerBasedRlEnv,
+  sensor_name: str,
+  target_air_time: float,
+  std: float,
+  command_name: str | None = None,
+  command_threshold: float = 0.05,
+) -> torch.Tensor:
+  """Reward timed landings only when another foot already supports the robot.
+
+  Unlike a per-step air-time reward, this term cannot be accumulated by keeping
+  both feet airborne. Simultaneous landings are also excluded because neither
+  foot has an established contact at that point.
+  """
+  if std <= 0.0:
+    raise ValueError(f"std must be positive, got {std}")
+
+  sensor: ContactSensor = env.scene[sensor_name]
+  sensor_data = sensor.data
+  current_air_time = sensor_data.current_air_time
+  last_air_time = sensor_data.last_air_time
+  current_contact_time = sensor_data.current_contact_time
+  assert current_air_time is not None
+  assert last_air_time is not None
+  assert current_contact_time is not None
+
+  first_contact = sensor.compute_first_contact(dt=env.step_dt)
+  established_contact = current_contact_time > env.step_dt + 1e-6
+  support_count = torch.sum(established_contact, dim=1, keepdim=True)
+  has_other_support = support_count - established_contact.long() > 0
+  valid_landing = first_contact & has_other_support
+
+  timing_score = torch.exp(-torch.square((last_air_time - target_air_time) / std))
+  reward = torch.sum(timing_score * valid_landing.float(), dim=1)
+
+  in_air = current_air_time > 0
+  num_in_air = torch.sum(in_air.float())
+  mean_air_time = torch.sum(current_air_time * in_air.float()) / torch.clamp(
+    num_in_air, min=1
+  )
+  num_valid_landings = torch.sum(valid_landing.float())
+  mean_landing_air_time = torch.sum(
+    last_air_time * valid_landing.float()
+  ) / torch.clamp(num_valid_landings, min=1)
+  env.extras["log"]["Metrics/air_time_mean"] = mean_air_time
+  env.extras["log"]["Metrics/alternating_landing_air_time_mean"] = mean_landing_air_time
+
+  if command_name is not None:
+    command = env.command_manager.get_command(command_name)
+    if command is not None:
+      total_command = torch.norm(command[:, :2], dim=1) + torch.abs(command[:, 2])
+      reward *= (total_command > command_threshold).float()
+  return reward
+
+
+def feet_flight_time(
+  env: ManagerBasedRlEnv,
+  sensor_name: str,
+  grace_period: float = 0.04,
+  command_name: str | None = None,
+  command_threshold: float = 0.05,
+) -> torch.Tensor:
+  """Penalize control steps where all feet remain airborne."""
+  sensor: ContactSensor = env.scene[sensor_name]
+  current_air_time = sensor.data.current_air_time
+  assert current_air_time is not None
+  cost = torch.all(current_air_time > grace_period, dim=1).float()
+  env.extras["log"]["Metrics/flight_ratio"] = torch.mean(cost)
+
+  if command_name is not None:
+    command = env.command_manager.get_command(command_name)
+    if command is not None:
+      total_command = torch.norm(command[:, :2], dim=1) + torch.abs(command[:, 2])
+      cost *= (total_command > command_threshold).float()
+  return cost
+
+
+def base_vertical_velocity_penalty(
+  env: ManagerBasedRlEnv,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  """Penalize vertical base velocity to suppress bouncing and hopping."""
+  asset: Entity = env.scene[asset_cfg.name]
+  vertical_velocity = asset.data.root_link_lin_vel_w[:, 2]
+  env.extras["log"]["Metrics/base_vertical_velocity_mean"] = torch.mean(
+    torch.abs(vertical_velocity)
+  )
+  return torch.square(vertical_velocity)
+
+
+def base_height_penalty(
+  env: ManagerBasedRlEnv,
+  target_height: float,
+  std: float,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  """Penalize normalized root-height error around a desired crouched posture."""
+  if std <= 0.0:
+    raise ValueError(f"std must be positive, got {std}")
+  asset: Entity = env.scene[asset_cfg.name]
+  height = asset.data.root_link_pos_w[:, 2] - env.scene.env_origins[:, 2]
+  env.extras["log"]["Metrics/base_height_mean"] = torch.mean(height)
+  return torch.square((height - target_height) / std)
+
+
 def feet_clearance(
   env: ManagerBasedRlEnv,
   target_height: float,

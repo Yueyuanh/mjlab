@@ -1655,6 +1655,7 @@ version = "1.6.0"
 source = { editable = "." }
 dependencies = [
     { name = "imageio-ffmpeg" },
+    { name = "matplotlib" },
     { name = "mediapy" },
     { name = "mjviser" },
     { name = "mujoco" },
@@ -1724,6 +1725,7 @@ docs = [
 [package.metadata]
 requires-dist = [
     { name = "imageio-ffmpeg" },
+    { name = "matplotlib", specifier = ">=3.10" },
     { name = "mediapy", specifier = ">=1.2.7" },
     { name = "mjviser", specifier = ">=0.0.14" },
     { name = "mujoco", specifier = "~=3.11.0" },

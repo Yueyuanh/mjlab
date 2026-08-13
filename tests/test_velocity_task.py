@@ -27,6 +27,12 @@ def go1_velocity_task_ids(velocity_task_ids: list[str]) -> list[str]:
 
 
 @pytest.fixture(scope="module")
+def pikachu_velocity_task_ids(velocity_task_ids: list[str]) -> list[str]:
+  """Get all Pikachu velocity task IDs."""
+  return [t for t in velocity_task_ids if "Pikachu" in t]
+
+
+@pytest.fixture(scope="module")
 def rough_velocity_task_ids(velocity_task_ids: list[str]) -> list[str]:
   """Get all rough terrain velocity task IDs."""
   return [t for t in velocity_task_ids if "Rough" in t]
@@ -197,3 +203,37 @@ def test_go1_velocity_has_correct_action_scale(
     assert joint_pos_action.scale == GO1_ACTION_SCALE, (
       f"Task {task_id} action scale mismatch, expected GO1_ACTION_SCALE"
     )
+
+
+def test_pikachu_velocity_uses_walking_gait_rewards(
+  pikachu_velocity_task_ids: list[str],
+) -> None:
+  """Pikachu should reward supported steps and penalize hopping."""
+  for task_id in pikachu_velocity_task_ids:
+    cfg = load_env_cfg(task_id)
+
+    assert cfg.rewards["air_time"].func.__name__ == "alternating_feet_air_time"
+    assert cfg.rewards["flight"].weight < 0.0
+    assert cfg.rewards["base_vertical_velocity"].weight < 0.0
+    assert cfg.rewards["base_height"].params["target_height"] == 0.17
+    assert cfg.rewards["foot_clearance"].params["target_height"] == 0.04
+    assert cfg.rewards["foot_swing_height"].params["target_height"] == 0.04
+
+
+def test_pikachu_velocity_curriculum_stays_in_walking_range(
+  pikachu_velocity_task_ids: list[str],
+) -> None:
+  """Pikachu command curriculum should cover all natural walking directions."""
+  for task_id in pikachu_velocity_task_ids:
+    cfg = load_env_cfg(task_id)
+    twist_cmd = cfg.commands["twist"]
+    assert isinstance(twist_cmd, UniformVelocityCommandCfg)
+    assert twist_cmd.rel_forward_envs == 0.25
+    assert twist_cmd.rel_backward_envs == 0.25
+    assert twist_cmd.rel_lateral_envs == 0.25
+
+    stages = cfg.curriculum["command_vel"].params["velocity_stages"]
+    max_forward_speed = max(
+      stage["lin_vel_x"][1] for stage in stages if "lin_vel_x" in stage
+    )
+    assert max_forward_speed <= 1.0

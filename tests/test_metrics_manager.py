@@ -5,11 +5,18 @@ from unittest.mock import Mock
 import pytest
 import torch
 
+from mjlab.envs.mdp.metrics import (
+  joint_position,
+  joint_torque,
+  joint_velocity,
+  root_height,
+)
 from mjlab.managers.metrics_manager import (
   MetricsManager,
   MetricsTermCfg,
   NullMetricsManager,
 )
+from mjlab.managers.scene_entity_config import SceneEntityCfg
 
 
 class SimpleTestMetric:
@@ -259,6 +266,58 @@ def test_reduce_max_reports_episode_peak(mock_env):
   info = manager.reset(env_ids=torch.tensor([0]))
 
   assert info["Episode_Metrics/term"].item() == pytest.approx(5.0)
+
+
+def test_reduce_max_abs_logs_peak_but_keeps_live_value_signed(mock_env):
+  """max_abs is suitable for motor sizing without losing live plot direction."""
+  values = iter((-7.0, 3.0))
+
+  def signed_metric(env):
+    return torch.full((env.num_envs,), next(values), device=env.device)
+
+  manager = MetricsManager(
+    {"term": MetricsTermCfg(func=signed_metric, reduce="max_abs")}, mock_env
+  )
+  manager.compute()
+  manager.compute()
+
+  live_value = manager.get_active_iterable_terms(0)[0][1][0]
+  info = manager.reset(env_ids=torch.tensor([0]))
+
+  assert live_value == pytest.approx(3.0)
+  assert info["Episode_Metrics/term"].item() == pytest.approx(7.0)
+
+
+def test_single_joint_and_root_metrics_return_physical_values(mock_env):
+  asset = mock_env.scene["robot"]
+  asset.data.joint_pos = torch.tensor(
+    [[0.1, -0.2], [0.3, -0.4], [0.5, -0.6], [0.7, -0.8]]
+  )
+  asset.data.joint_vel = asset.data.joint_pos * 10.0
+  asset.data.qfrc_actuator = asset.data.joint_pos * 20.0
+  asset.data.root_link_pos_w = torch.tensor(
+    [[0.0, 0.0, 0.12], [0.0, 0.0, 0.13], [0.0, 0.0, 0.14], [0.0, 0.0, 0.15]]
+  )
+  scene = Mock()
+  scene.__getitem__ = Mock(return_value=asset)
+  scene.env_origins = torch.tensor(
+    [[0.0, 0.0, 0.01], [0.0, 0.0, 0.01], [0.0, 0.0, 0.02], [0.0, 0.0, 0.02]]
+  )
+  mock_env.scene = scene
+  asset_cfg = SceneEntityCfg("robot", joint_ids=[1])
+
+  torch.testing.assert_close(
+    joint_position(mock_env, asset_cfg), torch.tensor([-0.2, -0.4, -0.6, -0.8])
+  )
+  torch.testing.assert_close(
+    joint_velocity(mock_env, asset_cfg), torch.tensor([-2.0, -4.0, -6.0, -8.0])
+  )
+  torch.testing.assert_close(
+    joint_torque(mock_env, asset_cfg), torch.tensor([-4.0, -8.0, -12.0, -16.0])
+  )
+  torch.testing.assert_close(
+    root_height(mock_env), torch.tensor([0.11, 0.12, 0.12, 0.13])
+  )
 
 
 def test_reduce_max_reset_clears_to_neg_inf(mock_env):

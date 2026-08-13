@@ -10,6 +10,7 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from enum import Enum, auto
+from pathlib import Path
 from threading import Event, Lock
 from typing import Any, Optional
 
@@ -72,9 +73,13 @@ class ViserPlayViewer(BaseViewer):
     verbosity: VerbosityLevel = VerbosityLevel.SILENT,
     viser_server: viser.ViserServer | None = None,
     checkpoint_manager: CheckpointManager | None = None,
+    metrics_output_dir: Path | None = None,
+    metrics_source_name: Callable[[], str] | None = None,
   ) -> None:
     super().__init__(env, policy, frame_rate, verbosity)
     self._ckpt_mgr = checkpoint_manager
+    self._metrics_output_dir = metrics_output_dir
+    self._metrics_source_name = metrics_source_name
     self._term_overlays: ViserTermOverlays | None = None
     self._camera_overlays: ViserCameraOverlays | None = None
     self._debug_overlays: ViserDebugOverlays | None = None
@@ -209,6 +214,8 @@ class ViserPlayViewer(BaseViewer):
       self._scene,
       self.frame_time,
       reward_bar_max_terms=self.cfg.reward_bar_max_terms,
+      metrics_output_dir=self._metrics_output_dir,
+      metrics_source_name=self._metrics_source_name,
     )
     self._term_overlays.setup_tabs(tabs)
     self._debug_overlays = ViserDebugOverlays(self.env, self._scene)
@@ -307,6 +314,8 @@ class ViserPlayViewer(BaseViewer):
       name = self._ckpt_dropdown.value.split("  (")[0]
 
     if name != self._ckpt_mgr.current_name:
+      if self._term_overlays:
+        self._term_overlays.on_source_change()
       print(f"[INFO]: Loading {name}...")
       self.policy = self._ckpt_mgr.load_checkpoint(name)
       self._ckpt_mgr.current_name = name
@@ -372,7 +381,7 @@ class ViserPlayViewer(BaseViewer):
         self._contact_overlays.on_env_switch()
 
     if self._term_overlays:
-      self._term_overlays.update(self._is_paused)
+      self._term_overlays.update(self._is_paused, step_idx=self._step_count)
 
   def _update_camera_feeds(self, sim: Simulation, has_pending_updates: bool) -> None:
     """Push camera sensor frames to GUI when needed."""

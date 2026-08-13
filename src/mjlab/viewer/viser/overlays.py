@@ -7,7 +7,9 @@ handle lifecycle ownership inside :mod:`scene.py`.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Protocol
 
 import mujoco
@@ -47,6 +49,8 @@ class ViserTermOverlays:
   scene: _SceneProtocol
   frame_time: float
   reward_bar_max_terms: int = 20
+  metrics_output_dir: Path | None = None
+  metrics_source_name: Callable[[], str] | None = None
   reward_plotter: ViserTermPlotter | None = None
   reward_bar_panel: RewardBarPanel | None = None
   metrics_plotter: ViserTermPlotter | None = None
@@ -82,7 +86,13 @@ class ViserTermOverlays:
       if term_names:
         with tabs.add_tab("Metrics", icon=viser.Icon.CHART_BAR):
           self.metrics_plotter = ViserTermPlotter(
-            self.server, term_names, name="Metric", env_idx=self.scene.env_idx
+            self.server,
+            term_names,
+            name="Metric",
+            env_idx=self.scene.env_idx,
+            csv_output_dir=self.metrics_output_dir,
+            source_name=self.metrics_source_name,
+            step_dt=self.env.unwrapped.step_dt,
           )
 
   def on_env_switch(self) -> None:
@@ -97,7 +107,12 @@ class ViserTermOverlays:
       self.metrics_plotter.clear_histories()
       self.metrics_plotter.update_env_idx(env_idx)
 
-  def update(self, paused: bool) -> None:
+  def on_source_change(self) -> None:
+    """Keep a recording scoped to exactly one policy checkpoint."""
+    if self.metrics_plotter:
+      self.metrics_plotter.on_source_change()
+
+  def update(self, paused: bool, step_idx: int | None = None) -> None:
     """Update term plots from the selected environment."""
     if (
       self.reward_plotter is not None or self.reward_bar_panel is not None
@@ -106,7 +121,7 @@ class ViserTermOverlays:
         self.env.unwrapped.reward_manager.get_active_iterable_terms(self.scene.env_idx)
       )
       if self.reward_plotter is not None:
-        self.reward_plotter.update(terms)
+        self.reward_plotter.update(terms, step_idx=step_idx)
       if self.reward_bar_panel is not None:
         self.reward_bar_panel.update(terms)
 
@@ -114,7 +129,7 @@ class ViserTermOverlays:
       terms = list(
         self.env.unwrapped.metrics_manager.get_active_iterable_terms(self.scene.env_idx)
       )
-      self.metrics_plotter.update(terms)
+      self.metrics_plotter.update(terms, step_idx=step_idx)
 
   def clear_histories(self) -> None:
     """Clear all overlay histories."""

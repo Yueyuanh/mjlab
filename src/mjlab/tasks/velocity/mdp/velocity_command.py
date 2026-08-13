@@ -44,8 +44,12 @@ class UniformVelocityCommand(CommandTerm):
     self.is_standing_env = torch.zeros_like(self.is_heading_env)
     self.is_world_env = torch.zeros_like(self.is_heading_env)
     self.is_forward_env = torch.zeros_like(self.is_heading_env)
+    self.is_backward_env = torch.zeros_like(self.is_heading_env)
+    self.is_lateral_env = torch.zeros_like(self.is_heading_env)
 
     self.metrics["error_vel_xy"] = torch.zeros(self.num_envs, device=self.device)
+    self.metrics["error_vel_x"] = torch.zeros(self.num_envs, device=self.device)
+    self.metrics["error_vel_y"] = torch.zeros(self.num_envs, device=self.device)
     self.metrics["error_vel_yaw"] = torch.zeros(self.num_envs, device=self.device)
 
     # Set by create_gui() when the viewer is active.
@@ -60,12 +64,14 @@ class UniformVelocityCommand(CommandTerm):
   def _update_metrics(self) -> None:
     max_command_time = self.cfg.resampling_time_range[1]
     max_command_step = max_command_time / self._env.step_dt
-    self.metrics["error_vel_xy"] += (
-      torch.norm(
-        self.vel_command_b[:, :2] - self.robot.data.root_link_lin_vel_b[:, :2], dim=-1
-      )
-      / max_command_step
+    velocity_error = (
+      self.vel_command_b[:, :2] - self.robot.data.root_link_lin_vel_b[:, :2]
     )
+    self.metrics["error_vel_xy"] += (
+      torch.norm(velocity_error, dim=-1) / max_command_step
+    )
+    self.metrics["error_vel_x"] += torch.abs(velocity_error[:, 0]) / max_command_step
+    self.metrics["error_vel_y"] += torch.abs(velocity_error[:, 1]) / max_command_step
     self.metrics["error_vel_yaw"] += (
       torch.abs(self.vel_command_b[:, 2] - self.robot.data.root_link_ang_vel_b[:, 2])
       / max_command_step
@@ -87,15 +93,68 @@ class UniformVelocityCommand(CommandTerm):
     # Copy sampled velocities as world-frame reference for world envs.
     self.vel_command_w[env_ids] = self.vel_command_b[env_ids]
 
-    # Forward-only envs: positive lin_vel_x, zero lateral and angular.
-    self.is_forward_env[env_ids] = r.uniform_(0.0, 1.0) <= self.cfg.rel_forward_envs
+    # Mutually exclusive directional buckets provide explicit coverage for
+    # straight forward, backward, and lateral locomotion.
+    directional_sample = r.uniform_(0.0, 1.0)
+    forward_end = self.cfg.rel_forward_envs
+    backward_end = forward_end + self.cfg.rel_backward_envs
+    lateral_end = backward_end + self.cfg.rel_lateral_envs
+    self.is_forward_env[env_ids] = directional_sample < forward_end
+    self.is_backward_env[env_ids] = (directional_sample >= forward_end) & (
+      directional_sample < backward_end
+    )
+    self.is_lateral_env[env_ids] = (directional_sample >= backward_end) & (
+      directional_sample < lateral_end
+    )
+
+    directional = (
+      self.is_forward_env[env_ids]
+      | self.is_backward_env[env_ids]
+      | self.is_lateral_env[env_ids]
+    )
+    # Heading/world transforms would overwrite the pure directional commands.
+    self.is_heading_env[env_ids] &= ~directional
+    self.is_world_env[env_ids] &= ~directional
+
     fwd_ids = env_ids[self.is_forward_env[env_ids]]
     if len(fwd_ids) > 0:
+      max_forward = max(self.cfg.ranges.lin_vel_x[1], 0.0)
+      min_forward = min(0.3, max_forward)
       self.vel_command_b[fwd_ids, 0] = (
-        self.vel_command_b[fwd_ids, 0].abs().clamp(min=0.3)
+        self.vel_command_b[fwd_ids, 0].abs().clamp(min=min_forward, max=max_forward)
       )
       self.vel_command_b[fwd_ids, 1] = 0.0
       self.vel_command_b[fwd_ids, 2] = 0.0
+
+    back_ids = env_ids[self.is_backward_env[env_ids]]
+    if len(back_ids) > 0:
+      max_backward = max(-self.cfg.ranges.lin_vel_x[0], 0.0)
+      min_backward = min(0.3, max_backward)
+      self.vel_command_b[back_ids, 0] = (
+        -self.vel_command_b[back_ids, 0]
+        .abs()
+        .clamp(
+          min=min_backward,
+          max=max_backward,
+        )
+      )
+      self.vel_command_b[back_ids, 1] = 0.0
+      self.vel_command_b[back_ids, 2] = 0.0
+
+    lateral_ids = env_ids[self.is_lateral_env[env_ids]]
+    if len(lateral_ids) > 0:
+      sampled_y = self.vel_command_b[lateral_ids, 1]
+      direction = torch.where(sampled_y >= 0.0, 1.0, -1.0)
+      limits = torch.where(
+        direction > 0.0,
+        torch.full_like(sampled_y, self.cfg.ranges.lin_vel_y[1]),
+        torch.full_like(sampled_y, -self.cfg.ranges.lin_vel_y[0]),
+      )
+      minimum = torch.minimum(limits, torch.full_like(limits, 0.2))
+      magnitude = torch.maximum(torch.minimum(sampled_y.abs(), limits), minimum)
+      self.vel_command_b[lateral_ids, 0] = 0.0
+      self.vel_command_b[lateral_ids, 1] = direction * magnitude
+      self.vel_command_b[lateral_ids, 2] = 0.0
 
   def reset(self, env_ids: torch.Tensor | slice | None) -> dict[str, float]:
     extras = super().reset(env_ids)
@@ -295,6 +354,12 @@ class UniformVelocityCommandCfg(CommandTermCfg):
   """Fraction of environments that receive forward-only commands (positive
   lin_vel_x, zero lin_vel_y and ang_vel_z). Increases training coverage for
   straight-line walking, which is important for stair climbing."""
+  rel_backward_envs: float = 0.0
+  """Fraction receiving backward-only commands. Directional fractions are
+  sampled as mutually exclusive buckets."""
+  rel_lateral_envs: float = 0.0
+  """Fraction receiving left/right lateral-only commands. Directional
+  fractions are sampled as mutually exclusive buckets."""
   init_velocity_prob: float = 0.0
   """Probability that an env starts its episode already moving at its sampled
   planar command velocity. Applied on reset only."""
@@ -324,3 +389,12 @@ class UniformVelocityCommandCfg(CommandTermCfg):
         "The velocity command has heading commands active (heading_command=True) but "
         "the `ranges.heading` parameter is set to None."
       )
+    directional_fractions = (
+      self.rel_forward_envs,
+      self.rel_backward_envs,
+      self.rel_lateral_envs,
+    )
+    if any(fraction < 0.0 for fraction in directional_fractions):
+      raise ValueError("Directional environment fractions must be non-negative.")
+    if sum(directional_fractions) > 1.0:
+      raise ValueError("Directional environment fractions must sum to at most 1.0.")

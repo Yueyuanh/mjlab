@@ -60,6 +60,22 @@ Added
 Changed
 ^^^^^^^
 
+- Retuned the Pikachu velocity task for a natural walking gait: supported,
+  alternating footfalls replace the exploitable per-step air-time reward;
+  sustained double-flight and vertical base motion are penalized; a lower body
+  target, 4 cm foot clearance, smoother actions, and balanced forward/backward/
+  lateral command buckets reduce tiny rapid steps and hopping.
+- Added per-joint signed position, velocity, and actuator-torque Metrics for
+  every Pikachu velocity and tracking task. Training logs report episode peak
+  magnitudes for motor sizing, while the Viser Metrics tab provides live
+  per-joint plots plus Position, Velocity, and Torque selection shortcuts. The
+  selected curves can be recorded beside the active checkpoint as CSV, then
+  reopened from the server or uploaded through the browser for offline plots.
+  Checked offline curves can also be exported under ``images/<csv-name>/``:
+  joint images are grouped by signal and side, with per-side/all-joint overviews
+  and a seven-row left/right comparison. A standalone CSV dashboard provides
+  the same taxonomy, interactive zoom, peak/RMS/P95 statistics, and selected
+  PNG/CSV downloads.
 - ``mjlab.mocap`` now drives the floating base with **pure dynamics by
   default**. ``MocapEnv`` initializes the root from
   ``default_root_state`` instead of the compiled ``qpos0`` (whose free-joint
