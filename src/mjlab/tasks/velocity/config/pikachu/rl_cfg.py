@@ -62,7 +62,7 @@ def pikachu_ppo_runner_cfg(
     experiment_name="pikachu_velocity",
     wandb_project=wandb_project,
     wandb_tags=wandb_tags,
-    save_interval=50,
+    save_interval=500,
     num_steps_per_env=24,
     max_iterations=30_000,
   )
