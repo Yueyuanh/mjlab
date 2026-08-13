@@ -167,7 +167,7 @@ uv run play Mjlab-Tracking-Flat-Pikachu-Up --agent zero --motion-file src/mjlab/
 rsync -avz --progress yons@192.168.0.117:/home/yons/pikachu/mjlab/logs/ /home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/4090-logs
 
 
-# 4090-dual 无权限
+# 4090-dual git 无权限
 
 ```
 # 1. 启动 SSH Agent
