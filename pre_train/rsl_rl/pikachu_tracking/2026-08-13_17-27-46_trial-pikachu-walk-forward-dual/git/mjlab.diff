@@ -1,0 +1,104 @@
+--- git commit ---
+cadde8eaabaf42ec98b54b3065f58864154a5af8
+
+
+--- git status ---
+On branch feat/velocity_tracking
+Your branch is up to date with 'origin/feat/velocity_tracking'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   TrainSpec.md
+	modified:   docs/source/changelog.rst
+	modified:   tests/test_pikachu_metrics.py
+	modified:   tests/test_tracking_task.py
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	src/mjlab/tasks/tracking/config/pikachu_walk/
+
+no changes added to commit (use "git add" and/or "git commit -a") 
+
+
+--- git diff ---
+diff --git a/TrainSpec.md b/TrainSpec.md
+index 2357954..af4f60d 100644
+--- a/TrainSpec.md
++++ b/TrainSpec.md
+@@ -95,6 +95,9 @@ uv run train Mjlab-Tracking-Flat-Pikachu-Down \
+     --agent.wandb-tags transition \
+     --env.scene.num_envs=4096
+ 
++## GPU 
++
++  --gpu-ids "[0, 1]" \
+ 
+ ## 浏览器界面 可以用摇杆发送指令
+ 
+diff --git a/docs/source/changelog.rst b/docs/source/changelog.rst
+index 3e25ced..ed17aef 100644
+--- a/docs/source/changelog.rst
++++ b/docs/source/changelog.rst
+@@ -8,6 +8,9 @@ Upcoming version (not yet released)
+ Added
+ ^^^^^
+ 
++- Added ``Mjlab-Tracking-Flat-Pikachu-Walk``, a Pikachu motion-tracking task
++  that learns the recorded 0.185 m/s forward walk and reuses the transition
++  task's robot, tracking bodies, randomization, telemetry, and PPO setup.
+ - Added ``mjlab.mocap``, a MuJoCo data-recording environment for Pikachu
+   (PD keyframe + interpolation → CSV, aligned with ``csv_to_npz.py`` input).
+   It loads the Pikachu robot on flat terrain, drives joints via position
+diff --git a/tests/test_pikachu_metrics.py b/tests/test_pikachu_metrics.py
+index 4ff768c..efec636 100644
+--- a/tests/test_pikachu_metrics.py
++++ b/tests/test_pikachu_metrics.py
+@@ -10,6 +10,7 @@ PIKACHU_TASK_IDS = (
+   "Mjlab-Velocity-Flat-Pikachu",
+   "Mjlab-Tracking-Flat-Pikachu-Down",
+   "Mjlab-Tracking-Flat-Pikachu-Up",
++  "Mjlab-Tracking-Flat-Pikachu-Walk",
+ )
+ JOINT_METRIC_PREFIXES = (
+   "joint_position_rad/",
+diff --git a/tests/test_tracking_task.py b/tests/test_tracking_task.py
+index ef09668..57c6966 100644
+--- a/tests/test_tracking_task.py
++++ b/tests/test_tracking_task.py
+@@ -1,5 +1,7 @@
+ """Tests specific to motion tracking tasks."""
+ 
++from pathlib import Path
++
+ import pytest
+ 
+ from mjlab.asset_zoo.robots import G1_ACTION_SCALE
+@@ -132,3 +134,27 @@ def test_g1_tracking_has_correct_action_scale(g1_tracking_task_ids: list[str]) -
+     assert joint_pos_action.scale == G1_ACTION_SCALE, (
+       f"Task {task_id} action scale mismatch, expected G1_ACTION_SCALE"
+     )
++
++
++def test_pikachu_walk_uses_requested_reference_motion() -> None:
++  """Pikachu walk should use the requested forward-motion NPZ by default."""
++  cfg = load_env_cfg("Mjlab-Tracking-Flat-Pikachu-Walk")
++  motion_cmd = cfg.commands["motion"]
++  assert isinstance(motion_cmd, MotionCommandCfg)
++
++  motion_path = Path(motion_cmd.motion_file)
++  assert motion_path.name == "pikachu_walk_0.185_0.0_0.0.npz"
++  assert motion_path.parent.name == "pikachu_walk_npz"
++  assert motion_path.is_file()
++  assert motion_cmd.anchor_body_name == "base_link"
++
++
++def test_pikachu_walk_play_disables_rsi_and_starts_at_frame_zero() -> None:
++  """Pikachu walk play mode should deterministically start at frame zero."""
++  cfg = load_env_cfg("Mjlab-Tracking-Flat-Pikachu-Walk", play=True)
++  motion_cmd = cfg.commands["motion"]
++  assert isinstance(motion_cmd, MotionCommandCfg)
++
++  assert motion_cmd.pose_range == {}
++  assert motion_cmd.velocity_range == {}
++  assert motion_cmd.sampling_mode == "start"

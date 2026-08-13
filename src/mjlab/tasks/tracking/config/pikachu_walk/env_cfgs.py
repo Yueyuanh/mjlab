@@ -17,7 +17,8 @@ WALK_MOTION_FILE = str(
   / "mocap"
   / "npz"
   / "pikachu_walk_npz"
-  / "pikachu_walk_0.185_0.0_0.0.npz"
+  # / "pikachu_walk_0.185_0.0_0.0.npz"
+  / "pikachu_walk_-0.185_0.0_0.0.npz"
 )
 
 ANCHOR_BODY_NAME = "base_link"

@@ -1,0 +1,277 @@
+2026-08-13 17:27:52:ERROR: WARNING: Attach conflict when attaching 'Pikachu_V025' to 'mjlab scene', policy is 'warning'
+2026-08-13 17:27:52:ERROR: njmax: parent has -1 (default), child has 500, keeping parent value
+2026-08-13 17:27:52:ERROR: nconmax: parent has -1 (default), child has 100, keeping parent value
+2026-08-13 17:27:52:ERROR: 
+2026-08-13 17:27:52:WARNING: py.warnings:/home/yons/pikachu/mjlab/src/mjlab/sim/sim.py:252: UserWarning: Attach conflict when attaching 'Pikachu_V025' to 'mjlab scene', policy is 'warning'
+njmax: parent has -1 (default), child has 500, keeping parent value
+nconmax: parent has -1 (default), child has 100, keeping parent value
+  compiled = spec.compile()
+
+2026-08-13 17:27:54:INFO: [INFO] Training with: device=cuda:1, seed=43, rank=1
+2026-08-13 17:27:54:INFO: [INFO] Using local motion file: /home/yons/pikachu/mjlab/src/mjlab/mocap/npz/pikachu_walk_npz/pikachu_walk_0.185_0.0_0.0.npz
+2026-08-13 17:27:54:INFO: Setting seed: 43
+2026-08-13 17:27:54:INFO: Warp 1.14.0 initialized:
+2026-08-13 17:27:54:INFO:    CUDA Toolkit 12.9, Driver 13.2
+2026-08-13 17:27:54:INFO:    Devices:
+2026-08-13 17:27:54:INFO:      "cpu"      : "x86_64"
+2026-08-13 17:27:54:INFO:      "cuda:0"   : "NVIDIA GeForce RTX 4090" (47 GiB, sm_89, mempool enabled)
+2026-08-13 17:27:54:INFO:      "cuda:1"   : "NVIDIA GeForce RTX 4090" (47 GiB, sm_89, mempool enabled)
+2026-08-13 17:27:54:INFO:    CUDA peer access:
+2026-08-13 17:27:54:INFO:      Not supported
+2026-08-13 17:27:54:INFO:    Kernel cache:
+2026-08-13 17:27:54:INFO:      /home/yons/.cache/warp/1.14.0
+2026-08-13 17:27:54:INFO: Module mujoco_warp._src.smooth e597d07 load on device 'cuda:1' took 1.83 ms  (cached)
+2026-08-13 17:27:54:INFO: Module _nxn_broadphase__locals__kernel_df6640ed df6640e load on device 'cuda:1' took 0.26 ms  (cached)
+2026-08-13 17:27:54:INFO: Module _primitive_narrowphase__locals__primitive_narrowphase_288cf537 288cf53 load on device 'cuda:1' took 0.32 ms  (cached)
+2026-08-13 17:27:54:INFO: Module mujoco_warp._src.constraint 880bd7f load on device 'cuda:1' took 0.20 ms  (cached)
+2026-08-13 17:27:54:INFO: Module _friction_dof__locals__kernel_3c14efda 3c14efd load on device 'cuda:1' took 0.28 ms  (cached)
+2026-08-13 17:27:54:INFO: Module _limit_slide_hinge__locals__kernel_4d6c55ab 4d6c55a load on device 'cuda:1' took 0.30 ms  (cached)
+2026-08-13 17:27:54:INFO: Module _efc_contact_init__locals__kernel_07a590e0 07a590e load on device 'cuda:1' took 0.23 ms  (cached)
+2026-08-13 17:27:54:INFO: Module _efc_contact_jac_dense__locals__kernel_5e1af9f9 1d73624 load on device 'cuda:1' took 0.28 ms  (cached)
+2026-08-13 17:27:54:INFO: Module _efc_contact_update__locals__kernel_8aad7bfd 8aad7bf load on device 'cuda:1' took 0.26 ms  (cached)
+2026-08-13 17:27:54:INFO: Module mujoco_warp._src.sensor 42e0a24 load on device 'cuda:1' took 1.31 ms  (cached)
+2026-08-13 17:27:54:INFO: Module mujoco_warp._src.forward 687ddb7 load on device 'cuda:1' took 0.64 ms  (cached)
+2026-08-13 17:27:54:INFO: Module mujoco_warp._src.passive 8ff6993 load on device 'cuda:1' took 0.80 ms  (cached)
+2026-08-13 17:27:54:INFO: Module mujoco_warp._src.forward 2190340 load on device 'cuda:1' took 0.63 ms  (cached)
+2026-08-13 17:27:54:INFO: Module _qfrc_smooth__locals__kernel_6eb3d958 6eb3d95 load on device 'cuda:1' took 0.21 ms  (cached)
+2026-08-13 17:27:54:INFO: Module mujoco_warp._src.support d1e71d9 load on device 'cuda:1' took 0.23 ms  (cached)
+2026-08-13 17:27:54:INFO: Module _tile_cholesky_factorize_solve_block__locals__kernel_d2155613 1ad5faa load on device 'cuda:1' took 18.08 ms  (cached)
+2026-08-13 17:27:54:INFO: Module _solve_init_dof__locals__kernel_99a497d1 99a497d load on device 'cuda:1' took 0.22 ms  (cached)
+2026-08-13 17:27:54:INFO: Module mujoco_warp._src.solver 245b5b3 load on device 'cuda:1' took 1.06 ms  (cached)
+2026-08-13 17:27:54:INFO: Module _solve_init_jaref_kernel__locals__kernel_09052ded 09052de load on device 'cuda:1' took 0.24 ms  (cached)
+2026-08-13 17:27:54:INFO: Module mul_m_kernel__locals___mul_m_fd2186c4 fd2186c load on device 'cuda:1' took 0.24 ms  (cached)
+2026-08-13 17:27:54:INFO: Module _update_constraint_efc__locals__kernel_4af8f110 4af8f11 load on device 'cuda:1' took 0.24 ms  (cached)
+2026-08-13 17:27:54:INFO: Module _update_constraint_init_qfrc_constraint_dense__locals__kernel_391cb5b4 391cb5b load on device 'cuda:1' took 0.38 ms  (cached)
+2026-08-13 17:27:54:INFO: Module _update_gradient_zero_grad_dot__locals__kernel_cb780630 cb78063 load on device 'cuda:1' took 0.21 ms  (cached)
+2026-08-13 17:27:54:INFO: Module _update_gradient_grad__locals__kernel_0cbf4927 0cbf492 load on device 'cuda:1' took 0.21 ms  (cached)
+2026-08-13 17:27:54:INFO: Module _update_gradient_JTDAJ_dense_tiled__locals__kernel_0be4a55a e6395a1 load on device 'cuda:1' took 0.54 ms  (cached)
+2026-08-13 17:27:54:INFO: Module _update_gradient_cholesky__locals__kernel_5865f603 fb03b31 load on device 'cuda:1' took 21.17 ms  (cached)
+2026-08-13 17:27:54:INFO: Module _linesearch_iterative_kernel__locals__kernel_93e8b4f2 1ab04b3 load on device 'cuda:1' took 0.48 ms  (cached)
+2026-08-13 17:27:54:INFO: Module _update_constraint_efc__locals__kernel_e30beb1f e30beb1 load on device 'cuda:1' took 0.28 ms  (cached)
+2026-08-13 17:27:54:INFO: Module _update_constraint_init_qfrc_constraint_dense__locals__kernel_5ba72bac 5ba72ba load on device 'cuda:1' took 0.25 ms  (cached)
+2026-08-13 17:27:54:INFO: Module _update_gradient_zero_grad_dot__locals__kernel_f708ee5f f708ee5 load on device 'cuda:1' took 0.23 ms  (cached)
+2026-08-13 17:27:54:INFO: Module _update_gradient_grad__locals__kernel_cb93df65 cb93df6 load on device 'cuda:1' took 0.23 ms  (cached)
+2026-08-13 17:27:54:INFO: Module _update_gradient_cholesky__locals__kernel_e2cd3c64 9ac0a73 load on device 'cuda:1' took 21.11 ms  (cached)
+2026-08-13 17:27:54:INFO: Module _contact_sort__locals__contact_sort_321f5f3e 33ea4e1 load on device 'cuda:1' took 0.30 ms  (cached)
+2026-08-13 17:27:54:INFO: Module mujoco_warp._src.derivative e770e28 load on device 'cuda:1' took 0.59 ms  (cached)
+2026-08-13 17:27:54:INFO: Module _next_time_builder__locals___next_time_95ad6d7a 95ad6d7 load on device 'cuda:1' took 0.25 ms  (cached)
+2026-08-13 17:27:54:INFO: Module reset_data__locals__reset_xfrc_applied_03030511 0303051 load on device 'cuda:1' took 0.26 ms  (cached)
+2026-08-13 17:27:54:INFO: Module reset_data__locals__reset_M_631075dd 631075d load on device 'cuda:1' took 0.20 ms  (cached)
+2026-08-13 17:27:54:INFO: Module reset_data__locals__reset_mocap_6513201c 6513201 load on device 'cuda:1' took 0.19 ms  (cached)
+2026-08-13 17:27:54:INFO: Module reset_data__locals__reset_contact_5c08f689 5c08f68 load on device 'cuda:1' took 0.20 ms  (cached)
+2026-08-13 17:27:54:INFO: Module reset_data__locals__reset_sleep_50b990da 50b990d load on device 'cuda:1' took 0.19 ms  (cached)
+2026-08-13 17:27:54:INFO: Module reset_data__locals__reset_nworld_69a10925 69a1092 load on device 'cuda:1' took 0.26 ms  (cached)
+2026-08-13 17:27:54:INFO: 
+2026-08-13 17:27:54:INFO: +---------------------------------+
+2026-08-13 17:27:54:INFO: |         Base Environment        |
+2026-08-13 17:27:54:INFO: +------------------------+--------+
+2026-08-13 17:27:54:INFO: | Property               | Value  |
+2026-08-13 17:27:54:INFO: +------------------------+--------+
+2026-08-13 17:27:54:INFO: | Number of environments | 4096   |
+2026-08-13 17:27:54:INFO: | Environment device     | cuda:1 |
+2026-08-13 17:27:54:INFO: | Environment seed       | 43     |
+2026-08-13 17:27:54:INFO: | Physics step-size      | 0.005  |
+2026-08-13 17:27:54:INFO: | Environment step-size  | 0.02   |
+2026-08-13 17:27:54:INFO: +------------------------+--------+
+2026-08-13 17:27:54:INFO: 
+2026-08-13 17:27:54:INFO: [INFO] <EventManager> contains 2 active terms.
+2026-08-13 17:27:54:INFO: +----------------------------------------------+
+2026-08-13 17:27:54:INFO: |    Active Event Terms in Mode: 'interval'    |
+2026-08-13 17:27:54:INFO: +-------+------------+-------------------------+
+2026-08-13 17:27:54:INFO: | Index | Name       | Interval time range (s) |
+2026-08-13 17:27:54:INFO: +-------+------------+-------------------------+
+2026-08-13 17:27:54:INFO: |   0   | push_robot |        (1.0, 3.0)       |
+2026-08-13 17:27:54:INFO: +-------+------------+-------------------------+
+2026-08-13 17:27:54:INFO: +---------------------------------------+
+2026-08-13 17:27:54:INFO: | Active Event Terms in Mode: 'startup' |
+2026-08-13 17:27:54:INFO: +-----------+---------------------------+
+2026-08-13 17:27:54:INFO: |   Index   | Name                      |
+2026-08-13 17:27:54:INFO: +-----------+---------------------------+
+2026-08-13 17:27:54:INFO: |     0     | base_com                  |
+2026-08-13 17:27:54:INFO: |     1     | encoder_bias              |
+2026-08-13 17:27:54:INFO: |     2     | foot_friction             |
+2026-08-13 17:27:54:INFO: +-----------+---------------------------+
+2026-08-13 17:27:54:INFO: +-----------------------------+
+2026-08-13 17:27:54:INFO: | Domain Randomization Fields |
+2026-08-13 17:27:54:INFO: +-------+---------------------+
+2026-08-13 17:27:54:INFO: | Index | Field Name          |
+2026-08-13 17:27:54:INFO: +-------+---------------------+
+2026-08-13 17:27:54:INFO: |   0   | body_ipos           |
+2026-08-13 17:27:54:INFO: |   1   | body_subtreemass    |
+2026-08-13 17:27:54:INFO: |   2   | dof_invweight0      |
+2026-08-13 17:27:54:INFO: |   3   | body_invweight0     |
+2026-08-13 17:27:54:INFO: |   4   | tendon_length0      |
+2026-08-13 17:27:54:INFO: |   5   | tendon_invweight0   |
+2026-08-13 17:27:54:INFO: |   6   | actuator_acc0       |
+2026-08-13 17:27:54:INFO: |   7   | geom_friction       |
+2026-08-13 17:27:54:INFO: +-------+---------------------+
+2026-08-13 17:27:54:INFO: 
+2026-08-13 17:27:54:INFO: Module repeat_array_kernel_4f67a4c3 711f54c load on device 'cuda:1' took 0.30 ms  (cached)
+2026-08-13 17:27:54:INFO: Module repeat_array_kernel_4f67a4c3 7224d07 load on device 'cuda:1' took 0.26 ms  (cached)
+2026-08-13 17:27:54:INFO: Module repeat_array_kernel_4f67a4c3 b2885b0 load on device 'cuda:1' took 0.27 ms  (cached)
+2026-08-13 17:27:54:INFO: [INFO] <CommandManager> contains 1 active terms.
+2026-08-13 17:27:54:INFO: +--------------------------------+
+2026-08-13 17:27:54:INFO: |      Active Command Terms      |
+2026-08-13 17:27:54:INFO: +-------+--------+---------------+
+2026-08-13 17:27:54:INFO: | Index | Name   |      Type     |
+2026-08-13 17:27:54:INFO: +-------+--------+---------------+
+2026-08-13 17:27:54:INFO: |   0   | motion | MotionCommand |
+2026-08-13 17:27:54:INFO: +-------+--------+---------------+
+2026-08-13 17:27:54:INFO: 
+2026-08-13 17:27:54:INFO: [INFO] <ActionManager> contains 1 active terms.
+2026-08-13 17:27:54:INFO: +---------------------------------+
+2026-08-13 17:27:54:INFO: | Active Action Terms (shape: 14) |
+2026-08-13 17:27:54:INFO: +-------+-----------+-------------+
+2026-08-13 17:27:54:INFO: | Index | Name      |   Dimension |
+2026-08-13 17:27:54:INFO: +-------+-----------+-------------+
+2026-08-13 17:27:54:INFO: |   0   | joint_pos |          14 |
+2026-08-13 17:27:54:INFO: +-------+-----------+-------------+
+2026-08-13 17:27:54:INFO: 
+2026-08-13 17:27:54:INFO: [INFO] <ObservationManager> contains 2 groups.
+2026-08-13 17:27:54:INFO: +-----------------------------------------------------------+
+2026-08-13 17:27:54:INFO: | Active Observation Terms in Group: 'actor' (shape: (85,)) |
+2026-08-13 17:27:54:INFO: +----------+-----------------------------------+------------+
+2026-08-13 17:27:54:INFO: |  Index   | Name                              |   Shape    |
+2026-08-13 17:27:54:INFO: +----------+-----------------------------------+------------+
+2026-08-13 17:27:54:INFO: |    0     | command                           |   (28,)    |
+2026-08-13 17:27:54:INFO: |    1     | motion_anchor_pos_b               |    (3,)    |
+2026-08-13 17:27:54:INFO: |    2     | motion_anchor_ori_b               |    (6,)    |
+2026-08-13 17:27:54:INFO: |    3     | base_lin_vel                      |    (3,)    |
+2026-08-13 17:27:54:INFO: |    4     | base_ang_vel                      |    (3,)    |
+2026-08-13 17:27:54:INFO: |    5     | joint_pos                         |   (14,)    |
+2026-08-13 17:27:54:INFO: |    6     | joint_vel                         |   (14,)    |
+2026-08-13 17:27:54:INFO: |    7     | actions                           |   (14,)    |
+2026-08-13 17:27:54:INFO: +----------+-----------------------------------+------------+
+2026-08-13 17:27:54:INFO: +-------------------------------------------------------------+
+2026-08-13 17:27:54:INFO: | Active Observation Terms in Group: 'critic' (shape: (184,)) |
+2026-08-13 17:27:54:INFO: +-----------+------------------------------------+------------+
+2026-08-13 17:27:54:INFO: |   Index   | Name                               |   Shape    |
+2026-08-13 17:27:54:INFO: +-----------+------------------------------------+------------+
+2026-08-13 17:27:54:INFO: |     0     | command                            |   (28,)    |
+2026-08-13 17:27:54:INFO: |     1     | motion_anchor_pos_b                |    (3,)    |
+2026-08-13 17:27:54:INFO: |     2     | motion_anchor_ori_b                |    (6,)    |
+2026-08-13 17:27:54:INFO: |     3     | body_pos                           |   (33,)    |
+2026-08-13 17:27:54:INFO: |     4     | body_ori                           |   (66,)    |
+2026-08-13 17:27:54:INFO: |     5     | base_lin_vel                       |    (3,)    |
+2026-08-13 17:27:54:INFO: |     6     | base_ang_vel                       |    (3,)    |
+2026-08-13 17:27:54:INFO: |     7     | joint_pos                          |   (14,)    |
+2026-08-13 17:27:54:INFO: |     8     | joint_vel                          |   (14,)    |
+2026-08-13 17:27:54:INFO: |     9     | actions                            |   (14,)    |
+2026-08-13 17:27:54:INFO: +-----------+------------------------------------+------------+
+2026-08-13 18:09:19:INFO: 
+2026-08-13 18:09:19:INFO: [INFO] <TerminationManager> contains 4 active terms.
+2026-08-13 18:09:19:INFO: +--------------------------------+
+2026-08-13 18:09:19:INFO: |    Active Termination Terms    |
+2026-08-13 18:09:19:INFO: +-------+-------------+----------+
+2026-08-13 18:09:19:INFO: | Index | Name        | Time Out |
+2026-08-13 18:09:19:INFO: +-------+-------------+----------+
+2026-08-13 18:09:19:INFO: |   0   | time_out    |   True   |
+2026-08-13 18:09:19:INFO: |   1   | anchor_pos  |  False   |
+2026-08-13 18:09:19:INFO: |   2   | anchor_ori  |  False   |
+2026-08-13 18:09:19:INFO: |   3   | ee_body_pos |  False   |
+2026-08-13 18:09:19:INFO: +-------+-------------+----------+
+2026-08-13 18:09:19:INFO: 
+2026-08-13 18:09:19:INFO: [INFO] <RewardManager> contains 9 active terms.
+2026-08-13 18:09:19:INFO: +-----------------------------------------+
+2026-08-13 18:09:19:INFO: |           Active Reward Terms           |
+2026-08-13 18:09:19:INFO: +-------+------------------------+--------+
+2026-08-13 18:09:19:INFO: | Index | Name                   | Weight |
+2026-08-13 18:09:19:INFO: +-------+------------------------+--------+
+2026-08-13 18:09:19:INFO: |   0   | motion_global_root_pos |    0.5 |
+2026-08-13 18:09:19:INFO: |   1   | motion_global_root_ori |    0.5 |
+2026-08-13 18:09:19:INFO: |   2   | motion_body_pos        |    1.0 |
+2026-08-13 18:09:19:INFO: |   3   | motion_body_ori        |    1.0 |
+2026-08-13 18:09:19:INFO: |   4   | motion_body_lin_vel    |    1.0 |
+2026-08-13 18:09:19:INFO: |   5   | motion_body_ang_vel    |    1.0 |
+2026-08-13 18:09:19:INFO: |   6   | action_rate_l2         |   -0.1 |
+2026-08-13 18:09:19:INFO: |   7   | joint_limit            |  -10.0 |
+2026-08-13 18:09:19:INFO: |   8   | self_collisions        |  -10.0 |
+2026-08-13 18:09:19:INFO: +-------+------------------------+--------+
+2026-08-13 18:09:19:INFO: 
+2026-08-13 18:09:19:INFO: [INFO] <NullCurriculumManager> (inactive)
+2026-08-13 18:09:19:INFO: [INFO] <MetricsManager> contains 43 active terms.
+2026-08-13 18:09:19:INFO: +----------------------------------------------------+
+2026-08-13 18:09:19:INFO: |                Active Metrics Terms                |
+2026-08-13 18:09:19:INFO: +-------+--------------------------------------------+
+2026-08-13 18:09:19:INFO: | Index | Name                                       |
+2026-08-13 18:09:19:INFO: +-------+--------------------------------------------+
+2026-08-13 18:09:19:INFO: |   0   | base_height_m                              |
+2026-08-13 18:09:19:INFO: |   1   | joint_position_rad/left_hip_pitch_joint    |
+2026-08-13 18:09:19:INFO: |   2   | joint_velocity_rad_s/left_hip_pitch_joint  |
+2026-08-13 18:09:19:INFO: |   3   | joint_torque_nm/left_hip_pitch_joint       |
+2026-08-13 18:09:19:INFO: |   4   | joint_position_rad/left_hip_roll_joint     |
+2026-08-13 18:09:19:INFO: |   5   | joint_velocity_rad_s/left_hip_roll_joint   |
+2026-08-13 18:09:19:INFO: |   6   | joint_torque_nm/left_hip_roll_joint        |
+2026-08-13 18:09:19:INFO: |   7   | joint_position_rad/left_hip_yaw_joint      |
+2026-08-13 18:09:19:INFO: |   8   | joint_velocity_rad_s/left_hip_yaw_joint    |
+2026-08-13 18:09:19:INFO: |   9   | joint_torque_nm/left_hip_yaw_joint         |
+2026-08-13 18:09:19:INFO: |   10  | joint_position_rad/left_knee_joint         |
+2026-08-13 18:09:19:INFO: |   11  | joint_velocity_rad_s/left_knee_joint       |
+2026-08-13 18:09:19:INFO: |   12  | joint_torque_nm/left_knee_joint            |
+2026-08-13 18:09:19:INFO: |   13  | joint_position_rad/left_ankle_joint        |
+2026-08-13 18:09:19:INFO: |   14  | joint_velocity_rad_s/left_ankle_joint      |
+2026-08-13 18:09:19:INFO: |   15  | joint_torque_nm/left_ankle_joint           |
+2026-08-13 18:09:19:INFO: |   16  | joint_position_rad/right_hip_pitch_joint   |
+2026-08-13 18:09:19:INFO: |   17  | joint_velocity_rad_s/right_hip_pitch_joint |
+2026-08-13 18:09:19:INFO: |   18  | joint_torque_nm/right_hip_pitch_joint      |
+2026-08-13 18:09:19:INFO: |   19  | joint_position_rad/right_hip_roll_joint    |
+2026-08-13 18:09:19:INFO: |   20  | joint_velocity_rad_s/right_hip_roll_joint  |
+2026-08-13 18:09:19:INFO: |   21  | joint_torque_nm/right_hip_roll_joint       |
+2026-08-13 18:09:19:INFO: |   22  | joint_position_rad/right_hip_yaw_joint     |
+2026-08-13 18:09:19:INFO: |   23  | joint_velocity_rad_s/right_hip_yaw_joint   |
+2026-08-13 18:09:19:INFO: |   24  | joint_torque_nm/right_hip_yaw_joint        |
+2026-08-13 18:09:19:INFO: |   25  | joint_position_rad/right_knee_joint        |
+2026-08-13 18:09:19:INFO: |   26  | joint_velocity_rad_s/right_knee_joint      |
+2026-08-13 18:09:19:INFO: |   27  | joint_torque_nm/right_knee_joint           |
+2026-08-13 18:09:19:INFO: |   28  | joint_position_rad/right_ankle_joint       |
+2026-08-13 18:09:19:INFO: |   29  | joint_velocity_rad_s/right_ankle_joint     |
+2026-08-13 18:09:19:INFO: |   30  | joint_torque_nm/right_ankle_joint          |
+2026-08-13 18:09:19:INFO: |   31  | joint_position_rad/left_arm_pitch_joint    |
+2026-08-13 18:09:19:INFO: |   32  | joint_velocity_rad_s/left_arm_pitch_joint  |
+2026-08-13 18:09:19:INFO: |   33  | joint_torque_nm/left_arm_pitch_joint       |
+2026-08-13 18:09:19:INFO: |   34  | joint_position_rad/left_arm_roll_joint     |
+2026-08-13 18:09:19:INFO: |   35  | joint_velocity_rad_s/left_arm_roll_joint   |
+2026-08-13 18:09:19:INFO: |   36  | joint_torque_nm/left_arm_roll_joint        |
+2026-08-13 18:09:19:INFO: |   37  | joint_position_rad/right_arm_pitch_joint   |
+2026-08-13 18:09:19:INFO: |   38  | joint_velocity_rad_s/right_arm_pitch_joint |
+2026-08-13 18:09:19:INFO: |   39  | joint_torque_nm/right_arm_pitch_joint      |
+2026-08-13 18:09:19:INFO: |   40  | joint_position_rad/right_arm_roll_joint    |
+2026-08-13 18:09:19:INFO: |   41  | joint_velocity_rad_s/right_arm_roll_joint  |
+2026-08-13 18:09:19:INFO: |   42  | joint_torque_nm/right_arm_roll_joint       |
+2026-08-13 18:09:19:INFO: +-------+--------------------------------------------+
+2026-08-13 18:09:19:INFO: 
+2026-08-13 18:09:19:INFO: [INFO] <NullRecorderManager> (inactive)
+2026-08-13 18:09:19:INFO: Module mujoco_warp._src.io 19274fb load on device 'cuda:1' took 0.81 ms  (cached)
+2026-08-13 18:09:19:INFO: Module _tile_cholesky_factorize_block__locals__kernel_19710c39 48cb074 load on device 'cuda:1' took 13.69 ms  (cached)
+2026-08-13 18:09:19:INFO: Module _tile_cholesky_solve_block__locals__kernel_35aa309c 018b0d1 load on device 'cuda:1' took 15.12 ms  (cached)
+2026-08-13 18:09:19:INFO: --------------------------------------------------------------------------------
+2026-08-13 18:09:19:INFO: Resolved observation sets:
+2026-08-13 18:09:19:INFO: 	 actor :  ('actor',)
+2026-08-13 18:09:19:INFO: 	 critic :  ('critic',)
+2026-08-13 18:09:19:INFO: --------------------------------------------------------------------------------
+2026-08-13 18:09:19:INFO: Actor Model: MLPModel(
+2026-08-13 18:09:19:INFO:   (obs_normalizer): EmpiricalNormalization()
+2026-08-13 18:09:19:INFO:   (distribution): GaussianDistribution()
+2026-08-13 18:09:19:INFO:   (mlp): MLP(
+2026-08-13 18:09:19:INFO:     (0): Linear(in_features=85, out_features=512, bias=True)
+2026-08-13 18:09:19:INFO:     (1): ELU(alpha=1.0)
+2026-08-13 18:09:19:INFO:     (2): Linear(in_features=512, out_features=256, bias=True)
+2026-08-13 18:09:19:INFO:     (3): ELU(alpha=1.0)
+2026-08-13 18:09:19:INFO:     (4): Linear(in_features=256, out_features=128, bias=True)
+2026-08-13 18:09:19:INFO:     (5): ELU(alpha=1.0)
+2026-08-13 18:09:19:INFO:     (6): Linear(in_features=128, out_features=14, bias=True)
+2026-08-13 18:09:19:INFO:   )
+2026-08-13 18:09:19:INFO: )
+2026-08-13 18:09:19:INFO: Critic Model: MLPModel(
+2026-08-13 18:09:19:INFO:   (obs_normalizer): EmpiricalNormalization()
+2026-08-13 18:09:19:INFO:   (mlp): MLP(
+2026-08-13 18:09:19:INFO:     (0): Linear(in_features=184, out_features=512, bias=True)
+2026-08-13 18:09:19:INFO:     (1): ELU(alpha=1.0)
+2026-08-13 18:09:19:INFO:     (2): Linear(in_features=512, out_features=256, bias=True)
+2026-08-13 18:09:19:INFO:     (3): ELU(alpha=1.0)
+2026-08-13 18:09:19:INFO:     (4): Linear(in_features=256, out_features=128, bias=True)
+2026-08-13 18:09:19:INFO:     (5): ELU(alpha=1.0)
+2026-08-13 18:09:19:INFO:     (6): Linear(in_features=128, out_features=1, bias=True)
+2026-08-13 18:09:19:INFO:   )
+2026-08-13 18:09:19:INFO: )
+2026-08-13 18:09:19:INFO: Synchronizing parameters for rank 1...
