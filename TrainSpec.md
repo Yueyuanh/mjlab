@@ -120,6 +120,14 @@ el_499.pt  --motion-file src/mjlab/mocap/npz/Pikachu-Transition-Down.npz   --vie
 
 
 uv run play Mjlab-Tracking-Flat-Pikachu-Up --checkpoint-file logs/rsl_rl/pikachu_tracking/2026-08-12_17-05-14_trail-pikachu-transition-up-test/model_499.pt  --motion-file src/mjlab/mocap/npz/Pikachu-Transition-Up.npz   --viewer viser
+
+
+
+
+## tracking npz 验证
+uv run play Mjlab-Tracking-Flat-Pikachu-Up --agent zero --motion-file src/mjlab/mocap/npz/Pikachu-rmg-walk-0.185.npz --no-terminations True
+
+
 # scp rsync
 
 拉到本地play
