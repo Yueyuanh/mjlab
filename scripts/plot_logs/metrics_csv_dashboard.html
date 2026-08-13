@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pikachu Metrics CSV Dashboard</title>
-<script src="/echarts.min.js" charset="utf-8"
+<script src="echarts.min.js" charset="utf-8"
         onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js';document.head.appendChild(s);"></script>
 <style>
   :root {
@@ -22,7 +22,7 @@
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",
       Arial,"PingFang SC","Microsoft YaHei",sans-serif;
   }
-  button,input { font:inherit; }
+  button,input,select { font:inherit; }
   header {
     background:linear-gradient(180deg,#fff,#fafbfd); border-bottom:1px solid var(--line);
     padding:14px 22px; display:flex; gap:16px; align-items:center;
@@ -44,6 +44,10 @@
   .btn.primary:hover { background:var(--accent2); }
   .btn.on { color:var(--accent2); border-color:var(--accent); background:var(--soft); }
   #file-input { display:none; }
+  .csv-picker {
+    min-width:290px; max-width:430px; border:1px solid var(--line2);
+    border-radius:8px; padding:8px 10px; background:#fff; color:var(--ink);
+  }
   #status {
     max-width:520px; padding:7px 10px; border:1px solid var(--line);
     border-radius:7px; background:#fff; color:var(--muted); font:12px var(--mono);
@@ -144,8 +148,12 @@
     <div><div class="eyebrow">SIMULATION TELEMETRY · CSV INSPECTOR</div><h1>Pikachu Metrics 数据分析</h1></div>
   </div>
   <div class="actions">
+    <select id="csv-picker" class="csv-picker" disabled title="自动发现 logs/ 下的 Metrics CSV">
+      <option>正在发现 logs/ 下的 CSV…</option>
+    </select>
+    <button class="btn" id="refresh-csv" onclick="discoverCsvs(false)">刷新列表</button>
     <input id="file-input" type="file" accept=".csv,text/csv">
-    <button class="btn primary" onclick="document.getElementById('file-input').click()">加载 CSV</button>
+    <button class="btn primary" onclick="document.getElementById('file-input').click()">选择其他 CSV</button>
     <button class="btn" id="save-overview" onclick="saveOverviewPng()" disabled>保存当前总览 PNG</button>
     <button class="btn" id="save-pairs" onclick="savePairsPng()" disabled>保存左右 1×7 PNG</button>
     <button class="btn" id="save-csv" onclick="saveSelectedCsv()" disabled>保存所选数据 CSV</button>
@@ -153,7 +161,7 @@
   </div>
 </header>
 
-<div id="drop-zone" class="drop-zone">拖放 CSV 到这里，或点击“加载 CSV”。文件仅在当前浏览器中解析，不会上传。</div>
+<div id="drop-zone" class="drop-zone">启动 plot_logs 服务后会自动发现并加载 logs/ 下最新的 Metrics CSV；也可在这里拖放其他 CSV。数据不会上传。</div>
 
 <div class="meta">
   <div class="meta-card"><div class="meta-k">File</div><div class="meta-v" id="m-file">—</div></div>
@@ -220,7 +228,7 @@
     </div>
   </main>
 </div>
-<footer>建议通过 <code>python -m http.server 8000 -d scripts/plot_logs</code> 打开；直接双击也可读取本地 CSV。</footer>
+<footer>运行 <code>uv run python scripts/plot_logs/serve.py</code> 可自动发现 logs/ 下的 CSV；直接双击时仍可手动选择。</footer>
 
 <script>
 const META_COLUMNS = new Set(['sample','sim_step','time_s','env_idx','network']);
@@ -244,6 +252,7 @@ let SELECTED = new Set();
 let OVERVIEW = null;
 let PAIR_CHARTS = [];
 let RANGE = [0,100];
+let DISCOVERED_FILES = [];
 
 function waitEcharts(){
   if(window.echarts) return Promise.resolve();
@@ -342,22 +351,76 @@ function orderedCategories(){
   });
 }
 
-async function loadFile(file){
+async function loadCsvText(text,name){
   try{
-    setStatus('正在解析 '+file.name+'…');
+    setStatus('正在解析 '+name+'…');
     await waitEcharts();
-    DATA=parseCsv(await file.text()); FILE_NAME=file.name; buildTaxonomy();
+    DATA=parseCsv(text); FILE_NAME=name; buildTaxonomy();
     SELECTED=new Set(Object.keys(DATA.values)); ACTIVE=orderedCategories()[0]; RANGE=[0,100];
-    document.getElementById('m-file').textContent=file.name;
+    document.getElementById('m-file').textContent=name;
     document.getElementById('m-network').textContent=DATA.columns.network?.find(Boolean)||'unknown';
     document.getElementById('m-samples').textContent=DATA.time.length.toLocaleString();
     document.getElementById('m-duration').textContent=(DATA.time.at(-1)-DATA.time[0]).toFixed(3)+' s';
     document.getElementById('m-envs').textContent=new Set(DATA.columns.env_idx||[]).size||'—';
     for(const id of ['save-overview','save-csv']) document.getElementById(id).disabled=false;
     renderTabs(); renderTermList(); resetRange(); renderAll();
-    setStatus('已加载 '+file.name+' · '+Object.keys(DATA.values).length+' 条曲线');
+    setStatus('已加载 '+name+' · '+Object.keys(DATA.values).length+' 条曲线');
   }catch(err){ setStatus(err.message||String(err),true); }
 }
+
+async function loadFile(file){
+  setStatus('正在读取 '+file.name+'…');
+  await loadCsvText(await file.text(),file.name);
+}
+
+function formatBytes(bytes){
+  if(bytes<1024)return bytes+' B';
+  if(bytes<1024*1024)return (bytes/1024).toFixed(1)+' KiB';
+  return (bytes/1024/1024).toFixed(1)+' MiB';
+}
+
+async function loadDiscovered(path){
+  const item=DISCOVERED_FILES.find(file=>file.path===path);
+  if(!item)return;
+  try{
+    setStatus('正在读取 '+item.path+'…');
+    const response=await fetch(item.url,{cache:'no-store'});
+    if(!response.ok)throw new Error('读取失败：HTTP '+response.status);
+    await loadCsvText(await response.text(),item.name);
+  }catch(err){setStatus((err.message||String(err))+'；可改用“选择其他 CSV”',true);}
+}
+
+async function discoverCsvs(autoLoad=true){
+  const picker=document.getElementById('csv-picker');
+  const previous=picker.value;
+  picker.disabled=true;picker.innerHTML='<option>正在发现 logs/ 下的 CSV…</option>';
+  try{
+    const response=await fetch('/api/csv-files?kind=metrics',{cache:'no-store'});
+    if(!response.ok)throw new Error('自动发现接口不可用');
+    const payload=await response.json();DISCOVERED_FILES=payload.files||[];
+    picker.innerHTML='';
+    if(!DISCOVERED_FILES.length){
+      picker.innerHTML='<option>logs/ 下没有 Metrics CSV</option>';
+      setStatus('未发现 Metrics CSV；可点击“选择其他 CSV”',true);return;
+    }
+    DISCOVERED_FILES.forEach(function(file,index){
+      const option=document.createElement('option');option.value=file.path;
+      option.textContent=(index===0?'最新 · ':'')+file.path+' · '+formatBytes(file.size);
+      picker.appendChild(option);
+    });
+    picker.disabled=false;
+    const queryPath=new URLSearchParams(location.search).get('csv');
+    const preferred=[queryPath,previous].find(path=>DISCOVERED_FILES.some(file=>file.path===path));
+    if(preferred)picker.value=preferred;
+    if(autoLoad)await loadDiscovered(picker.value);
+    else setStatus('已发现 '+DISCOVERED_FILES.length+' 个 Metrics CSV');
+  }catch(err){
+    picker.innerHTML='<option>自动发现需使用 plot_logs/serve.py</option>';
+    setStatus('自动发现不可用；请运行 uv run python scripts/plot_logs/serve.py，或手动选择 CSV',true);
+  }
+}
+
+document.getElementById('csv-picker').addEventListener('change',e=>loadDiscovered(e.target.value));
 
 document.getElementById('file-input').addEventListener('change',e=>{
   if(e.target.files?.[0]) loadFile(e.target.files[0]);
@@ -577,6 +640,7 @@ function saveSelectedCsv(){
 window.addEventListener('resize',()=>{
   OVERVIEW?.resize();for(const c of PAIR_CHARTS)c.resize();
 });
+discoverCsvs(true);
 </script>
 </body>
 </html>

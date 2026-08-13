@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mjlab Actuator Response Dashboard</title>
+<script src="echarts.min.js" charset="utf-8"
+  onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js';document.head.appendChild(s);"></script>
+<script>
+window.MathJax={tex:{inlineMath:[["\\(","\\)"]],displayMath:[["\\[","\\]"]]},
+  options:{skipHtmlTags:["script","noscript","style","textarea","pre","code"]}};
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+<style>
+:root{
+  --bg:#f4f6f9;--card:#fff;--ink:#152033;--muted:#68758b;--faint:#94a3b8;
+  --line:#dfe5ed;--accent:#e8590c;--blue:#2563eb;--cyan:#0891b2;
+  --green:#138a56;--red:#d93025;--amber:#c87900;--soft:#fff1e8;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --shadow:0 2px 12px rgba(24,35,55,.055)
+}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC",
+  "Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink)}
+button,input,select{font:inherit}
+header{padding:15px 24px;background:#fff;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px}.mark{width:12px;height:12px;border-radius:3px;
+  background:var(--accent);transform:rotate(45deg);box-shadow:0 0 0 5px var(--soft)}
+.eyebrow{font:10px var(--mono);letter-spacing:.14em;color:var(--faint)}
+h1{font-size:19px;margin:3px 0 0}.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{border:1px solid #ccd5e1;background:#fff;border-radius:8px;padding:8px 13px;
+  cursor:pointer;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.btn:hover{border-color:#9eacbe;background:#fafbfc}.btn.primary{background:var(--accent);
+  color:white;border-color:var(--accent)}.btn:disabled{opacity:.45;cursor:not-allowed}
+#file{display:none}#status{font:11px var(--mono);color:var(--muted);max-width:520px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drop{margin:14px 24px 0;padding:13px;border:1px dashed #b9c4d2;border-radius:10px;
+  background:rgba(255,255,255,.7);text-align:center;color:var(--muted);font-size:13px}
+.drop.drag{border-color:var(--accent);background:var(--soft)}
+.meta{display:grid;grid-template-columns:repeat(7,minmax(130px,1fr));gap:10px;
+  max-width:1700px;margin:14px auto;padding:0 24px}
+.meta-card,.panel,.side{background:var(--card);border:1px solid var(--line);
+  border-radius:10px;box-shadow:var(--shadow)}
+.meta-card{padding:10px 12px}.meta-k{font:10px var(--mono);color:var(--faint);
+  text-transform:uppercase;letter-spacing:.08em}.meta-v{margin-top:5px;font:13px var(--mono);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.meta-v.ok{color:var(--green)}.meta-v.warn{color:var(--amber)}.meta-v.bad{color:var(--red)}
+nav{position:sticky;top:0;z-index:8;display:flex;gap:5px;padding:8px 24px;
+  border-block:1px solid var(--line);background:rgba(244,246,249,.94);
+  backdrop-filter:blur(7px)}
+nav a{text-decoration:none;color:var(--muted);padding:7px 12px;border-radius:7px;
+  font-size:12px}nav a:hover{background:#fff;color:var(--accent)}
+.layout{max-width:1700px;margin:14px auto 44px;padding:0 24px;display:grid;
+  grid-template-columns:285px minmax(0,1fr);gap:14px}
+.side{position:sticky;top:58px;align-self:start;padding:14px;display:grid;gap:11px}
+.side h2{font-size:14px;margin:0}.hint{font-size:11.5px;color:var(--muted);line-height:1.55}
+label.field{font:10px var(--mono);color:var(--faint);display:grid;gap:5px}
+select,input[type=number]{width:100%;border:1px solid var(--line);border-radius:7px;
+  padding:8px 9px;background:#fff;color:var(--ink)}
+.csv-picker{width:min(430px,45vw);min-width:280px}
+.chart.sine-waves{min-height:430px;height:650px}
+.na{color:var(--faint);font-style:normal}.quality-note{display:grid;gap:9px}
+main{min-width:0;display:grid;gap:14px}.panel{padding:15px}
+.panel-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;
+  margin-bottom:10px;flex-wrap:wrap}.panel h2{font-size:15px;margin:0 0 4px}
+.panel p{font-size:11.5px;color:var(--muted);line-height:1.55;margin:0}
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(120px,1fr));gap:8px;margin:10px 0}
+.kpi{border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:#fbfcfe}
+.kpi .k{font:9px var(--mono);color:var(--faint);text-transform:uppercase}
+.kpi .v{font:15px var(--mono);margin-top:5px}.chart{height:650px}.chart.mid{height:410px}
+.chart.small{height:350px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.table-wrap{overflow:auto;max-height:430px;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:11px}th,td{padding:7px 9px;
+  border-bottom:1px solid var(--line);white-space:nowrap;text-align:right;font-family:var(--mono)}
+th{position:sticky;top:0;background:#f7f9fc;color:var(--muted);z-index:2}
+th:first-child,td:first-child{text-align:left}tr:hover td{background:#fafbfe}
+.pill{display:inline-block;padding:2px 7px;border-radius:99px;font:9px var(--mono)}
+.pill.ok{background:#e7f7ef;color:var(--green)}.pill.warn{background:#fff3d7;color:var(--amber)}
+.pill.bad{background:#fdebea;color:var(--red)}
+.formulas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.formula{border:1px solid var(--line);border-radius:9px;padding:13px;background:#fbfcfe}
+.formula h3{font-size:12px;margin:0 0 7px}.eq{font-size:13px;line-height:1.7;
+  padding:7px 9px;border-left:3px solid var(--accent);background:#fff;overflow:auto}
+.formula p{margin-top:7px}.empty{padding:50px 15px;text-align:center;color:var(--faint)}
+footer{text-align:center;color:var(--faint);font-size:11px;padding:0 20px 35px}
+@media(max-width:1100px){.meta{grid-template-columns:repeat(3,1fr)}
+  .layout{grid-template-columns:1fr}.side{position:static}.kpis{grid-template-columns:repeat(3,1fr)}
+  .grid2,.formulas{grid-template-columns:1fr}}
+@media(max-width:650px){.meta{grid-template-columns:repeat(2,1fr)}
+  .kpis{grid-template-columns:repeat(2,1fr)}header,.layout,.meta{padding-inline:12px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="mark"></span><div>
+    <div class="eyebrow">SUSPENDED ACTUATOR · RESPONSE LAB</div>
+    <h1>执行器响应与电机选型分析</h1>
+  </div></div>
+  <div class="actions">
+    <select id="csv-picker" class="csv-picker" disabled title="自动发现 logs/response 下的 response.csv">
+      <option>正在发现 response.csv…</option>
+    </select>
+    <button id="refresh-csv" class="btn" onclick="discoverCsvs(false)">刷新列表</button>
+    <span id="status">请选择 uv run response 导出的 response.csv</span>
+    <label class="btn primary" for="file">选择其他 CSV</label>
+    <input id="file" type="file" accept=".csv,text/csv">
+    <button id="export" class="btn" disabled>导出网页分析 CSV</button>
+  </div>
+</header>
+<div id="drop" class="drop">启动 plot_logs 服务后会自动发现并加载 logs/response 下最新的 response.csv；也可拖放其他文件，数据不会上传。</div>
+<div class="meta">
+  <div class="meta-card"><div class="meta-k">Task</div><div id="m-task" class="meta-v">—</div></div>
+  <div class="meta-card"><div class="meta-k">Run</div><div id="m-run" class="meta-v">—</div></div>
+  <div class="meta-card"><div class="meta-k">Samples</div><div id="m-samples" class="meta-v">—</div></div>
+  <div class="meta-card"><div class="meta-k">Cases / Joints</div><div id="m-cases" class="meta-v">—</div></div>
+  <div class="meta-card"><div class="meta-k">Physics dt</div><div id="m-dt" class="meta-v">—</div></div>
+  <div class="meta-card"><div class="meta-k">Contact invariant</div><div id="m-contact" class="meta-v">—</div></div>
+  <div class="meta-card"><div class="meta-k">Missing / NaN</div><div id="m-nan" class="meta-v">—</div></div>
+</div>
+<nav>
+  <a href="#wave">原始响应</a><a href="#step">阶跃指标</a><a href="#sine">正弦频响</a>
+  <a href="#demand">电机需求</a><a href="#params">模型参数</a><a href="#quality">NaN 诊断</a><a href="#model">公式推导</a>
+</nav>
+<div class="layout">
+  <aside class="side">
+    <h2>实验筛选</h2>
+    <p class="hint">按关节与 case 查看波形。阶跃和频响汇总表始终基于整个 CSV。</p>
+    <label class="field">JOINT<select id="joint"></select></label>
+    <label class="field">RESPONSE TYPE<select id="type"></select></label>
+    <label class="field">CASE<select id="case"></select></label>
+    <hr style="width:100%;border:0;border-top:1px solid var(--line)">
+    <h2>选型安全系数</h2>
+    <label class="field">PEAK TORQUE SF<input id="torque-sf" type="number" min="1" step=".1" value="1.5"></label>
+    <label class="field">RMS TORQUE SF<input id="rms-sf" type="number" min="1" step=".1" value="1.5"></label>
+    <label class="field">SPEED SF<input id="speed-sf" type="number" min="1" step=".1" value="1.2"></label>
+    <p class="hint">RMS 扭矩仅作连续扭矩初筛。最终必须结合实机工况占空比、热模型、母线电压和驱动器限流。</p>
+  </aside>
+  <main>
+    <section class="panel" id="wave">
+      <div class="panel-head"><div><h2>原始响应波形</h2>
+        <p>位置指令/实测、误差、速度和关节侧执行器扭矩同步显示；虚线标记刺激开始。</p></div>
+        <span id="case-tag" class="pill warn">未加载</span>
+      </div>
+      <div id="case-kpis" class="kpis"></div>
+      <div id="time-chart" class="chart"><div class="empty">加载 CSV 后显示</div></div>
+    </section>
+    <section class="panel" id="step">
+      <div class="panel-head"><div><h2>阶跃动态指标</h2>
+        <p>采用 10–90% 上升时间、5% 延迟、2%/5% 调节时间、相对指令幅值超调和稳态误差。</p></div></div>
+      <div class="table-wrap" id="step-table"><div class="empty">暂无阶跃数据</div></div>
+    </section>
+    <section class="panel" id="sine">
+      <div class="panel-head"><div><h2>正弦频率响应</h2>
+        <p>剔除 warmup cycles 后最小二乘拟合基波；展示增益、相位、等效延迟、拟合 R² 与 2–5 次谐波 THD。</p></div></div>
+      <div class="panel-head"><div><h2>各频点原始正弦时域响应</h2>
+        <p>逐频点显示未经拟合的 position command 与 measured position；stimulus 和 fit start 标记保留预热区间。</p></div></div>
+      <div id="sine-time-chart" class="chart sine-waves"><div class="empty">暂无正弦原始数据</div></div>
+      <div class="panel-head" style="margin-top:14px"><div><h2>Bode 拟合结果</h2>
+        <p>以下增益、相位和 THD 来自 fit start 之后的原始样本。</p></div></div>
+      <div id="bode-chart" class="chart mid"><div class="empty">暂无正弦数据</div></div>
+      <div class="table-wrap" id="sine-table"><div class="empty">暂无正弦数据</div></div>
+    </section>
+    <section class="panel" id="demand">
+      <div class="panel-head"><div><h2>扭矩–转速需求与选型余量</h2>
+        <p>散点为当前关节所有测试样本；边界是仿真中的关节侧硬限值，不等同于真实电机连续工作区或电压相关速度–扭矩曲线。</p></div></div>
+      <div id="demand-kpis" class="kpis"></div>
+      <div class="grid2">
+        <div id="torque-speed-chart" class="chart small"></div>
+        <div id="demand-table" class="table-wrap"></div>
+      </div>
+    </section>
+    <section class="panel" id="params">
+      <div class="panel-head"><div><h2>当前电机、传动与 PD 参数</h2>
+        <p>值来自 raw CSV：控制参数与动力学参数取编译模型，Pikachu 型号/额定关节速度和齿轮数据取当前机器人常量。</p></div></div>
+      <div id="params-table" class="table-wrap"><div class="empty">暂无参数</div></div>
+    </section>
+    <section class="panel" id="quality">
+      <div class="panel-head"><div><h2>缺失值与 NaN 诊断</h2>
+        <p>NaN 表示“不可用/未定义”，不自动等同于仿真数值发散。这里区分未登记参数、未达到动态判据和频率覆盖不足。</p></div></div>
+      <div id="nan-diagnostics" class="quality-note">
+        <div class="empty">加载 CSV 后解释缺失值</div>
+      </div>
+    </section>
+    <section class="panel" id="model">
+      <div class="panel-head"><div><h2>执行器数学模型与指标推导</h2>
+        <p>这是 home pose 附近的局部单关节线性化；多体耦合、重力、摩擦、限幅和离散积分由仿真波形体现。</p></div></div>
+      <div id="model-values" class="kpis"></div>
+      <div class="formulas">
+        <div class="formula"><h3>1 · 减速器反射惯量</h3>
+          <div class="eq">\[J_r=J_0(N_1N_2)^2+J_1N_2^2+J_2\]</div>
+          <p>各级转子/齿轮惯量按其到关节侧的剩余速比平方折算。CSV 中 \(\mathtt{armature\_kg\_m2}\) 即该值。</p></div>
+        <div class="formula"><h3>2 · 多体关节动力学</h3>
+          <div class="eq">\[\mathbf M(\mathbf q)\ddot{\mathbf q}+\mathbf C(\mathbf q,\dot{\mathbf q})\dot{\mathbf q}+\mathbf g(\mathbf q)+b\dot{\mathbf q}+\tau_f=\tau_{\mathrm{act}}\]</div>
+          <p>\(J=M_{jj}(\mathbf q_{\mathrm{home}})\) 是 dashboard 使用的 home-pose 局部等效惯量；它包含链节耦合与 armature。</p></div>
+        <div class="formula"><h3>3 · 位置 PD 与饱和</h3>
+          <div class="eq">\[\begin{aligned}\tau_{\mathrm{raw}}&=K_p(q_{\mathrm{cmd}}-q)-K_d\dot q\\\tau_{\mathrm{act}}&=\operatorname{clamp}(\tau_{\mathrm{raw}},-\tau_{\max},+\tau_{\max})\end{aligned}\]</div>
+          <p>被动阻尼 \(b\) 与控制器 \(K_d\) 不同；\(\tau_f\) 是库仑摩擦上限。饱和时线性模型不再成立。</p></div>
+        <div class="formula"><h3>4 · 局部闭环传递函数</h3>
+          <div class="eq">\[H(s)=\frac{q(s)}{q_{\mathrm{cmd}}(s)}=\frac{K_p}{Js^2+(K_d+b)s+K_p}\]</div>
+          <p>忽略重力偏置、干摩擦、饱和、时延和其他关节运动，适合解释小信号趋势，不替代完整多体仿真。</p></div>
+        <div class="formula"><h3>5 · 自然频率与阻尼比</h3>
+          <div class="eq">\[\omega_n=\sqrt{\frac{K_p}{J}},\qquad \zeta=\frac{K_d+b}{2\sqrt{K_pJ}}\]</div>
+          <p>欠阻尼时 \(M_p=\exp[-\pi\zeta/\sqrt{1-\zeta^2}]\)，常用 2% 调节时间近似 \(T_s\approx4/(\zeta\omega_n)\)。</p></div>
+        <div class="formula"><h3>6 · 阶跃指标</h3>
+          <div class="eq">\[T_r=t_{90\%}-t_{10\%},\qquad OS=\max\left(0,\frac{y_{\mathrm{peak}}-y_{\mathrm{target}}}{|\Delta q|}\right)100\%\]</div>
+          <p>稳态值取末尾 10% 样本中位数；调节时间要求之后全部样本保持在目标 \(\pm2\%\) 或 \(\pm5\%\) 幅值内。</p></div>
+        <div class="formula"><h3>7 · 正弦拟合与 Bode</h3>
+          <div class="eq">\[\begin{aligned}y(t)&=a\sin(\omega t)+b\cos(\omega t)+c\\|H|&=\frac{A_y}{A_r},\qquad \angle H=\phi_y-\phi_r\end{aligned}\]</div>
+          <p>\(A=\sqrt{a^2+b^2}\)，相位 \(\phi=\operatorname{atan2}(b,a)\)。THD 使用 2–5 次谐波幅值平方和除以基波幅值。</p></div>
+        <div class="formula"><h3>8 · 电机需求初筛</h3>
+          <div class="eq">\[\begin{aligned}\tau_{\mathrm{peak,req}}&=SF_p\max|\tau|\\\tau_{\mathrm{cont,req}}&\approx SF_r\,\operatorname{RMS}(\tau)\\\omega_{\mathrm{req}}&=SF_\omega\max|\dot q|\end{aligned}\]</div>
+          <p>另检查峰值机械功率 \(|\tau\dot q|\)、扭矩饱和占比和 \(-3\,\mathrm{dB}\) 带宽。实机选型还需热、电压、电流和效率曲线。</p></div>
+      </div>
+      <div id="substitution" class="formula" style="margin-top:10px"></div>
+    </section>
+  </main>
+</div>
+<footer>运行 <code>uv run python scripts/plot_logs/serve.py</code> 可自动发现 logs/response 下的 CSV；页面只读本机文件，不上传数据。</footer>
+<script>
+var DATA=null, CASES=new Map(), JOINT_ROWS=new Map(), STEP=[], SINE=[];
+var TIME_CHART=null, SINE_TIME_CHART=null, BODE_CHART=null, TS_CHART=null;
+var MAX_POINTS=5000;
+var DISCOVERED_FILES=[];
+var DATASHEET_FIELDS=new Set(["nominal_voltage_v","continuous_torque_nm",
+  "torque_constant_nm_a","back_emf_v_s_rad","phase_resistance_ohm",
+  "thermal_resistance_k_w","motor_efficiency"]);
+
+function esc(value){
+  return String(value==null?"":value).replace(/[&<>"']/g,function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];
+  });
+}
+function n(row,key){
+  var raw=row[key];if(raw==null||String(raw).trim()==="")return NaN;
+  var value=Number(raw);return Number.isFinite(value)?value:NaN;
+}
+function fmt(value,digits){
+  if(digits===undefined)digits=4;
+  return Number.isFinite(value)?Number(value).toPrecision(digits):"N/A";
+}
+function latexNumber(value,digits){
+  return Number.isFinite(value)?fmt(value,digits):"\\mathrm{N/A}";
+}
+function typesetMath(root,attempt){
+  attempt=attempt||0;if(!root)return;
+  if(window.MathJax&&window.MathJax.typesetPromise){
+    if(window.MathJax.typesetClear)window.MathJax.typesetClear([root]);
+    window.MathJax.typesetPromise([root]).catch(function(){});
+  }else if(attempt<20)setTimeout(function(){typesetMath(root,attempt+1)},250);
+}
+function median(values){
+  var a=values.filter(Number.isFinite).sort(function(x,y){return x-y});
+  if(!a.length)return NaN;var m=Math.floor(a.length/2);
+  return a.length%2?a[m]:(a[m-1]+a[m])/2;
+}
+function rms(values){
+  var a=values.filter(Number.isFinite);if(!a.length)return NaN;
+  return Math.sqrt(a.reduce(function(s,v){return s+v*v},0)/a.length);
+}
+function waitEcharts(){
+  if(window.echarts)return Promise.resolve();
+  return new Promise(function(resolve,reject){
+    var tries=0,timer=setInterval(function(){
+      if(window.echarts){clearInterval(timer);resolve()}
+      else if(++tries>100){clearInterval(timer);reject(new Error("ECharts 加载失败"))}
+    },100);
+  });
+}
+function parseCsv(text){
+  var rows=[],row=[],field="",quoted=false;
+  for(var i=0;i<text.length;i++){
+    var c=text[i];
+    if(quoted){
+      if(c==="\""&&text[i+1]==="\""){field+="\"";i++}
+      else if(c==="\"")quoted=false;else field+=c;
+    }else if(c==="\"")quoted=true;
+    else if(c===","){row.push(field);field=""}
+    else if(c==="\n"){row.push(field);rows.push(row);row=[];field=""}
+    else if(c!=="\r")field+=c;
+  }
+  if(field.length||row.length){row.push(field);rows.push(row)}
+  if(rows.length<2)throw new Error("CSV 为空");
+  var headers=rows[0].map(function(v,i){return (i?v:v.replace(/^\uFEFF/,"")).trim()});
+  ["schema_version","time_s","test_time_s","response_type","case_id","joint",
+   "command_pos_rad","measured_pos_rad","measured_vel_rad_s","actuator_torque_nm"
+  ].forEach(function(key){if(headers.indexOf(key)<0)throw new Error("缺少列 "+key)});
+  return rows.slice(1).filter(function(r){return r.length>1}).map(function(r){
+    var out={};headers.forEach(function(h,i){out[h]=r[i]===undefined?"":r[i]});return out;
+  });
+}
+function crossing(time,value,threshold){
+  for(var i=0;i<value.length;i++)if(value[i]>=threshold){
+    if(i===0)return time[0];var dy=value[i]-value[i-1];
+    if(!dy)return time[i];var f=(threshold-value[i-1])/dy;
+    return time[i-1]+Math.max(0,Math.min(1,f))*(time[i]-time[i-1]);
+  }
+  return NaN;
+}
+function settling(time,value,target,band){
+  var last=-1;for(var i=0;i<value.length;i++)if(Math.abs(value[i]-target)>band)last=i;
+  return last+1<time.length?time[last+1]:NaN;
+}
+function trapz(time,value){
+  var sum=0;for(var i=1;i<time.length;i++)sum+=(time[i]-time[i-1])*(value[i]+value[i-1])/2;
+  return sum;
+}
+function analyzeStep(rows){
+  var start=n(rows[0],"stimulus_start_s"),pre=rows.filter(function(r){return n(r,"test_time_s")<start});
+  var post=rows.filter(function(r){return n(r,"test_time_s")>=start});
+  var base=median(pre.map(function(r){return n(r,"measured_pos_rad")}));
+  if(!Number.isFinite(base))base=n(post[0],"measured_pos_rad");
+  var target=median(post.map(function(r){return n(r,"command_pos_rad")}));
+  var amp=target-base,mag=Math.abs(amp),sign=amp>=0?1:-1;
+  var time=post.map(function(r){return n(r,"test_time_s")-start});
+  var y=post.map(function(r){return n(r,"measured_pos_rad")});
+  var directed=y.map(function(v){return sign*(v-base)});
+  var t10=crossing(time,directed,.1*mag),t90=crossing(time,directed,.9*mag);
+  var peak=Math.max.apply(null,directed),peakIndex=directed.indexOf(peak);
+  var finalCount=Math.max(3,Math.floor(post.length*.1));
+  var finalValue=median(y.slice(-finalCount));
+  var error=post.map(function(r){return n(r,"command_pos_rad")-n(r,"measured_pos_rad")});
+  var absError=error.map(Math.abs),sqError=error.map(function(v){return v*v});
+  return {type:"step",case_id:rows[0].case_id,joint:rows[0].joint,
+    direction:n(rows[0],"direction"),amplitude_rad:n(rows[0],"amplitude_rad"),
+    rise_time_10_90_s:Number.isFinite(t10)&&Number.isFinite(t90)?t90-t10:NaN,
+    latency_5pct_s:crossing(time,directed,.05*mag),
+    delay_50pct_s:crossing(time,directed,.5*mag),
+    peak_time_s:time[peakIndex],
+    overshoot_pct:Math.max(0,(peak/mag-1)*100),
+    settling_time_2pct_s:settling(time,y,target,.02*mag),
+    settling_time_5pct_s:settling(time,y,target,.05*mag),
+    steady_state_error_rad:target-finalValue,
+    steady_state_error_pct:100*Math.abs(target-finalValue)/mag,
+    rmse_rad:rms(error),iae_rad_s:trapz(time,absError),ise_rad2_s:trapz(time,sqError),
+    peak_velocity_rad_s:Math.max.apply(null,post.map(function(r){return Math.abs(n(r,"measured_vel_rad_s"))})),
+    peak_torque_nm:Math.max.apply(null,post.map(function(r){return Math.abs(n(r,"actuator_torque_nm"))})),
+    torque_rms_nm:rms(post.map(function(r){return n(r,"actuator_torque_nm")})),
+    saturation_fraction:post.filter(function(r){return n(r,"torque_saturated")>.5}).length/post.length};
+}
+function solveLinear(a,b){
+  var size=a.length;
+  var m=a.map(function(row,i){return row.slice().concat([b[i]])});
+  for(var col=0;col<size;col++){
+    var pivot=col;for(var r=col+1;r<size;r++)if(Math.abs(m[r][col])>Math.abs(m[pivot][col]))pivot=r;
+    var tmp=m[col];m[col]=m[pivot];m[pivot]=tmp;
+    if(Math.abs(m[col][col])<1e-14)return Array(size).fill(NaN);
+    for(r=col+1;r<size;r++){var f=m[r][col]/m[col][col];for(var k=col;k<=size;k++)m[r][k]-=f*m[col][k]}
+  }
+  var x=Array(size).fill(0);for(r=size-1;r>=0;r--){var s=m[r][size];for(k=r+1;k<size;k++)s-=m[r][k]*x[k];x[r]=s/m[r][r]}
+  return x;
+}
+function fitSine(time,value,freq){
+  var xx=[[0,0,0],[0,0,0],[0,0,0]],xy=[0,0,0],omega=2*Math.PI*freq;
+  var vectors=time.map(function(t){return [Math.sin(omega*t),Math.cos(omega*t),1]});
+  vectors.forEach(function(v,i){for(var a=0;a<3;a++){xy[a]+=v[a]*value[i];for(var b=0;b<3;b++)xx[a][b]+=v[a]*v[b]}});
+  var c=solveLinear(xx,xy),fitted=vectors.map(function(v){return v[0]*c[0]+v[1]*c[1]+c[2]});
+  var mean=value.reduce(function(s,v){return s+v},0)/value.length,ssr=0,sst=0;
+  value.forEach(function(v,i){ssr+=(v-fitted[i])*(v-fitted[i]);sst+=(v-mean)*(v-mean)});
+  return {amp:Math.hypot(c[0],c[1]),phase:Math.atan2(c[1],c[0]),offset:c[2],
+    r2:sst>1e-18?1-ssr/sst:NaN};
+}
+function harmonicDistortion(time,value,freq){
+  var order=5,size=order*2+1,omega=2*Math.PI*freq;
+  var xx=Array.from({length:size},function(){return Array(size).fill(0)}),xy=Array(size).fill(0);
+  var vectors=time.map(function(t){var v=[];for(var h=1;h<=order;h++)v.push(Math.sin(h*omega*t),Math.cos(h*omega*t));v.push(1);return v});
+  vectors.forEach(function(v,i){for(var a=0;a<size;a++){xy[a]+=v[a]*value[i];for(var b=0;b<size;b++)xx[a][b]+=v[a]*v[b]}});
+  var c=solveLinear(xx,xy),fundamental=Math.hypot(c[0],c[1]),harmonicSq=0;
+  if(!(fundamental>1e-12))return NaN;
+  for(var h=2;h<=order;h++){
+    var index=2*(h-1);
+    harmonicSq+=c[index]*c[index]+c[index+1]*c[index+1];
+  }
+  return Math.sqrt(harmonicSq)/fundamental;
+}
+function phaseWrap(v){return (v+180)%360-180}
+function analyzeSine(rows){
+  var freq=n(rows[0],"frequency_hz"),start=n(rows[0],"stimulus_start_s");
+  var begin=start+n(rows[0],"warmup_cycles")/freq;
+  var kept=rows.filter(function(r){return n(r,"test_time_s")>=begin});
+  var time=kept.map(function(r){return n(r,"test_time_s")-start});
+  var cmd=kept.map(function(r){return n(r,"command_pos_rad")});
+  var y=kept.map(function(r){return n(r,"measured_pos_rad")});
+  var cf=fitSine(time,cmd,freq),yf=fitSine(time,y,freq),gain=yf.amp/cf.amp;
+  var phase=phaseWrap((yf.phase-cf.phase)*180/Math.PI),thd=harmonicDistortion(time,y,freq);
+  return {type:"sine",case_id:rows[0].case_id,joint:rows[0].joint,frequency_hz:freq,
+    amplitude_rad:n(rows[0],"amplitude_rad"),gain_ratio:gain,gain_db:20*Math.log10(gain),
+    phase_deg:phase,equivalent_delay_s:-phase*Math.PI/180/(2*Math.PI*freq),
+    response_amplitude_rad:yf.amp,response_offset_rad:yf.offset,
+    command_fit_r2:cf.r2,response_fit_r2:yf.r2,thd_pct:100*thd,
+    rmse_rad:rms(kept.map(function(r){return n(r,"command_pos_rad")-n(r,"measured_pos_rad")})),
+    peak_velocity_rad_s:Math.max.apply(null,kept.map(function(r){return Math.abs(n(r,"measured_vel_rad_s"))})),
+    peak_torque_nm:Math.max.apply(null,kept.map(function(r){return Math.abs(n(r,"actuator_torque_nm"))})),
+    torque_rms_nm:rms(kept.map(function(r){return n(r,"actuator_torque_nm")})),
+    saturation_fraction:kept.filter(function(r){return n(r,"torque_saturated")>.5}).length/kept.length};
+}
+function buildData(rows){
+  DATA=rows;CASES=new Map();JOINT_ROWS=new Map();
+  rows.forEach(function(row){
+    if(!CASES.has(row.case_id))CASES.set(row.case_id,[]);
+    CASES.get(row.case_id).push(row);
+    if(!JOINT_ROWS.has(row.joint))JOINT_ROWS.set(row.joint,[]);
+    JOINT_ROWS.get(row.joint).push(row);
+  });
+  CASES.forEach(function(v){v.sort(function(a,b){return n(a,"test_time_s")-n(b,"test_time_s")})});
+  STEP=[];SINE=[];CASES.forEach(function(v){
+    if(v[0].response_type==="step")STEP.push(analyzeStep(v));else SINE.push(analyzeSine(v));
+  });
+}
+function setStatus(text,bad){
+  var el=document.getElementById("status");el.textContent=text;el.style.color=bad?"var(--red)":"var(--muted)";
+}
+async function loadCsvText(text,name){
+  try{
+    setStatus("正在解析 "+name+"…");await waitEcharts();
+    var rows=parseCsv(text);
+    if(rows[0].schema_version!=="mjlab-response-v1")throw new Error("不支持 schema "+rows[0].schema_version);
+    buildData(rows);populateSelectors();renderMeta();renderAll();
+    document.getElementById("export").disabled=false;
+    setStatus("已加载 "+name+" · "+rows.length.toLocaleString()+" samples");
+  }catch(error){setStatus(error.message||String(error),true)}
+}
+async function loadFile(file){
+  setStatus("正在读取 "+file.name+"…");
+  await loadCsvText(await file.text(),file.name);
+}
+function formatBytes(bytes){
+  if(bytes<1024)return bytes+" B";
+  if(bytes<1024*1024)return (bytes/1024).toFixed(1)+" KiB";
+  return (bytes/1024/1024).toFixed(1)+" MiB";
+}
+async function loadDiscovered(path){
+  var item=DISCOVERED_FILES.find(function(file){return file.path===path});
+  if(!item)return;
+  try{
+    setStatus("正在读取 "+item.path+"…");
+    var response=await fetch(item.url,{cache:"no-store"});
+    if(!response.ok)throw new Error("读取失败：HTTP "+response.status);
+    await loadCsvText(await response.text(),item.path);
+  }catch(error){setStatus((error.message||String(error))+"；可改用“选择其他 CSV”",true)}
+}
+async function discoverCsvs(autoLoad){
+  if(autoLoad===undefined)autoLoad=true;
+  var picker=document.getElementById("csv-picker"),previous=picker.value;
+  picker.disabled=true;picker.innerHTML="<option>正在发现 response.csv…</option>";
+  try{
+    var response=await fetch("/api/csv-files?kind=response",{cache:"no-store"});
+    if(!response.ok)throw new Error("自动发现接口不可用");
+    var payload=await response.json();DISCOVERED_FILES=payload.files||[];picker.innerHTML="";
+    if(!DISCOVERED_FILES.length){
+      picker.innerHTML="<option>logs/response 下没有 response.csv</option>";
+      setStatus("未发现 response.csv；可点击“选择其他 CSV”",true);return;
+    }
+    DISCOVERED_FILES.forEach(function(file,index){
+      var item=document.createElement("option");item.value=file.path;
+      item.textContent=(index===0?"最新 · ":"")+file.path+" · "+formatBytes(file.size);
+      picker.appendChild(item);
+    });
+    picker.disabled=false;
+    var queryPath=new URLSearchParams(location.search).get("csv");
+    var preferred=[queryPath,previous].find(function(path){
+      return DISCOVERED_FILES.some(function(file){return file.path===path});
+    });
+    if(preferred)picker.value=preferred;
+    if(autoLoad)await loadDiscovered(picker.value);
+    else setStatus("已发现 "+DISCOVERED_FILES.length+" 个 response.csv");
+  }catch(error){
+    picker.innerHTML="<option>自动发现需使用 plot_logs/serve.py</option>";
+    setStatus("自动发现不可用；请运行 uv run python scripts/plot_logs/serve.py，或手动选择 CSV",true);
+  }
+}
+document.getElementById("csv-picker").addEventListener("change",function(e){loadDiscovered(e.target.value)});
+document.getElementById("file").addEventListener("change",function(e){if(e.target.files[0])loadFile(e.target.files[0])});
+var drop=document.getElementById("drop");
+["dragenter","dragover"].forEach(function(ev){drop.addEventListener(ev,function(e){e.preventDefault();drop.classList.add("drag")})});
+["dragleave","drop"].forEach(function(ev){drop.addEventListener(ev,function(e){e.preventDefault();drop.classList.remove("drag")})});
+drop.addEventListener("drop",function(e){if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0])});
+function option(select,value,text){var o=document.createElement("option");o.value=value;o.textContent=text;select.appendChild(o)}
+function populateSelectors(){
+  var joint=document.getElementById("joint");joint.innerHTML="";
+  Array.from(JOINT_ROWS.keys()).sort().forEach(function(v){option(joint,v,v)});
+  updateTypes();
+}
+function updateTypes(){
+  var joint=document.getElementById("joint").value,type=document.getElementById("type");type.innerHTML="";
+  var types=new Set(JOINT_ROWS.get(joint).map(function(r){return r.response_type}));
+  Array.from(types).forEach(function(v){option(type,v,v==="step"?"阶跃 step":"正弦 sine")});updateCases();
+}
+function updateCases(){
+  var joint=document.getElementById("joint").value,type=document.getElementById("type").value;
+  var select=document.getElementById("case");select.innerHTML="";
+  CASES.forEach(function(rows,key){if(rows[0].joint===joint&&rows[0].response_type===type)option(select,key,key)});
+}
+document.getElementById("joint").addEventListener("change",function(){updateTypes();renderAll()});
+document.getElementById("type").addEventListener("change",function(){updateCases();renderAll()});
+document.getElementById("case").addEventListener("change",renderAll);
+["torque-sf","rms-sf","speed-sf"].forEach(function(id){document.getElementById(id).addEventListener("input",renderDemand)});
+function isMissingValue(value){
+  if(value==null||String(value).trim()==="")return true;
+  return /^(nan|[+-]?inf(?:inity)?)$/i.test(String(value).trim());
+}
+function rawMissingSummary(){
+  var counts={};Object.keys(DATA[0]).forEach(function(key){
+    var count=DATA.filter(function(row){return isMissingValue(row[key])}).length;
+    if(count)counts[key]=count;
+  });
+  var fields=Object.keys(counts),total=fields.reduce(function(sum,key){return sum+counts[key]},0);
+  return {counts:counts,fields:fields,total:total};
+}
+function renderNaNDiagnostics(){
+  var raw=rawMissingSummary();
+  var signalFields=["time_s","test_time_s","command_pos_rad","measured_pos_rad",
+    "measured_vel_rad_s","actuator_torque_nm"];
+  var signalMissing=signalFields.reduce(function(sum,key){return sum+(raw.counts[key]||0)},0);
+  var datasheet=raw.fields.filter(function(key){return DATASHEET_FIELDS.has(key)});
+  var other=raw.fields.filter(function(key){return !DATASHEET_FIELDS.has(key)});
+  var noRise=STEP.filter(function(row){return !Number.isFinite(row.rise_time_10_90_s)}).length;
+  var noSettle=STEP.filter(function(row){return !Number.isFinite(row.settling_time_2pct_s)}).length;
+  var sineJoints=Array.from(new Set(SINE.map(function(row){return row.joint})));
+  var noBandwidth=sineJoints.filter(function(joint){return !Number.isFinite(measuredBandwidth(joint))}).length;
+  var parts=[
+    ["原始 CSV 缺失值",
+      raw.total
+        ? raw.total.toLocaleString()+" 个单元格 / "+raw.fields.length+" 个字段。长表会在每个采样行重复静态参数，所以少数未登记参数会形成很多 NaN。"
+        : "没有空值或非有限值。"],
+    ["电机 datasheet 参数",
+      datasheet.length
+        ? datasheet.join(", ")+" 尚未登记；这些 NaN 表示未知规格，不是仿真状态发散。"
+        : "本文件中已填写当前 dashboard 检查的 datasheet 字段。"],
+    ["阶跃判据",
+      noRise+" / "+STEP.length+" 个 case 未完成 10–90% 上升；"+noSettle+" / "+STEP.length+
+        " 个 case 在记录窗口结束前未能持续进入 ±2% 带宽，因此相应指标为 N/A。"],
+    ["−3 dB 带宽",
+      noBandwidth+" / "+sineJoints.length+
+        " 个有关节正弦数据但未观测到相对最低频增益下降 3 dB 的交点；需要扩展频率范围，而不是把带宽填成 0。"]
+  ];
+  if(other.length)parts.push(["其他缺失字段",other.join(", ")+"：通常来自缺少限位/利用率分母或协议不适用字段，请结合参数状态检查。"]);
+  if(signalMissing)parts.unshift(["波形数据异常",signalMissing+" 个必需波形单元格非有限；这会影响曲线和指标，应优先检查仿真导出。"]);
+  var root=document.getElementById("nan-diagnostics");root.innerHTML=parts.map(function(part){
+    return '<div class="formula"><h3>'+esc(part[0])+"</h3><p>"+esc(part[1])+"</p></div>";
+  }).join("");
+  var meta=document.getElementById("m-nan");
+  meta.textContent=raw.total?raw.total.toLocaleString()+" · "+raw.fields.length+" fields":"PASS · 0";
+  meta.className="meta-v "+(signalMissing?"bad":raw.total?"warn":"ok");
+}
+function renderMeta(){
+  var first=DATA[0],contacts=Math.max.apply(null,DATA.map(function(r){return n(r,"contact_count")}));
+  document.getElementById("m-task").textContent=first.task;
+  document.getElementById("m-run").textContent=first.run_id;
+  document.getElementById("m-samples").textContent=DATA.length.toLocaleString();
+  document.getElementById("m-cases").textContent=CASES.size+" / "+JOINT_ROWS.size;
+  document.getElementById("m-dt").textContent=fmt(n(first,"physics_dt_s"),4)+" s";
+  var el=document.getElementById("m-contact");el.textContent=contacts===0?"PASS · 0 contacts":"FAIL · "+contacts;
+  el.className="meta-v "+(contacts===0?"ok":"bad");
+  renderNaNDiagnostics();
+}
+function downsample(rows,maxPoints){
+  maxPoints=maxPoints||MAX_POINTS;
+  var stride=Math.max(1,Math.ceil(rows.length/maxPoints)),out=[];
+  for(var i=0;i<rows.length;i+=stride)out.push(rows[i]);
+  if(out[out.length-1]!==rows[rows.length-1])out.push(rows[rows.length-1]);return out;
+}
+function chartLine(name,rows,key,color,dash){
+  return {name:name,type:"line",showSymbol:false,data:rows.map(function(r){return [n(r,"test_time_s"),n(r,key)]}),
+    lineStyle:{width:1.7,type:dash?"dashed":"solid"},itemStyle:{color:color},sampling:"lttb"};
+}
+function renderWave(){
+  if(!DATA)return;var rows=CASES.get(document.getElementById("case").value);if(!rows)return;
+  var sampled=downsample(rows),start=n(rows[0],"stimulus_start_s");
+  if(TIME_CHART)TIME_CHART.dispose();TIME_CHART=echarts.init(document.getElementById("time-chart"));
+  var grids=[{left:70,right:25,top:35,height:"23%"},{left:70,right:25,top:"32%",height:"16%"},
+    {left:70,right:25,top:"54%",height:"16%"},{left:70,right:25,top:"76%",height:"16%"}];
+  var axes=[0,1,2,3].map(function(i){return {type:"value",gridIndex:i,name:i===3?"Time (s)":"",axisLabel:{show:i===3},scale:true}});
+  var yNames=["Position (rad)","Error (rad)","Velocity (rad/s)","Torque (N·m)"];
+  var yAxes=yNames.map(function(v,i){return {type:"value",gridIndex:i,name:v,scale:true}});
+  var series=[
+    chartLine("command",sampled,"command_pos_rad","#e8590c",true),
+    chartLine("measured",sampled,"measured_pos_rad","#2563eb",false),
+    chartLine("error",sampled,"position_error_rad","#7c3aed",false),
+    chartLine("velocity",sampled,"measured_vel_rad_s","#0891b2",false),
+    chartLine("torque",sampled,"actuator_torque_nm","#d93025",false)
+  ];
+  series.forEach(function(s,i){var axis=i<2?0:i-1;s.xAxisIndex=axis;s.yAxisIndex=axis;
+    s.markLine=i===0?{silent:true,symbol:"none",data:[{xAxis:start,label:{formatter:"stimulus"}}]}:undefined});
+  TIME_CHART.setOption({animation:false,grid:grids,xAxis:axes,yAxis:yAxes,series:series,
+    legend:{top:0},tooltip:{trigger:"axis",axisPointer:{type:"cross"}},
+    dataZoom:[{type:"inside",xAxisIndex:[0,1,2,3]},{type:"slider",xAxisIndex:[0,1,2,3],bottom:0,height:20}]});
+  var summary=rows[0].response_type==="step"?analyzeStep(rows):analyzeSine(rows);
+  var specs=summary.type==="step"?[
+    ["Rise 10–90%",summary.rise_time_10_90_s,"s"],["Overshoot",summary.overshoot_pct,"%"],
+    ["Settle 2%",summary.settling_time_2pct_s,"s"],["Steady error",summary.steady_state_error_rad,"rad"],
+    ["Peak torque",summary.peak_torque_nm,"N·m"],["Peak speed",summary.peak_velocity_rad_s,"rad/s"]
+  ]:[
+    ["Frequency",summary.frequency_hz,"Hz"],["Gain",summary.gain_db,"dB"],["Phase",summary.phase_deg,"deg"],
+    ["THD",summary.thd_pct,"%"],["Fit R²",summary.response_fit_r2,""],["Peak torque",summary.peak_torque_nm,"N·m"]
+  ];
+  renderKpis("case-kpis",specs);
+  var tag=document.getElementById("case-tag");tag.textContent=summary.type.toUpperCase()+" · "+rows[0].joint;
+  tag.className="pill "+(summary.saturation_fraction>0?"bad":"ok");
+}
+function renderKpis(id,specs){
+  var root=document.getElementById(id);root.innerHTML="";
+  specs.forEach(function(x){var div=document.createElement("div");div.className="kpi";
+    div.innerHTML='<div class="k">'+esc(x[0])+'</div><div class="v">'+fmt(x[1],5)+(x[2]?" "+esc(x[2]):"")+"</div>";root.appendChild(div)});
+}
+function makeTable(id,columns,rows){
+  var root=document.getElementById(id);if(!rows.length){root.innerHTML='<div class="empty">暂无数据</div>';return}
+  var html="<table><thead><tr>"+columns.map(function(c){return "<th>"+esc(c[0])+"</th>"}).join("")+"</tr></thead><tbody>";
+  rows.forEach(function(row){html+="<tr>"+columns.map(function(c,i){
+    var value=typeof c[1]==="function"?c[1](row):row[c[1]];
+    var missing=value==null||(typeof value==="number"&&!Number.isFinite(value))||
+      /^(nan|[+-]?inf(?:inity)?)$/i.test(String(value).trim());
+    if(missing)return '<td><span class="na" title="未定义或当前数据不足；详见 NaN 诊断">N/A</span></td>';
+    var numeric=value!==""&&Number.isFinite(Number(value));
+    return "<td>"+(i===0||!numeric?esc(value):fmt(Number(value),5))+"</td>";
+  }).join("")+"</tr>"});root.innerHTML=html+"</tbody></table>";
+}
+function renderStep(){
+  makeTable("step-table",[
+    ["Case","case_id"],["Joint","joint"],["Rise 10–90 s","rise_time_10_90_s"],
+    ["Delay 50% s","delay_50pct_s"],["Overshoot %","overshoot_pct"],
+    ["Settle 2% s","settling_time_2pct_s"],["SS error %","steady_state_error_pct"],
+    ["RMSE rad","rmse_rad"],["Peak Nm","peak_torque_nm"],["RMS Nm","torque_rms_nm"],
+    ["Sat. %",function(r){return 100*r.saturation_fraction}]
+  ],STEP);
+}
+function renderSineWaves(){
+  if(!DATA)return;
+  var joint=document.getElementById("joint").value;
+  var summaries=SINE.filter(function(row){return row.joint===joint})
+    .sort(function(a,b){return a.frequency_hz-b.frequency_hz});
+  if(SINE_TIME_CHART){SINE_TIME_CHART.dispose();SINE_TIME_CHART=null}
+  var el=document.getElementById("sine-time-chart");
+  if(!summaries.length){
+    el.style.height="430px";el.innerHTML='<div class="empty">该关节没有正弦原始数据</div>';return;
+  }
+  var height=Math.max(430,summaries.length*175+45);
+  el.style.height=height+"px";el.innerHTML="";SINE_TIME_CHART=echarts.init(el);
+  var grids=[],xAxes=[],yAxes=[],series=[],titles=[];
+  var perCase=Math.max(400,Math.floor(MAX_POINTS/summaries.length));
+  summaries.forEach(function(summary,index){
+    var rows=CASES.get(summary.case_id)||[],sampled=downsample(rows,perCase);
+    var top=55+index*175,start=n(rows[0],"stimulus_start_s");
+    var fitStart=start+n(rows[0],"warmup_cycles")/n(rows[0],"frequency_hz");
+    grids.push({left:75,right:25,top:top,height:110});
+    xAxes.push({type:"value",gridIndex:index,scale:true,
+      name:index===summaries.length-1?"Test time (s)":"",nameLocation:"middle",nameGap:28});
+    yAxes.push({type:"value",gridIndex:index,scale:true,name:"Position (rad)"});
+    titles.push({text:fmt(summary.frequency_hz,4)+" Hz",left:78,top:top-25,
+      textStyle:{fontSize:12,fontFamily:"monospace",fontWeight:"normal"}});
+    series.push({name:"command",type:"line",xAxisIndex:index,yAxisIndex:index,
+      showSymbol:false,data:sampled.map(function(row){return [n(row,"test_time_s"),n(row,"command_pos_rad")]}),
+      lineStyle:{width:1.5,type:"dashed"},itemStyle:{color:"#e8590c"},sampling:"lttb",
+      markLine:{silent:true,symbol:"none",label:{fontSize:9},
+        data:[{xAxis:start,name:"stimulus",label:{formatter:"stimulus"}},
+          {xAxis:fitStart,name:"fit start",label:{formatter:"fit start"},lineStyle:{color:"#138a56"}}]}});
+    series.push({name:"measured",type:"line",xAxisIndex:index,yAxisIndex:index,
+      showSymbol:false,data:sampled.map(function(row){return [n(row,"test_time_s"),n(row,"measured_pos_rad")]}),
+      lineStyle:{width:1.7},itemStyle:{color:"#2563eb"},sampling:"lttb"});
+  });
+  SINE_TIME_CHART.setOption({animation:false,title:titles,grid:grids,xAxis:xAxes,yAxis:yAxes,
+    legend:{top:2,data:["command","measured"]},tooltip:{trigger:"axis",axisPointer:{type:"cross"}},
+    series:series});
+}
+function renderBode(){
+  var joint=document.getElementById("joint").value;
+  var rows=SINE.filter(function(r){return r.joint===joint}).sort(function(a,b){return a.frequency_hz-b.frequency_hz});
+  if(BODE_CHART)BODE_CHART.dispose();var el=document.getElementById("bode-chart");
+  if(!rows.length){el.innerHTML='<div class="empty">该关节没有正弦数据</div>'}
+  else{el.innerHTML="";BODE_CHART=echarts.init(el);BODE_CHART.setOption({animation:false,
+    grid:{left:70,right:70,top:45,bottom:65},tooltip:{trigger:"axis"},legend:{top:4},
+    xAxis:{type:"log",name:"Frequency (Hz)",nameLocation:"middle",nameGap:35},
+    yAxis:[{type:"value",name:"Gain (dB)"},{type:"value",name:"Phase (deg)",min:-180,max:180}],
+    dataZoom:[{type:"inside"},{type:"slider",bottom:12,height:20}],
+    series:[{name:"Gain",type:"line",symbolSize:8,data:rows.map(function(r){return [r.frequency_hz,r.gain_db]}),itemStyle:{color:"#2563eb"}},
+      {name:"Phase",type:"line",yAxisIndex:1,symbolSize:8,data:rows.map(function(r){return [r.frequency_hz,r.phase_deg]}),itemStyle:{color:"#e8590c"}}]})}
+  makeTable("sine-table",[
+    ["Case","case_id"],["Hz","frequency_hz"],["Gain","gain_ratio"],["dB","gain_db"],
+    ["Phase deg","phase_deg"],["Delay s","equivalent_delay_s"],["THD %","thd_pct"],
+    ["Fit R²","response_fit_r2"],["Peak Nm","peak_torque_nm"],["RMS Nm","torque_rms_nm"]
+  ],rows);
+}
+function parameter(row,key){return n(row,key)}
+function measuredBandwidth(joint){
+  var rows=SINE.filter(function(r){return r.joint===joint&&Number.isFinite(r.gain_ratio)&&r.gain_ratio>0})
+    .sort(function(a,b){return a.frequency_hz-b.frequency_hz});
+  if(rows.length<2)return NaN;
+  var threshold=rows[0].gain_ratio/Math.sqrt(2);
+  for(var i=1;i<rows.length;i++){
+    if(rows[i].gain_ratio>threshold)continue;
+    var a=rows[i-1],b=rows[i];
+    if(a.gain_ratio===b.gain_ratio)return b.frequency_hz;
+    var fraction=(threshold-a.gain_ratio)/(b.gain_ratio-a.gain_ratio);
+    return Math.exp(Math.log(a.frequency_hz)+fraction*(Math.log(b.frequency_hz)-Math.log(a.frequency_hz)));
+  }
+  return NaN;
+}
+function renderDemand(){
+  if(!DATA)return;var joint=document.getElementById("joint").value,rows=JOINT_ROWS.get(joint),first=rows[0];
+  var torque=rows.map(function(r){return n(r,"actuator_torque_nm")}),speed=rows.map(function(r){return n(r,"measured_vel_rad_s")});
+  var peakTorque=Math.max.apply(null,torque.map(Math.abs)),rmsTorque=rms(torque);
+  var peakSpeed=Math.max.apply(null,speed.map(Math.abs));
+  var peakPower=Math.max.apply(null,rows.map(function(r){return Math.abs(n(r,"mechanical_power_w"))}));
+  var torqueLimit=parameter(first,"torque_limit_nm"),speedLimit=parameter(first,"velocity_limit_rad_s");
+  var torqueSf=Math.max(1,Number(document.getElementById("torque-sf").value)||1);
+  var rmsSf=Math.max(1,Number(document.getElementById("rms-sf").value)||1);
+  var speedSf=Math.max(1,Number(document.getElementById("speed-sf").value)||1);
+  var sine=SINE.filter(function(r){return r.joint===joint});
+  var resonance=sine.length?Math.max.apply(null,sine.map(function(r){return r.gain_db})):NaN;
+  renderKpis("demand-kpis",[
+    ["Peak torque req.",peakTorque*torqueSf,"N·m"],["Continuous initial",rmsTorque*rmsSf,"N·m"],
+    ["Speed req.",peakSpeed*speedSf,"rad/s"],["Peak mech. power",peakPower,"W"],
+    ["Torque headroom",100*(torqueLimit-peakTorque)/torqueLimit,"%"],
+    ["Speed headroom",100*(speedLimit-peakSpeed)/speedLimit,"%"],
+    ["Measured −3 dB BW",measuredBandwidth(joint),"Hz"],["Resonant peak",resonance,"dB"]
+  ]);
+  if(TS_CHART)TS_CHART.dispose();TS_CHART=echarts.init(document.getElementById("torque-speed-chart"));
+  var stride=Math.max(1,Math.ceil(rows.length/MAX_POINTS));
+  var scatter=[];for(var i=0;i<rows.length;i+=stride)scatter.push([speed[i],torque[i],rows[i].response_type]);
+  TS_CHART.setOption({animation:false,grid:{left:70,right:25,top:35,bottom:55},
+    tooltip:{trigger:"item",formatter:function(p){return "ω "+fmt(p.value[0],5)+" rad/s<br>τ "+fmt(p.value[1],5)+" N·m<br>"+p.value[2]}},
+    xAxis:{type:"value",name:"Joint speed (rad/s)",nameLocation:"middle",nameGap:35},
+    yAxis:{type:"value",name:"Joint torque (N·m)"},
+    series:[{type:"scatter",symbolSize:4,data:scatter,itemStyle:{color:"#2563eb",opacity:.45},
+      markLine:{silent:true,symbol:"none",lineStyle:{type:"dashed",color:"#d93025"},
+        data:[{xAxis:speedLimit},{xAxis:-speedLimit},{yAxis:torqueLimit},{yAxis:-torqueLimit}]}}]});
+  var demand=[{name:"Motor model",value:first.motor_model,unit:""},
+    {name:"Observed peak torque",value:peakTorque,unit:"N·m"},
+    {name:"Observed RMS torque",value:rmsTorque,unit:"N·m"},
+    {name:"Configured torque limit",value:torqueLimit,unit:"N·m"},
+    {name:"Observed peak speed",value:peakSpeed,unit:"rad/s"},
+    {name:"Configured speed limit",value:speedLimit,unit:"rad/s"},
+    {name:"Peak mechanical power",value:peakPower,unit:"W"},
+    {name:"Saturation samples",value:rows.filter(function(r){return n(r,"torque_saturated")>.5}).length,unit:""}];
+  makeTable("demand-table",[["Demand","name"],["Value",function(r){return r.value}],["Unit",function(r){return r.unit}]],demand);
+}
+function renderParams(){
+  if(!DATA)return;var row=JOINT_ROWS.get(document.getElementById("joint").value)[0];
+  var items=[
+    ["Motor model",row.motor_model,""],["Actuator type",row.actuator_type,""],
+    ["Parameter status",row.parameter_status,""],
+    ["Nominal voltage",parameter(row,"nominal_voltage_v"),"V"],
+    ["Continuous torque",parameter(row,"continuous_torque_nm"),"N·m"],
+    ["Torque constant",parameter(row,"torque_constant_nm_a"),"N·m/A"],
+    ["Back EMF",parameter(row,"back_emf_v_s_rad"),"V·s/rad"],
+    ["Phase resistance",parameter(row,"phase_resistance_ohm"),"Ω"],
+    ["Thermal resistance",parameter(row,"thermal_resistance_k_w"),"K/W"],
+    ["Motor efficiency",parameter(row,"motor_efficiency"),"ratio"],
+    ["Kp",parameter(row,"kp_nm_per_rad"),"N·m/rad"],["Kd",parameter(row,"kd_nms_per_rad"),"N·m·s/rad"],
+    ["Torque limit",parameter(row,"torque_limit_nm"),"N·m"],["Velocity limit",parameter(row,"velocity_limit_rad_s"),"rad/s"],
+    ["Joint lower",parameter(row,"joint_limit_lower_rad"),"rad"],["Joint upper",parameter(row,"joint_limit_upper_rad"),"rad"],
+    ["Home position",parameter(row,"home_position_rad"),"rad"],["Armature Jr",parameter(row,"armature_kg_m2"),"kg·m²"],
+    ["Home total inertia J",parameter(row,"home_inertia_kg_m2"),"kg·m²"],
+    ["Home link inertia",parameter(row,"link_inertia_at_home_kg_m2"),"kg·m²"],
+    ["Passive damping b",parameter(row,"passive_damping_nms_per_rad"),"N·m·s/rad"],
+    ["Friction loss",parameter(row,"frictionloss_nm"),"N·m"],["Total gear ratio",parameter(row,"gear_ratio_total"),":1"],
+    ["Rotor inertia J0",parameter(row,"rotor_inertia_0_kg_m2"),"kg·m²"],
+    ["Stage inertia J1",parameter(row,"rotor_inertia_1_kg_m2"),"kg·m²"],
+    ["Stage inertia J2",parameter(row,"rotor_inertia_2_kg_m2"),"kg·m²"],
+    ["Command delay min",parameter(row,"command_delay_min_steps"),"steps"],
+    ["Command delay max",parameter(row,"command_delay_max_steps"),"steps"]
+  ].map(function(v){return {name:v[0],value:v[1],unit:v[2]}});
+  makeTable("params-table",[["Parameter","name"],["Value",function(r){return r.value}],["Unit",function(r){return r.unit}]],items);
+  var J=parameter(row,"home_inertia_kg_m2"),kp=parameter(row,"kp_nm_per_rad");
+  var kd=parameter(row,"kd_nms_per_rad"),b=parameter(row,"passive_damping_nms_per_rad");
+  var wn=Math.sqrt(kp/J),zeta=(kd+b)/(2*Math.sqrt(kp*J));
+  var os=zeta>0&&zeta<1?100*Math.exp(-Math.PI*zeta/Math.sqrt(1-zeta*zeta)):0;
+  var ts=zeta>0?4/(zeta*wn):NaN;
+  renderKpis("model-values",[["ωn",wn,"rad/s"],["fn",wn/(2*Math.PI),"Hz"],["ζ",zeta,""],
+    ["Model overshoot",os,"%"],["Model settle 2%",ts,"s"],["J total",J,"kg·m²"]]);
+  var substitution=document.getElementById("substitution");
+  substitution.innerHTML="<h3>当前关节数值代入 · "+esc(row.joint)+"</h3>"+
+    '<div class="eq">\\[\\begin{aligned}'+
+    'H(s)&=\\frac{'+latexNumber(kp,7)+'}{'+latexNumber(J,7)+'s^2+'+
+      latexNumber(kd+b,7)+'s+'+latexNumber(kp,7)+'}\\\\'+
+    '\\omega_n&=\\sqrt{\\frac{'+latexNumber(kp,6)+'}{'+latexNumber(J,6)+'}}='+
+      latexNumber(wn,6)+'\\,\\mathrm{rad\\,s^{-1}}\\\\'+
+    '\\zeta&=\\frac{'+latexNumber(kd,6)+'+'+latexNumber(b,6)+'}{2\\sqrt{'+
+      latexNumber(kp,6)+'\\cdot'+latexNumber(J,6)+'}}='+latexNumber(zeta,6)+
+    '\\end{aligned}\\]</div>'+
+    '<p>\\(J_r='+latexNumber(parameter(row,"armature_kg_m2"),6)+
+    '\\,\\mathrm{kg\\,m^2},\\qquad J_{\\mathrm{home}}='+latexNumber(J,6)+
+    '\\,\\mathrm{kg\\,m^2}\\)。</p>';
+  typesetMath(substitution);
+}
+function renderAll(){if(!DATA)return;renderWave();renderStep();renderSineWaves();renderBode();renderDemand();renderParams()}
+function csvEscape(value){var s=String(value==null?"":value);return /[\",\r\n]/.test(s)?'"'+s.replaceAll('"','""')+'"':s}
+function exportAnalysis(){
+  var rows=STEP.concat(SINE),keys=[];rows.forEach(function(r){Object.keys(r).forEach(function(k){if(keys.indexOf(k)<0)keys.push(k)})});
+  var lines=[keys.map(csvEscape).join(",")];rows.forEach(function(r){lines.push(keys.map(function(k){return csvEscape(r[k])}).join(","))});
+  var blob=new Blob([lines.join("\n")+"\n"],{type:"text/csv;charset=utf-8"}),a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);a.download="response_dashboard_analysis.csv";a.click();setTimeout(function(){URL.revokeObjectURL(a.href)},1000);
+}
+document.getElementById("export").addEventListener("click",exportAnalysis);
+window.addEventListener("resize",function(){if(TIME_CHART)TIME_CHART.resize();if(SINE_TIME_CHART)SINE_TIME_CHART.resize();if(BODE_CHART)BODE_CHART.resize();if(TS_CHART)TS_CHART.resize()});
+discoverCsvs(true);
+typesetMath(document.getElementById("model"));
+</script>
+</body>
+</html>
