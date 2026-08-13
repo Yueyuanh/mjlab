@@ -1,5 +1,7 @@
 """Tests specific to motion tracking tasks."""
 
+from pathlib import Path
+
 import pytest
 
 from mjlab.asset_zoo.robots import G1_ACTION_SCALE
@@ -132,3 +134,27 @@ def test_g1_tracking_has_correct_action_scale(g1_tracking_task_ids: list[str]) -
     assert joint_pos_action.scale == G1_ACTION_SCALE, (
       f"Task {task_id} action scale mismatch, expected G1_ACTION_SCALE"
     )
+
+
+def test_pikachu_walk_uses_requested_reference_motion() -> None:
+  """Pikachu walk should use the requested forward-motion NPZ by default."""
+  cfg = load_env_cfg("Mjlab-Tracking-Flat-Pikachu-Walk")
+  motion_cmd = cfg.commands["motion"]
+  assert isinstance(motion_cmd, MotionCommandCfg)
+
+  motion_path = Path(motion_cmd.motion_file)
+  assert motion_path.name == "pikachu_walk_0.185_0.0_0.0.npz"
+  assert motion_path.parent.name == "pikachu_walk_npz"
+  assert motion_path.is_file()
+  assert motion_cmd.anchor_body_name == "base_link"
+
+
+def test_pikachu_walk_play_disables_rsi_and_starts_at_frame_zero() -> None:
+  """Pikachu walk play mode should deterministically start at frame zero."""
+  cfg = load_env_cfg("Mjlab-Tracking-Flat-Pikachu-Walk", play=True)
+  motion_cmd = cfg.commands["motion"]
+  assert isinstance(motion_cmd, MotionCommandCfg)
+
+  assert motion_cmd.pose_range == {}
+  assert motion_cmd.velocity_range == {}
+  assert motion_cmd.sampling_mode == "start"

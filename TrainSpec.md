@@ -95,6 +95,9 @@ uv run train Mjlab-Tracking-Flat-Pikachu-Down \
     --agent.wandb-tags transition \
     --env.scene.num_envs=4096
 
+## GPU
+
+  --gpu-ids "[0, 1]" \
 
 ## 浏览器界面 可以用摇杆发送指令
 

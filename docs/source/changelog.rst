@@ -8,6 +8,9 @@ Upcoming version (not yet released)
 Added
 ^^^^^
 
+- Added ``Mjlab-Tracking-Flat-Pikachu-Walk``, a Pikachu motion-tracking task
+  that learns the recorded 0.185 m/s forward walk and reuses the transition
+  task's robot, tracking bodies, randomization, telemetry, and PPO setup.
 - Added ``mjlab.mocap``, a MuJoCo data-recording environment for Pikachu
   (PD keyframe + interpolation → CSV, aligned with ``csv_to_npz.py`` input).
   It loads the Pikachu robot on flat terrain, drives joints via position

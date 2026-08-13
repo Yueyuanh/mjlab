@@ -10,6 +10,7 @@ PIKACHU_TASK_IDS = (
   "Mjlab-Velocity-Flat-Pikachu",
   "Mjlab-Tracking-Flat-Pikachu-Down",
   "Mjlab-Tracking-Flat-Pikachu-Up",
+  "Mjlab-Tracking-Flat-Pikachu-Walk",
 )
 JOINT_METRIC_PREFIXES = (
   "joint_position_rad/",
