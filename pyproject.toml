@@ -66,6 +66,7 @@ list-envs = "mjlab.scripts.list_envs:main"
 viz-nan = "mjlab.scripts.nan_viz:main"
 export-scene = "mjlab.scripts.export_scene:main"
 viewer = "mjlab.scripts.view_collision:main"
+response = "mjlab.response.cli:main"
 
 [dependency-groups]
 dev = [

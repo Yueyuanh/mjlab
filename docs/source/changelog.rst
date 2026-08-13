@@ -8,6 +8,15 @@ Upcoming version (not yet released)
 Added
 ^^^^^
 
+- Added ``uv run response <TASK>`` for automated, limit-aware step and sine
+  actuator tests in a fixed-base, terrain-free, collision-disabled suspended
+  scene. Runs export raw ``mjlab-response-v1`` samples, dynamic-response
+  summaries, and per-joint motor/PD/model metadata for motor sizing.
+- Added ``response_csv_dashboard.html`` with synchronized response plots,
+  rise/settling/overshoot analysis, Bode fitting and THD, torque-speed demand,
+  adjustable sizing safety factors, and derivation of the local motor/gearbox/
+  PD closed-loop model.
+
 - Added ``Mjlab-Tracking-Flat-Pikachu-Walk``, a Pikachu motion-tracking task
   that learns the recorded 0.185 m/s forward walk and reuses the transition
   task's robot, tracking bodies, randomization, telemetry, and PPO setup.
@@ -62,6 +71,12 @@ Added
 
 Changed
 ^^^^^^^
+
+- Plot-log dashboards now auto-discover and load the newest matching CSV below
+  ``logs/`` through a read-only local server. The actuator-response dashboard
+  also shows raw per-frequency sine time histories, renders model equations
+  with LaTeX, and explains NaN values from unknown datasheet fields, unmet
+  time-domain criteria, or insufficient frequency coverage.
 
 - Retuned the Pikachu velocity task for a natural walking gait: supported,
   alternating footfalls replace the exploitable per-step air-time reward;

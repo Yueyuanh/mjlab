@@ -129,28 +129,32 @@ uv run play Mjlab-Tracking-Flat-Pikachu-Up --checkpoint-file logs/rsl_rl/pikachu
 
 ## tracking 回放
 
+```
+起立
 
 uv run play Mjlab-Tracking-Flat-Pikachu-Up \
 --checkpoint-file pre_train/rsl_rl/pikachu_tracking/2026-08-12_20-03-22_trial-pikachu-transition-up-dual/model_4999.pt \
 --motion-file src/mjlab/mocap/npz/Pikachu-Transition-Up.npz \
 --viewer viser
 
-
+趴下
 uv run play Mjlab-Tracking-Flat-Pikachu-Down \
 --checkpoint-file pre_train/rsl_rl/pikachu_tracking/2026-08-12_20-55-27_trial-pikachu-transition-down-dual/model_4999.pt \
 --motion-file src/mjlab/mocap/npz/Pikachu-Transition-Down.npz   \
 --viewer viser
 
-
+前进
 uv run play Mjlab-Tracking-Flat-Pikachu-Walk   \
 --checkpoint-file pre_train/rsl_rl/pikachu_tracking/2026-08-13_17-27-46_trial-pikachu-walk-forward-dual/model_4999.pt \
  --motion-file  src/mjlab/mocap/npz/pikachu_walk_npz/pikachu_walk_0.185_0.0_0.0.npz     --viewer viser
 
+后退
 uv run play Mjlab-Tracking-Flat-Pikachu-Walk  \
 --checkpoint-file pre_train/rsl_rl/pikachu_tracking/2026-08-13_18-28-36_trial-pikachu-walk-back-dual/model_4999.pt \
 --motion-file src/mjlab/mocap/npz/pikachu_walk_npz/pikachu_walk_-0.185_0.0_0.0.npz  \
 --viewer viser
 
+```
 
 ## tracking npz 验证
 uv run play Mjlab-Tracking-Flat-Pikachu-Up --agent zero --motion-file src/mjlab/mocap/npz/Pikachu-rmg-walk-0.185.npz --no-terminations True
@@ -161,3 +165,20 @@ uv run play Mjlab-Tracking-Flat-Pikachu-Up --agent zero --motion-file src/mjlab/
 拉到本地play
 
 rsync -avz --progress yons@192.168.0.117:/home/yons/pikachu/mjlab/logs/ /home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/4090-logs
+
+
+# 4090-dual 无权限
+
+```
+# 1. 启动 SSH Agent
+eval "$(ssh-agent -s)"
+
+# 2. 添加密钥
+ssh-add ~/.ssh/id_ed25519
+
+# 3. 测试连接
+ssh -T git@git.finnoxcorp.com -p 2222
+
+# 4. 如果成功，推送
+git push
+```
