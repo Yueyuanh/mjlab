@@ -248,7 +248,7 @@ rsync -avz --progress yons@192.168.0.117:/home/yons/pikachu/mjlab/logs/ /home/fi
 eval "$(ssh-agent -s)"
 
 # 2. 添加密钥
-ssh-add ~/.ssh/id_ed25519
+ssh-add ~/.ssh/id_ed25519_company
 
 # 3. 测试连接
 ssh -T git@git.finnoxcorp.com -p 2222
