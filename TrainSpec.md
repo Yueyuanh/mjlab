@@ -126,6 +126,14 @@ uv run play Mjlab-Tracking-Flat-Pikachu-Up --checkpoint-file logs/rsl_rl/pikachu
 
 
 
+## tracking train
+
+uv run train Mjlab-Tracking-Flat-Pikachu-Walk \
+    --gpu-ids "[0, 1]" \
+    --env.scene.num_envs=4096 \
+    --agent.max_iterations=5000 \
+    --env.commands.motion.motion-file src/mjlab/mocap/npz/pikachu_walk_stand_npz/Pikachu-rmg-stand-0.2.npz \
+    --agent.run-name trial-pikachu-walk-stand-forward-dual
 
 ## tracking 回放
 
