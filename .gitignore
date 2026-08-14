@@ -1,5 +1,6 @@
 wandb/
 logs/
+.start_server/
 onnx/
 videos/
 __pycache__/

@@ -8,6 +8,16 @@ Upcoming version (not yet released)
 Added
 ^^^^^
 
+- Added ``uv run start_server``: a local experiment dashboard that discovers
+  registered tasks, the newest checkpoint in every ``logs`` / ``pre_train``
+  run, and local motion NPZ files. It builds copyable TrainSpec-compatible
+  train, play, response, and tracking-evaluation commands; matches motions from
+  checkpoint ``params/env.yaml``; checks existing MjLab processes and GPU use;
+  and launches, monitors, logs, or stops an experiment from the browser.
+- Viser play jobs started from the dashboard now expose a direct browser link
+  and a copyable SSH port-forward command. Stale zombie GPU rows and launcher
+  processes are reported separately from active conflicts, and stopping a job
+  terminates every live process in its launch session.
 - Added ``uv run response <TASK>`` for automated, limit-aware step and sine
   actuator tests in a fixed-base, terrain-free, collision-disabled suspended
   scene. Runs export raw ``mjlab-response-v1`` samples, dynamic-response

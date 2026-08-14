@@ -1,5 +1,41 @@
 # 本地标准调参 / 训练测试流程
 
+## 网页实验启动台（推荐）
+
+在仓库根目录运行：
+
+```sh
+uv run start_server
+```
+
+脚本会打开仅监听本机的网页，自动发现注册任务、`logs/` 和 `pre_train/`
+下每个 run 的最高编号 checkpoint，以及 `src/mjlab/mocap/npz/` 下的动作。
+Tracking 动作优先从 checkpoint 的 `params/env.yaml` 精确恢复，找不到时才根据
+任务和 run 名匹配，并在启动前要求确认。网页可生成/复制 train、play、response
+和 W&B tracking evaluate 命令，也可直接启动、查看实时日志和停止任务。
+
+默认情况下，只要检测到本仓库已有 train/play/response/evaluate 进程，或所选 GPU
+上已有计算进程，就会拒绝新启动；确实需要并行时可显式勾选“忽略冲突”。服务器
+退出不会结束已经启动的实验，实验输出同时保存在 `.start_server/jobs/`。
+
+网页启动 Viser 回放时会自动分配独立端口。任务卡中的“打开 Viser”会跳转到
+当前浏览器主机对应的 Viser 地址；远程机器上运行时，先点击“复制 SSH 转发”，
+在本地终端运行生成的命令，再点击链接。SSH 目标默认是
+`当前用户@机器主机名`，可在网页中修改，也可启动时指定：
+
+```sh
+uv run start_server --ssh-target yons@your-server
+```
+
+已退出但未被父进程回收的 zombie、空壳 `uv` / `torchrunx` launcher 和
+`nvidia-smi` 的 `[No data]` 行会标为历史残留，不再冒充活跃任务或阻止启动。
+
+不自动打开浏览器或改端口：
+
+```sh
+uv run start_server --no-open --port 8011
+```
+
 ① 环境 sanity check（改完 MDP/奖励/机器人后必做）
 
 cd /home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab
