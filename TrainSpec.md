@@ -168,6 +168,36 @@ uv run play Mjlab-Tracking-Flat-Pikachu-Walk  \
 uv run play Mjlab-Tracking-Flat-Pikachu-Up --agent zero --motion-file src/mjlab/mocap/npz/Pikachu-rmg-walk-0.185.npz --no-terminations True
 
 
+上面的 play 用本地 checkpoint 做**定性**观察。要**定量**指标（MPKPE /
+R-MPKPE / joint_vel_error / ee_* / success_rate），用 `evaluate.py`。注意它
+**只支持 W&B 上的 run**：第一个参数是任务 ID（必填），`--wandb-run-path` 填
+`entity/project/run_id`（W&B 网页上该 run 地址 URL 的后三段）：
+
+```sh
+uv run python src/mjlab/tasks/tracking/scripts/evaluate.py \
+    Mjlab-Tracking-Flat-Pikachu-Down \
+    --wandb-run-path <entity>/<project>/<run_id>
+
+
+# https://wandb.ai/tup_yyh/mjlab/runs/b7w8gngg?nw=nwuser3117144922
+uv run python src/mjlab/tasks/tracking/scripts/evaluate.py \
+    Mjlab-Tracking-Flat-Pikachu-Down \
+    --wandb-run-path tup_yyh/mjlab/b7w8gngg \
+    --motion-file src/mjlab/mocap/npz/Pikachu-Transition-Down.npz \
+    --num_envs 512 \
+    --output-file src/mjlab/mocap/eval/pikachu_down_eval.json
+
+# 在本地跑，不要在服务器上跑
+uv run python src/mjlab/tasks/tracking/scripts/evaluate.py \
+    Mjlab-Tracking-Flat-Pikachu-Walk \
+    --wandb-run-path tup_yyh/pikachu-walk-forward/5zjp9cj0 \
+    --motion-file src/mjlab/mocap/npz/pikachu_walk_npz/pikachu_walk_0.185_0.0_0.0.npz \
+    --num_envs 512 \
+    --output-file src/mjlab/mocap/eval/pikachu_forward_eval.json
+
+
+```
+
 # scp rsync
 
 拉到本地play
