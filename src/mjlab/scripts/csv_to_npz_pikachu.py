@@ -20,6 +20,7 @@ uv run python -m mjlab.scripts.csv_to_npz_pikachu \
     --output-name Pikachu-Transition-Down \
     --input-fps 28.57 --output-fps 50 --device cpu
 ```
+GMR导出的数据input-fps为30
 
 与 csv_to_npz.py 的差异：新增 ``--wandb`` 开关（默认**关闭**，原脚本无条件
 上传 wandb）；需要上传到 wandb registry 时显式 ``--wandb`` 开启，行为与原
