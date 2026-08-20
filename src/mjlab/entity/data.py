@@ -442,6 +442,16 @@ class EntityData:
     return self._joint_dof_field("qfrc_actuator")
 
   @property
+  def ctrl(self) -> torch.Tensor:
+    """Raw control signal buffer（position actuator 的设定目标角，actuator 槽位序）。
+
+    与 ``joint_pos``（实测）成对，用于读取 RL policy / mocap 下发的关节 PD
+    设定值。槽位顺序 = ``actuator_names``，一般与 ``joint_names`` 序不同，
+    按名映射后再与实测值对齐。
+    """
+    return self.data.ctrl
+
+  @property
   def qfrc_external(self) -> torch.Tensor:
     """Forces on joints due to Cartesian wrenches applied to bodies.
 

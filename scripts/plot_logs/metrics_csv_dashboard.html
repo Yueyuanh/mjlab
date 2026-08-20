@@ -136,6 +136,21 @@
   .range-track { position:absolute; left:0; right:0; top:10px; height:6px; border-radius:99px; background:var(--line2); }
   .range-fill { position:absolute; top:10px; height:6px; border-radius:99px; background:var(--accent); opacity:.45; }
   .box-wrap { height:400px; margin-bottom:12px; }
+
+  /* ---- 数据对比面板（左右两来源） ---- */
+  #compare-panel { margin:16px 20px 4px; }
+  .compare-sources { display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+  .cmp-src { display:flex; align-items:center; gap:8px; }
+  .cmp-src .lbl { color:var(--muted); }
+  .cmp-src select { min-width:300px; max-width:520px; }
+  .cmp-vs { font:bold 14px var(--mono); color:var(--accent); padding-bottom:6px; }
+  .btn.small { padding:5px 10px; font-size:11px; }
+  .compare-metric { margin:6px 0 12px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:12px; }
+  .compare-metric .lbl { color:var(--muted); }
+  .compare-metric select { max-width:440px; }
+  .cmp-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
+  #cmp-line,#cmp-box { height:340px; border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#fff; }
+  @media(max-width:1100px){ .cmp-grid{ grid-template-columns:1fr; } }
   .table-wrap { overflow:auto; max-height:560px; border:1px solid var(--line); border-radius:8px; }
   table { width:100%; border-collapse:collapse; font-size:11px; }
   th,td { padding:7px 9px; border-bottom:1px solid var(--line); text-align:right; white-space:nowrap; font-family:var(--mono); }
@@ -192,6 +207,7 @@
     <button class="btn" id="save-pairs" onclick="savePairsPng()" disabled>保存左右 1×7 PNG</button>
     <button class="btn" id="save-pdf" onclick="saveAllPdf()" disabled>保存全部为 PDF</button>
     <button class="btn" id="save-csv" onclick="saveSelectedCsv()" disabled>保存所选数据 CSV</button>
+    <button class="btn primary" id="open-compare" onclick="openCompare()">数据对比</button>
     <span id="status">请选择 Viser Metrics 录制的 CSV</span>
   </div>
 </header>
@@ -214,6 +230,7 @@
       <h2>曲线选择</h2>
       <p>按 CSV 列名自动分类。勾选决定网页曲线、图片导出和筛选 CSV 的字段。</p>
     </div>
+    <button id="actual-btn" class="btn" hidden title="在设定值(关节目标)曲线上叠加显示同关节实际到达位置 joint_position_rad：设定值虚线、实际位置实线；颜色均跟随左右(蓝/红)">显示实际位置</button>
     <input id="search" class="search" placeholder="搜索关节或指标…" oninput="renderTermList()">
     <div class="quick">
       <button class="btn" onclick="selectTerms('all')">全选</button>
@@ -264,6 +281,47 @@
     </div>
   </main>
 </div>
+
+<div id="compare-panel" class="panel" hidden>
+  <div class="panel-head">
+    <div><h2>数据对比</h2><p>左侧下拉选来源 A、右侧选来源 B（各也可选本地 CSV），选定即自动对比「同一个指标」：曲线（横轴可归一化进度对齐）、并排箱线、按来源逐行统计。一次只对比一个指标，避免堆叠。</p></div>
+    <div class="actions" style="gap:8px">
+      <button class="btn" onclick="refreshSourceSelects()">刷新列表</button>
+      <button class="btn" onclick="clearCompare()">清除</button>
+      <button class="btn" onclick="closeCompare()">关闭</button>
+    </div>
+  </div>
+  <div class="compare-sources">
+    <div class="cmp-src">
+      <span class="lbl">左来源</span>
+      <select id="cmp-src-left" onchange="onSourceChange('left')"></select>
+      <input id="cmp-file-left" type="file" accept=".csv,text/csv" hidden onchange="onLocalFile('left',event)">
+      <button class="btn small" onclick="document.getElementById('cmp-file-left').click()">本地</button>
+    </div>
+    <div class="cmp-vs">↔</div>
+    <div class="cmp-src">
+      <span class="lbl">右来源</span>
+      <select id="cmp-src-right" onchange="onSourceChange('right')"></select>
+      <input id="cmp-file-right" type="file" accept=".csv,text/csv" hidden onchange="onLocalFile('right',event)">
+      <button class="btn small" onclick="document.getElementById('cmp-file-right').click()">本地</button>
+    </div>
+  </div>
+  <div class="compare-metric">
+    <span class="lbl">对比指标</span>
+    <select id="cmp-metric" disabled onchange="onMetricChange()"></select>
+    <span class="lbl">X 轴</span>
+    <select id="cmp-xaxis" onchange="renderCompare()">
+      <option value="progress">归一化进度 (%)</option>
+      <option value="time" selected>真实时间 (s)</option>
+    </select>
+  </div>
+  <div class="cmp-grid">
+    <div id="cmp-line"><div class="empty">在左、右下拉各选一个来源后自动对比</div></div>
+    <div id="cmp-box"><div class="empty">箱线分布会在此并排显示</div></div>
+  </div>
+  <div class="table-wrap" id="cmp-stats" style="max-height:380px"><div class="empty">暂无对比统计</div></div>
+</div>
+
 <footer>运行 <code>uv run python scripts/plot_logs/serve.py</code> 可自动发现 logs/ 下的 CSV；直接双击时仍可手动选择。</footer>
 <div id="print-root"></div>
 
@@ -271,13 +329,14 @@
 const META_COLUMNS = new Set(['sample','sim_step','time_s','env_idx','network']);
 const JOINT_GROUPS = {
   joint_position:{prefix:'joint_position_rad/', label:'关节位置', unit:'rad'},
+  joint_target:{prefix:'joint_target_rad/', label:'关节目标(设定值)', unit:'rad'},
   joint_velocity:{prefix:'joint_velocity_rad_s/', label:'关节速度', unit:'rad/s'},
   joint_torque:{prefix:'joint_torque_nm/', label:'关节扭矩', unit:'N·m'},
   joint_torque_ratio:{prefix:'joint_torque_ratio/', label:'关节扭矩占用', unit:'ratio'},
   joint_velocity_ratio:{prefix:'joint_velocity_ratio/', label:'关节速度占用', unit:'ratio'},
 };
 const PAIRS = ['hip_pitch','hip_roll','hip_yaw','knee','ankle','arm_pitch','arm_roll'];
-const CATEGORY_ORDER = ['joint_position','joint_velocity','joint_torque','joint_torque_ratio','joint_velocity_ratio','base','foot','command','reward','contact','other'];
+const CATEGORY_ORDER = ['joint_position','joint_target','joint_velocity','joint_torque','joint_torque_ratio','joint_velocity_ratio','base','foot','command','reward','contact','other'];
 // 电机规格（Pikachu DM 电机）——单一来源 pikachu_constants.py：
 //   hip_pitch/knee = J4310（vel 30 rad/s，effort 10 N·m）
 //   其余 = J3507（vel 10 rad/s，effort 15 N·m）
@@ -304,6 +363,9 @@ let ASSUMED_TORQUE = {};   // joint -> 假设扭矩上限(N·m),重算时作为 
 let RATIO_BACKUP = {};     // joint -> {left:[...], right:[...]} 原始 ratio 值,供重置恢复
 let RANGE = [0,100];
 let DISCOVERED_FILES = [];
+// 关节目标分类：开关开启后，为每个已选 target 叠加绘制同关节实际位置(joint_position_rad)，
+// 颜色随左右(蓝/红)与设定值一致、虚线；设定值保持实线。
+let ACTUAL_POSITION_ON = false;
 
 function waitEcharts(){
   if(window.echarts) return Promise.resolve();
@@ -407,7 +469,7 @@ async function loadCsvText(text,name){
     setStatus('正在解析 '+name+'…');
     await waitEcharts();
     DATA=parseCsv(text); FILE_NAME=name; buildTaxonomy();
-    SELECTED=new Set(Object.keys(DATA.values)); ACTIVE=orderedCategories()[0]; RANGE=[0,100];
+    SELECTED=new Set(Object.keys(DATA.values)); ACTIVE=orderedCategories()[0]; RANGE=[0,100]; ACTUAL_POSITION_ON=false;
     document.getElementById('m-file').textContent=name;
     document.getElementById('m-network').textContent=DATA.columns.network?.find(Boolean)||'unknown';
     document.getElementById('m-samples').textContent=DATA.time.length.toLocaleString();
@@ -471,6 +533,16 @@ async function discoverCsvs(autoLoad=true){
   }
 }
 
+// 「显示实际位置」开关：仅关节目标分类下可用，叠加同关节实际位置虚线。
+function syncActualBtn(){
+  const b=document.getElementById('actual-btn'); if(!b) return;
+  const hasPos=(CATEGORIES['joint_position']||[]).length>0;
+  const show=Boolean(DATA&&JOINT_GROUPS[ACTIVE]&&ACTIVE==='joint_target'&&hasPos);
+  b.hidden=!show;
+  b.textContent=ACTUAL_POSITION_ON?'取消实际位置':'显示实际位置';
+}
+document.getElementById('actual-btn').addEventListener('click',()=>{ACTUAL_POSITION_ON=!ACTUAL_POSITION_ON;syncActualBtn();renderAll();});
+
 document.getElementById('csv-picker').addEventListener('change',e=>loadDiscovered(e.target.value));
 
 document.getElementById('file-input').addEventListener('change',e=>{
@@ -485,7 +557,7 @@ function renderTabs(){
   const nav=document.getElementById('tabs'); nav.innerHTML='';
   for(const key of orderedCategories()){
     const b=document.createElement('button'); b.textContent=categoryLabel(key)+' · '+CATEGORIES[key].length;
-    b.className=key===ACTIVE?'active':''; b.onclick=()=>{ACTIVE=key;renderTabs();renderTermList();renderAll();};
+    b.className=key===ACTIVE?'active':''; b.onclick=()=>{ACTIVE=key;renderTabs();renderTermList();renderAll();syncActualBtn();};
     nav.appendChild(b);
   }
 }
@@ -541,8 +613,22 @@ function shortName(name){
   return m.side?m.side[0].toUpperCase()+' '+m.joint:name;
 }
 
+function overviewSeriesItems(names,key){
+  const items=names.map((name,i)=>({name,actual:false,tgtIdx:i}));
+  if(JOINT_GROUPS[key] && key==='joint_target' && ACTUAL_POSITION_ON){
+    for(let i=0;i<names.length;i++){
+      const m=TERM_META[names[i]];
+      if(!m.side) continue;
+      const ap=`joint_position_rad/${m.side}_${m.joint}_joint`;
+      if(DATA.values[ap]) items.push({name:ap,actual:true,tgtIdx:i});
+    }
+  }
+  return items;
+}
+
 function overviewOption(names,exporting=false,key=ACTIVE){
   const unit=JOINT_GROUPS[key]?.unit||'value';
+  const items=overviewSeriesItems(names,key);
   return {
     animation:false, backgroundColor:'#fff',
     title:exporting?{text:categoryLabel(key)+' · '+FILE_NAME,subtext:'Network: '+(DATA.columns.network?.find(Boolean)||'unknown'),left:'center'}:undefined,
@@ -553,10 +639,13 @@ function overviewOption(names,exporting=false,key=ACTIVE){
     xAxis:{type:'value',name:'Time (s)',nameLocation:'middle',nameGap:32,scale:true},
     yAxis:{type:'value',name:unit,scale:true},
     dataZoom:[{type:'inside',filterMode:'none'},{type:'slider',bottom:20,height:22,filterMode:'none'}],
-    series:names.map((name,i)=>({
-      name:shortName(name), type:'line', data:sampledData(name), showSymbol:false,
-      connectNulls:false, sampling:'lttb', lineStyle:{width:1.6,type:TERM_META[name].side==='right'?'dashed':'solid'},
-      itemStyle:{color:seriesColor(name,i)}, emphasis:{focus:'series'}, large:true,
+    series:items.map((it,i)=>({
+      name:it.actual?shortName(it.name)+' (实际)':shortName(it.name), type:'line', data:sampledData(it.name),
+      showSymbol:false, connectNulls:false, sampling:'lttb',
+      lineStyle:{width:it.actual?1.7:1.5,
+        type:it.actual?'solid':(ACTUAL_POSITION_ON&&key==='joint_target'?'dashed':(TERM_META[it.name].side==='right'?'dashed':'solid'))},
+      itemStyle:{color:it.actual?seriesColor(names[it.tgtIdx],it.tgtIdx):seriesColor(it.name,i)},
+      emphasis:{focus:'series'}, large:true,
     })),
   };
 }
@@ -606,7 +695,12 @@ function renderPairs(){
     const chart=echarts.init(chartEl), series=[];
     for(const [side,color] of [['left','#2563eb'],['right','#dc2626']]){
       const name=pairedTerm(side,joint);
-      if(name&&SELECTED.has(name)) series.push({name:side==='left'?'Left':'Right',type:'line',data:sampledData(name),showSymbol:false,lineStyle:{width:1.7},itemStyle:{color}});
+      if(name&&SELECTED.has(name)){
+        series.push({name:side==='left'?'Left':'Right',type:'line',data:sampledData(name),showSymbol:false,lineStyle:{width:1.6,type:(ACTIVE==='joint_target'&&ACTUAL_POSITION_ON)?'dashed':'solid'},itemStyle:{color}});
+        if(ACTIVE==='joint_target'&&ACTUAL_POSITION_ON&&DATA.values[`joint_position_rad/${side}_${joint}_joint`]){
+          series.push({name:(side==='left'?'L':'R')+' 实际',type:'line',data:sampledData(`joint_position_rad/${side}_${joint}_joint`),showSymbol:false,lineStyle:{width:1.7,type:'solid'},itemStyle:{color}});
+        }
+      }
     }
     chart.setOption({
       animation:false,title:{text:joint,left:12,top:6,textStyle:{fontSize:13}},
@@ -898,8 +992,227 @@ function saveSelectedCsv(){
   setStatus('已导出 '+selected.length+' 个字段、'+(end-start)+' 行');
 }
 
+// ==================== 数据对比面板（左右两来源） ====================
+// 与单份浏览独立的第二套结构：左侧选来源 A、右侧选来源 B，各端选定即自动
+// 解析并渲染「同一个指标」的曲线/箱线/统计表。选择即渲染，无需手动勾选。
+let CMP = { left:null, right:null, metric:'', line:null, box:null };
+
+function openCompare(){
+  const panel=document.getElementById('compare-panel');
+  panel.hidden=false;
+  refreshSourceSelects();           // 重建左右来源下拉（保留已选）
+  fillCompareMetric();              // 按已在加载的两端更新指标下拉
+  panel.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function closeCompare(){
+  document.getElementById('compare-panel').hidden=true;
+  if(CMP.line){CMP.line.dispose();CMP.line=null;}
+  if(CMP.box){CMP.box.dispose();CMP.box=null;}
+}
+function clearCompare(){
+  CMP.left=null;CMP.right=null;CMP.metric='';
+  for(const side of ['left','right']){
+    const sel=document.getElementById('cmp-src-'+side);
+    sel.innerHTML='<option value="">— 选择来源 —</option>';sel.value='';
+  }
+  const sel=document.getElementById('cmp-metric');
+  sel.disabled=true;sel.innerHTML='<option value="">— 选择指标 —</option>';
+  renderCompare();
+}
+
+function refreshSourceSelects(side){
+  const sides=side?[side]:['left','right'];
+  for(const s of sides){
+    const sel=document.getElementById('cmp-src-'+s), prev=sel.value;
+    sel.innerHTML='<option value="">— 选择来源 —</option>'+
+      DISCOVERED_FILES.map(f=>'<option value="'+f.path+'">'+f.path+'</option>').join('')+
+      '<option value="__local__">… 从本地选择 CSV</option>';
+    if(prev&&prev!=='__local__'
+      &&DISCOVERED_FILES.some(f=>f.path===prev))sel.value=prev;
+  }
+}
+
+async function loadSideByPath(path){
+  const item=DISCOVERED_FILES.find(f=>f.path===path);
+  const res=await fetch(item.url,{cache:'no-store'});
+  if(!res.ok)throw new Error('读取失败：HTTP '+res.status+' '+path);
+  const p=parseCsv(await res.text());
+  return {name:item.name,time:p.time,columns:p.columns,values:p.values};
+}
+async function loadSideByFile(f){
+  const p=parseCsv(await f.text());
+  return {name:f.name,time:p.time,columns:p.columns,values:p.values};
+}
+
+async function onSourceChange(side){
+  const sel=document.getElementById('cmp-src-'+side), v=sel.value;
+  if(v===''){CMP[side]=null;renderCompare();return;}
+  if(v==='__local__'){
+    sel.value='';                    // 回滚占位，交给文件选择接管
+    document.getElementById('cmp-file-'+side).click();
+    return;
+  }
+  try{
+    setStatus('正在读取 '+v+' …');
+    await waitEcharts();             // 关键：确保 echarts 就绪，否则下面渲染会静默失败
+    CMP[side]=await loadSideByPath(v);
+    fillCompareMetric();
+    await renderCompare();
+    setStatus('已载入'+(side==='left'?'左':'右')+'侧来源：'+CMP[side].name);
+  }catch(err){
+    CMP[side]=null;
+    setStatus((err.message||String(err))+';可用「本地」手动选择一个 CSV',true);
+  }
+}
+
+async function onLocalFile(side,event){
+  const f=event.target.files?.[0]; if(!f)return;
+  try{
+    setStatus('正在读取 '+f.name+' …');
+    await waitEcharts();
+    CMP[side]=await loadSideByFile(f);
+    const sel=document.getElementById('cmp-src-'+side);
+    refreshSourceSelects(side);
+    const op=new Option(f.name,'__local__',true,true);sel.prepend(op); // 在下拉顶部选中本地条目
+    fillCompareMetric();
+    await renderCompare();
+    setStatus('已载入'+(side==='left'?'左':'右')+'侧来源：'+f.name);
+  }catch(err){
+    setStatus((err.message||String(err))+';请检查 CSV 是否含单调 time_s 列的数值指标',true);
+  }
+}
+
+function fillCompareMetric(){
+  const sel=document.getElementById('cmp-metric'), L=CMP.left,R=CMP.right;
+  sel.disabled=true;sel.innerHTML='<option value="">— 选择指标 —</option>';
+  if(!L||!R)return;
+  // 两端共同存在的指标（交集）
+  const common=[...new Set(Object.keys(L.values))]
+    .filter(k=>Object.prototype.hasOwnProperty.call(R.values,k)).sort();
+  if(!common.length){sel.innerHTML='<option value="">两端无共同指标</option>';return;}
+  const keep=(CMP.metric&&common.includes(CMP.metric))?CMP.metric:common[0];
+  sel.disabled=false;
+  sel.innerHTML=common.map(n=>'<option value="'+n+'"'+(n===keep?' selected':'')+'>'+n+'</option>').join('');
+  CMP.metric=keep;
+}
+function onMetricChange(){
+  CMP.metric=document.getElementById('cmp-metric').value||'';
+  renderCompare();
+}
+
+// 每端按 xmode 抽取曲线点。progress 把横轴归一化到 0-100%，让不同时长/采样率
+// 的来源「去掉不同的起终点」对齐；time 用相对起点保留各自真实时长。
+function cmpXSeries(f,xmode){
+  const n=f.time.length, t0=f.time[0], vals=f.values[CMP.metric];
+  const stride=Math.max(1,Math.ceil(n/MAX_RENDER_POINTS)), out=[];
+  for(let i=0;i<n;i+=stride)
+    out.push([xmode==='progress'?(n>1?i/(n-1)*100:0):f.time[i]-t0, Number(vals[i])||NaN]);
+  if(n)out.push([xmode==='progress'?100:f.time[n-1]-t0, Number(vals[n-1])||NaN]);
+  return out;
+}
+
+function boxOne(side,color){
+  const f=CMP[side],vals=f.values[CMP.metric]; if(!vals)return null;
+  const a=[]; for(let k=0;k<vals.length;k++){const v=Number(vals[k]);if(Number.isFinite(v))a.push(v);}
+  if(!a.length)return null;
+  a.sort((x,y)=>x-y);
+  const pct=p=>a[Math.min(a.length-1,Math.floor(p*(a.length-1)))];
+  const q1=pct(.25),md=pct(.5),q3=pct(.75),mean=a.reduce((s,v)=>s+v,0)/a.length;
+  const iqr=q3-q1,lo=q1-1.5*iqr,hi=q3+1.5*iqr;
+  return {name:f.name,color,min:a[0],max:a[a.length-1],mean,
+    box:[Math.max(a[0],lo),q1,md,q3,Math.min(a[a.length-1],hi)],outliers:a.filter(v=>v<lo||v>hi)};
+}
+
+async function renderCompare(){
+  const lineEl=document.getElementById('cmp-line'), boxEl=document.getElementById('cmp-box');
+  if(CMP.line){CMP.line.dispose();CMP.line=null;}
+  if(CMP.box){CMP.box.dispose();CMP.box=null;}
+  lineEl.innerHTML='';boxEl.innerHTML='';
+  const L=CMP.left,R=CMP.right;
+  if(!L||!R||!CMP.metric){
+    boxEl.innerHTML='<div class="empty">箱线分布会在此并排显示</div>';
+    return;
+  }
+  try{await waitEcharts();}catch(err){setStatus(err.message,true);return;}  // echarts 未就绪时不再静默
+  const xmode=document.getElementById('cmp-xaxis').value;
+
+  // ---- 曲线：左蓝、右红，同图同横轴，按所选模式对齐 ----
+  CMP.line=echarts.init(lineEl,null,{renderer:'canvas'});
+  const series=[
+    {name:L.name,type:'line',data:cmpXSeries(L,xmode),showSymbol:false,sampling:'lttb',lineStyle:{width:1.8},itemStyle:{color:'#2563eb'},emphasis:{focus:'series'}},
+    {name:R.name,type:'line',data:cmpXSeries(R,xmode),showSymbol:false,sampling:'lttb',lineStyle:{width:1.8},itemStyle:{color:'#dc2626'},emphasis:{focus:'series'}},
+  ];
+  CMP.line.setOption({
+    animation:false,backgroundColor:'#fff',
+    title:{text:'对比 · '+CMP.metric,left:12,top:6,textStyle:{fontSize:13}},
+    grid:{left:78,right:34,top:60,bottom:62},
+    tooltip:{trigger:'axis',axisPointer:{type:'cross'},
+      formatter:function(params){
+        const x0=params[0]?.value?.[0];
+        let html=(xmode==='progress'?'归一化进度 <b>':'相对时间 <b>')+(Number.isFinite(x0)?x0.toFixed(1):'—')+(xmode==='progress'?'%':' s')+'</b><br/>';
+        for(const p of params)
+          html+='<span style="display:inline-block;width:8px;height:8px;background:'+p.color+';border-radius:2px;margin-right:5px"></span><b>'+p.seriesName+'</b>  '+(Number.isFinite(p.value[1])?p.value[1].toPrecision(6):'—')+'<br/>';
+        return html;
+      }},
+    legend:{type:'scroll',top:30,left:12,right:20},
+    xAxis:{type:'value',name:xmode==='progress'?'归一化进度 (%)':'相对时间 (s)',nameLocation:'middle',nameGap:30,scale:true},
+    yAxis:{type:'value',scale:true},
+    dataZoom:[{type:'inside',filterMode:'none'},{type:'slider',bottom:12,height:18,filterMode:'none'}],
+    series,
+  });
+
+  renderCompareBox();
+  renderCompareStats();
+}
+
+function renderCompareBox(){
+  const boxEl=document.getElementById('cmp-box');
+  if(CMP.box){CMP.box.dispose();CMP.box=null;}
+  boxEl.innerHTML='';
+  const rows=[];
+  const bL=boxOne('left','#2563eb'); if(bL)rows.push(bL);
+  const bR=boxOne('right','#dc2626'); if(bR)rows.push(bR);
+  if(!rows.length){boxEl.innerHTML='<div class="empty">该指标在两端都无有效数据</div>';return;}
+  CMP.box=echarts.init(boxEl,null,{renderer:'canvas'});
+  const series=[{name:'分布对比',type:'boxplot',
+    data:rows.map(r=>({value:r.box,itemStyle:{color:r.color}})),
+    boxWidth:Math.min(90,Math.max(30,280/rows.length)),itemStyle:{borderWidth:1.4}}];
+  const outs=rows.flatMap((r,i)=>r.outliers.map(v=>({value:[i,v],itemStyle:{color:r.color}})));
+  if(outs.length)series.push({name:'离群',type:'scatter',data:outs,symbol:'cross',symbolSize:6});
+  series.push({name:'均值',type:'scatter',data:rows.map((r,i)=>({value:[i,r.mean],itemStyle:{color:r.color}})),symbol:'diamond',symbolSize:7});
+  CMP.box.setOption({
+    animation:false,backgroundColor:'#fff',
+    title:{text:'分布对比 · '+CMP.metric,left:12,top:6,textStyle:{fontSize:13}},
+    grid:{left:78,right:34,top:58,bottom:96},
+    tooltip:{trigger:'item',formatter:p=>{
+      if(p.seriesType==='boxplot'){const b=p.data.value;
+        return '<b>'+p.name+'</b><br/>Min '+fmt(b[0])+'<br/>Q1 '+fmt(b[1])+'<br/>中位 '+fmt(b[2])+'<br/>Q3 '+fmt(b[3])+'<br/>Max '+fmt(b[4]);
+      }
+      return '<b>'+p.name+'</b><br/>均值 '+(p.value?fmt(p.value[1]):'—');
+    }},
+    xAxis:{type:'category',data:rows.map(r=>r.name),
+      axisLabel:{interval:0,rotate:rows.length>4?30:0,width:150,overflow:'truncate'}},
+    yAxis:{type:'value',scale:true},
+    series,
+  });
+}
+
+function renderCompareStats(){
+  const root=document.getElementById('cmp-stats');
+  const L=CMP.left,R=CMP.right;
+  if(!L||!R||!CMP.metric){root.innerHTML='<div class="empty">暂无对比统计</div>';return;}
+  const rows=[L,R].map(f=>{
+    const s=statsFor(f.values[CMP.metric],0,f.values[CMP.metric].length);
+    return {name:f.name,s,dur:f.time.at(-1)-f.time[0],n:f.values[CMP.metric].length};
+  });
+  root.innerHTML='<table><thead><tr><th>Source</th><th>Duration (s)</th><th>Samples</th><th>N</th><th>Min</th><th>Max</th><th>Mean</th><th>RMS</th><th>Peak |x|</th><th>P95 |x|</th></tr></thead><tbody>'+
+    rows.map(r=>'<tr><td title="'+r.name+'">'+r.name+'</td><td>'+fmt(r.dur)+'</td><td>'+r.n+'</td><td>'+r.s.n+'</td><td>'+fmt(r.s.min)+'</td><td>'+fmt(r.s.max)+'</td><td>'+fmt(r.s.mean)+'</td><td>'+fmt(r.s.rms)+'</td><td>'+fmt(r.s.peak)+'</td><td>'+fmt(r.s.p95)+'</td></tr>').join('')+
+    '</tbody></table>';
+}
+
 window.addEventListener('resize',()=>{
   OVERVIEW?.resize();BOX?.resize();for(const c of PAIR_CHARTS)c.resize();
+  CMP.line?.resize();CMP.box?.resize();
 });
 discoverCsvs(true);
 </script>

@@ -41,6 +41,23 @@ sample,sim_step,time_s,env_idx,network,<metric columns...>
 
 `time_s` 是必需列。网页也接受额外 Metrics，并会按列名前缀动态分类。
 
+## Metrics CSV Cli Recording
+
+uv run python -m mjlab.scripts.record_metrics_cli Mjlab-Tracking-Flat-Pikachu-Up \
+    --ckpt <model.pt 或含 model_*.pt 的目录> \
+    --motion-file motions/motion.npz    # tracking 必需，或任务默认已配置
+    --out-dir logs --tag TransitionUp --max-steps 1000
+
+
+前进
+
+uv run python -m mjlab.scripts.record_metrics_cli Mjlab-Tracking-Flat-Pikachu-Walk --ckpt pre_train/rsl_rl/pikachu_tracking/2026-08-13_17-27-46_trial-pikachu-walk-forward-dual/model_4999.pt --motion-file src/mjlab/mocap/npz/pikachu_walk_npz/pikachu_walk_0.185_0.0_0.0.npz --out-dir pre_train/rsl_rl/pikachu_tracking/2026-08-13_17-27-46_trial-pikachu-walk-forward-dual --tag TransitionUp --max-steps 498
+
+
+后退
+
+uv run python -m mjlab.scripts.record_metrics_cli Mjlab-Tracking-Flat-Pikachu-Walk --ckpt pre_train/rsl_rl/pikachu_tracking/2026-08-13_18-28-36_trial-pikachu-walk-back-dual/model_4999.pt --motion-file src/mjlab/mocap/npz/pikachu_walk_npz/pikachu_walk_-0.185_0.0_0.0.npz --out-dir pre_train/rsl_rl/pikachu_tracking/2026-08-13_18-28-36_trial-pikachu-walk-back-dual --tag TransitionDown --max-steps 498
+
 ## Viser 图片导出目录
 
 在 Viser Metrics 页加载 CSV 后，点击 `Save selected plots + comparisons`。图片会

@@ -24,6 +24,8 @@ import re
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
+
 from mjlab.mocap.keyframes import InterpConfig, PoseKeyframe, build_trajectory
 from mjlab.mocap.mocap_env import MocapEnv
 from mjlab.mocap.recorder import _steps_per_frame
@@ -51,6 +53,7 @@ def build_metric_columns() -> list[str]:
   cols = ["base_height_m"]
   for joint in PIKACHU_JOINT_NAMES:
     cols.append(f"joint_position_rad/{joint}")
+    cols.append(f"joint_target_rad/{joint}")
     cols.append(f"joint_velocity_rad_s/{joint}")
     cols.append(f"joint_torque_nm/{joint}")
     cols.append(f"joint_torque_ratio/{joint}")
@@ -73,14 +76,22 @@ def append_step(env: MocapEnv) -> list[str]:
   torque = env.robot.data.qfrc_actuator[0].cpu().numpy()
   base_height = float(env.robot.data.root_link_pos_w[0, 2].item())
 
+  # 关节 PD 设定值（target）：ctrl 是 actuator 槽位序，经 ``_actuator_to_joint_idx``
+  # 重排回 joint 序，得到每个关节的当前设定角。
+  ctrl = env.robot.data.ctrl[0].cpu().numpy()
+  target = np.empty(len(env.joint_names), dtype=np.float64)
+  target[env._actuator_to_joint_idx] = ctrl
+
   row: list[str] = [f"{base_height:.9g}"]
   any_violation = False
   for idx, joint in enumerate(env.joint_names):
     p = float(pos[idx])
+    tgt = float(target[idx])
     v = float(vel[idx])
     t = float(torque[idx])
     velocity_limit, effort_limit = _SPEC_CACHE[joint]
     row.append(f"{p:.9g}")
+    row.append(f"{tgt:.9g}")
     row.append(f"{v:.9g}")
     row.append(f"{t:.9g}")
     row.append(f"{abs(t) / effort_limit:.9g}")
@@ -144,7 +155,9 @@ def record_metrics_to_csv(
 
   cols = build_metric_columns()
   stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-  out_path = Path(out_dir) / f"metrics_{_safe_component(source)}_{stamp}.csv"
+  out_path = Path(out_dir) / (
+    f"metrics_{_safe_component(source)}_{stamp}_with_target.csv"
+  )
   out_path.parent.mkdir(parents=True, exist_ok=True)
 
   with out_path.open("w", encoding="utf-8", newline="") as stream:

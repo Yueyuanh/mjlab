@@ -274,7 +274,7 @@ uv run python -m mjlab.mocap.record_cli \
     --metrics-log src/mjlab/mocap/logs \
     --metrics-source Pikachu-Mocap-TransitionDown__pd
 
-# 产物：mocap/logs/metrics_Pikachu-Mocap-TransitionDown__pd_<stamp>.csv
+# 产物：mocap/logs/metrics_Pikachu-Mocap-TransitionDown__pd_<stamp>_with_target.csv
 ```
 
 Python API 对应入口是 `record_metrics_to_csv`（参数语义与 `record_to_csv`
@@ -292,9 +292,12 @@ record_metrics_to_csv(keyframes, "src/mjlab/mocap/logs", "Pikachu-Mocap-X__pd",
 指标列（与 RL `add_pikachu_telemetry_metrics` 同序、同前缀）：
 
 - `base_height_m`
-- 逐关节（14 关节 × 5 指标）：`joint_position_rad/<j>`、
-  `joint_velocity_rad_s/<j>`、`joint_torque_nm/<j>`（= 关节侧 `qfrc_actuator`，
-  N·m）、`joint_torque_ratio/<j>`（= |扭矩|/effort_limit）、
+- 逐关节（14 关节 × 6 指标）：`joint_position_rad/<j>`（实测）、
+  `joint_target_rad/<j>`（= position actuator 的 **PD 设定值**，`data.ctrl`
+  按 actuator 槽位序重排回 joint 序；与 RL 侧 `add_pikachu_telemetry_metrics`
+  新加的 `joint_target_rad` 同口径，可逐关节对比下发的目标角）、
+  `joint_velocity_rad_s/<j>`、`joint_torque_nm/<j>`（= 关节侧
+  `qfrc_actuator`，N·m）、`joint_torque_ratio/<j>`（= |扭矩|/effort_limit）、
   `joint_velocity_ratio/<j>`（= |角速度|/velocity_limit）
 - `actuator_spec_violation`（该帧任一关节扭矩或角速度超电机 spec → 1）
 

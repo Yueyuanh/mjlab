@@ -409,6 +409,9 @@ class MetricsCsvRecorder:
     source = self._source_name()
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     stem = f"metrics_{_safe_filename_component(source)}_{stamp}"
+    # 选了设定值（joint_target_rad/*）时文件后缀 with_target，便于一眼识别。
+    if any(n.startswith("joint_target_rad/") for n in selected):
+      stem += "_with_target"
     path = self.output_dir / f"{stem}.csv"
     suffix = 2
     while path.exists():

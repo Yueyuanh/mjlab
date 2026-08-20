@@ -142,6 +142,24 @@ def joint_velocity_ratio(
   return torch.abs(vel) / velocity_limit
 
 
+def joint_target(
+  env: ManagerBasedRlEnv,
+  asset_cfg: SceneEntityCfg,
+) -> torch.Tensor:
+  """关节位置 PD 的目标角（设定值，rad）：策略 action 经计算后写入
+  position actuator 的 ctrl，即「内环 PD 的设定关节角」。
+
+  与 ``joint_position_rad``（实测值）成对，用于衡量跟踪误差，并对比
+  RL policy 控制器 vs 单点位插值控制时各自下发的设定值差异。取的是
+  ``asset.data.ctrl``（actuator 槽位序），按关节名从 actuator_names 定位。
+  """
+  asset: Entity = env.scene[asset_cfg.name]
+  joint_names = asset_cfg.joint_names
+  assert joint_names is not None, "joint_target 需要具体的关节名"
+  ctrl_idx = asset.actuator_names.index(joint_names[0])
+  return asset.data.ctrl[:, ctrl_idx]
+
+
 def actuator_spec_violation(
   env: ManagerBasedRlEnv,
   asset_cfg: SceneEntityCfg,
@@ -223,6 +241,11 @@ def add_pikachu_telemetry_metrics(cfg: ManagerBasedRlEnvCfg) -> None:
     velocity_limit, effort_limit = _actuator_spec(joint_name)
     cfg.metrics[f"joint_position_rad/{joint_name}"] = MetricsTermCfg(
       func=envs_mdp.joint_position,
+      params={"asset_cfg": asset_cfg},
+      reduce="max_abs",
+    )
+    cfg.metrics[f"joint_target_rad/{joint_name}"] = MetricsTermCfg(
+      func=joint_target,
       params={"asset_cfg": asset_cfg},
       reduce="max_abs",
     )
