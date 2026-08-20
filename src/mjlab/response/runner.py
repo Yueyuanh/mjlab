@@ -232,9 +232,7 @@ def _sample_row(
     "passive_damping_nms_per_rad": joint_model.passive_damping_nms_per_rad,
     "frictionloss_nm": joint_model.frictionloss_nm,
     "gear_ratio_total": joint_model.gear_ratio_total,
-    "rotor_inertia_0_kg_m2": joint_model.rotor_inertia_0_kg_m2,
-    "rotor_inertia_1_kg_m2": joint_model.rotor_inertia_1_kg_m2,
-    "rotor_inertia_2_kg_m2": joint_model.rotor_inertia_2_kg_m2,
+    "rotor_inertia_kg_m2": joint_model.rotor_inertia_kg_m2,
     "command_delay_min_steps": joint_model.command_delay_min_steps,
     "command_delay_max_steps": joint_model.command_delay_max_steps,
   }

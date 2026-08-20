@@ -23,10 +23,7 @@ import mujoco
 from mjlab import MJLAB_SRC_PATH
 from mjlab.actuator import BuiltinPositionActuatorCfg
 from mjlab.entity import EntityArticulationInfoCfg, EntityCfg
-from mjlab.utils.actuator import (
-  ElectricActuator,
-  reflected_inertia_from_two_stage_planetary,
-)
+from mjlab.utils.actuator import ElectricActuator, reflected_inertia
 from mjlab.utils.spec_config import CollisionCfg
 
 ##
@@ -62,43 +59,40 @@ def get_spec() -> mujoco.MjSpec:
 
 # 电机规格（DM 系列）。
 #
-# TODO: 以下 ``ROTOR_INERTIAS_*``（转子惯量，单位 kg·m²）与 ``GEARS_*``
-# （两级行星减速箱传动比，第 0 项固定为 1）为**占位参考值**，取自相近
-# 尺寸的 Unitree 电机，正式训练前请替换为 DM-J4310P / DM-J3507 的
-# datasheet 真实数值。执行器在 Python 侧创建（见 PIKACHU_ACTUATOR_*），
-# 反射惯量 ARMATURE_* 会作为 <position> 执行器的 armature 写入模型。
+# datasheet 只给出**一个电机转子惯量**（减速箱内部各级齿轮惯量不提供），
+# 这与 go1 的做法一致（见 unitree_go1/go1_constants.py：单一 ROTOR_INERTIA，
+# 反射惯量 = I · 总减速比²）。因此：
+#   - ROTOR_INERTIAS_* 为单一转子惯量（单位 kg·m²），TODO: 换成 datasheet 真实值。
+#   - GEARS_* 保留两级行星减速比（总比 = 第 2 项 × 第 3 项，第 0 项固定为 1）。
+#   - ARMATURE_* = ROTOR_INERTIAS_* × 总减速比²，忽略减速箱各级齿轮自身惯量
+#     （占比 <5%，对 Kp/Kd 影响可忽略）。
+# 执行器在 Python 侧创建（见 PIKACHU_ACTUATOR_*），反射惯量会作为
+# <position> 执行器的 armature 写入模型。
 
 # DM-J4310P-2EC-V1.1：腿部大扭矩电机（髋 pitch / 膝）。
-# 峰值力矩 12.5 N·m（DM-J4310P 规格）。
-ROTOR_INERTIAS_J4310 = (
-  2.206e-5,  # 电机轴旋转惯量（占位，需 datasheet）
-  0.02e-4,  # 中间级惯量（占位）
-  0.17e-4,  # 输出级惯量（占位）
-)
+# 峰值力矩 12.5 N·m（DM-J4310P 规格）。总减速比 = 10×1 = 10。
+ROTOR_INERTIAS_J4310 = 2.206e-5  # 电机转子惯量（kg·m²，datasheet）
 GEARS_J4310 = (
   1,  # 第一级（固定为 1，行星级从第二项开始）
   10,  # 第二级减速比（占位）
   1,  # 第三级减速比（占位）
 )
-ARMATURE_J4310 = reflected_inertia_from_two_stage_planetary(
-  ROTOR_INERTIAS_J4310, GEARS_J4310
+ARMATURE_J4310 = reflected_inertia(
+  ROTOR_INERTIAS_J4310, GEARS_J4310[1] * GEARS_J4310[2]
 )
 
 
 # DM-J3507-2EC-3R：小扭矩电机（髋 roll / 髋 yaw / 踝 / 臂 pitch / 臂 roll）。
 # 峰值力矩 9 N·m（DM-J3507-3R 规格），3R 表示三级减速。
-ROTOR_INERTIAS_J3507 = (
-  0.07e-4,  # 电机轴旋转惯量（占位，需 datasheet）
-  0.02e-4,  # 中间级惯量（占位）
-  0.17e-4,  # 输出级惯量（占位）
-)
+# 总减速比 = 7×3 = 21。
+ROTOR_INERTIAS_J3507 = 6.69169e-6  # 电机转子惯量（kg·m²，datasheet）
 GEARS_J3507 = (
   1,  # 第一级（固定为 1）
   7.0,  # 第二级减速比
   3.0,  # 第三级减速比（外部，注意速度和扭矩）
 )
-ARMATURE_J3507 = reflected_inertia_from_two_stage_planetary(
-  ROTOR_INERTIAS_J3507, GEARS_J3507
+ARMATURE_J3507 = reflected_inertia(
+  ROTOR_INERTIAS_J3507, GEARS_J3507[1] * GEARS_J3507[2]
 )
 
 
@@ -109,8 +103,8 @@ ARMATURE_J3507 = reflected_inertia_from_two_stage_planetary(
 #   effort_limit:      关节最大力矩（N·m），来自 DM 电机峰值力矩规格。
 ACTUATOR_J4310 = ElectricActuator(
   reflected_inertia=ARMATURE_J4310,
-  velocity_limit=30.0,  #  TMax 30  限速63（600rpm）
-  effort_limit=10,
+  velocity_limit=20.0,  #  TMax 30  限速20.94（200rpm）
+  effort_limit=10,      #  TMax 12.5  软件力矩上限 10N·m
 )
 ACTUATOR_J3507 = ElectricActuator(
   reflected_inertia=ARMATURE_J3507,
@@ -129,11 +123,22 @@ DAMPING_RATIO = 2.0
 # PD 增益由惯量与自然频率推导（临界/过阻尼设计）：
 #   Kp（刚度） = J * ω²        —— 位置刚度为惯量乘角频率平方
 #   Kd（阻尼） = 2 * ζ * J * ω —— 阻尼系数随阻尼比线性放大
-STIFFNESS_J4310 = ARMATURE_J4310 * NATURAL_FREQ**2
-STIFFNESS_J3507 = ARMATURE_J3507 * NATURAL_FREQ**2
 
-DAMPING_J4310 = 2.0 * DAMPING_RATIO * ARMATURE_J4310 * NATURAL_FREQ
-DAMPING_J3507 = 2.0 * DAMPING_RATIO * ARMATURE_J3507 * NATURAL_FREQ
+# 反射惯量:J = I_motor × 总减速比²(Go1 单惯量式)
+# J4310:2.206e-5 × 10² = 0.002206 kg·m²
+# J3507:0.07e-4 × 21² = 0.003087 kg·m²
+# Kp:J × ω²
+# J4310:0.002206 × 3947.8 = 8.709 N·m/rad
+# J3507:0.003087 × 3947.8 = 12.187 N·m/rad
+# Kd:2ζ × J × ω
+# J4310:2×2×0.002206×62.83 = 0.554 N·m·s/rad
+# J3507:2×2×0.003087×62.83 = 0.776 N·m·s/rad
+
+STIFFNESS_J4310 = ARMATURE_J4310 * NATURAL_FREQ**2  # Kp 8.709
+STIFFNESS_J3507 = ARMATURE_J3507 * NATURAL_FREQ**2  # Kp 12.187
+
+DAMPING_J4310 = 2.0 * DAMPING_RATIO * ARMATURE_J4310 * NATURAL_FREQ # Kd 0.554
+DAMPING_J3507 = 2.0 * DAMPING_RATIO * ARMATURE_J3507 * NATURAL_FREQ # Kd 0.776
 
 # 腿部执行器：髋 pitch 与膝（使用 DM-J4310P，大扭矩）。
 # target_names_expr 为正则表达式，匹配被该执行器驱动的关节名。

@@ -46,9 +46,7 @@ class JointModel:
   passive_damping_nms_per_rad: float
   frictionloss_nm: float
   gear_ratio_total: float
-  rotor_inertia_0_kg_m2: float
-  rotor_inertia_1_kg_m2: float
-  rotor_inertia_2_kg_m2: float
+  rotor_inertia_kg_m2: float
   command_delay_min_steps: int
   command_delay_max_steps: int
 
@@ -62,7 +60,7 @@ def _pikachu_motor(
   str,
   float,
   float,
-  tuple[float, float, float],
+  float,  # 电机转子惯量（单一值，来自 datasheet）
 ]:
   if joint.endswith(("_hip_pitch_joint", "_knee_joint")):
     return (
@@ -119,13 +117,13 @@ def extract_joint_models(
     torque_limit = float(effort) if effort is not None else float("inf")
     if "Pikachu" in task_id:
       motor, speed_limit, gear, rotor = _pikachu_motor(joint)
-      status = "Rotor inertias and gear ratios contain placeholder reference values."
+      status = "Rotor inertia and gear ratios contain placeholder reference values."
     else:
       motor = "unspecified"
       status = "No motor datasheet mapping is registered for this task."
       speed_limit = float("nan")
       gear = float("nan")
-      rotor = (float("nan"),) * 3
+      rotor = float("nan")
 
     models[joint] = JointModel(
       joint=joint,
@@ -152,9 +150,7 @@ def extract_joint_models(
       passive_damping_nms_per_rad=float(model.dof_damping[dof_id]),
       frictionloss_nm=float(model.dof_frictionloss[dof_id]),
       gear_ratio_total=gear,
-      rotor_inertia_0_kg_m2=float(rotor[0]),
-      rotor_inertia_1_kg_m2=float(rotor[1]),
-      rotor_inertia_2_kg_m2=float(rotor[2]),
+      rotor_inertia_kg_m2=float(rotor),
       command_delay_min_steps=int(getattr(cfg, "delay_min_lag", 0)),
       command_delay_max_steps=int(getattr(cfg, "delay_max_lag", 0)),
     )
