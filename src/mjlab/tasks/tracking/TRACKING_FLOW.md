@@ -144,18 +144,27 @@ run_sim()   ← 关键步骤
 ```python
 # ① scene 换 Pikachu：需要一个 Pikachu 的 tracking env cfg（见 §7 Checklist）
 from mjlab.tasks.tracking.config.pikachu.env_cfgs import (
-    pikachu_flat_tracking_env_cfg,   # 新建，复用 make_tracking_env_cfg()
+  pikachu_flat_tracking_env_cfg,  # 新建，复用 make_tracking_env_cfg()
 )
+
 scene = Scene(pikachu_flat_tracking_env_cfg().scene, device=device)
 
 # ② joint_names 换 Pikachu 的 14 关节（必须与 CSV dof 列顺序一致）
-joint_names=[
-    "left_hip_pitch_joint",  "left_hip_roll_joint",  "left_hip_yaw_joint",
-    "left_knee_joint",       "left_ankle_joint",
-    "right_hip_pitch_joint", "right_hip_roll_joint", "right_hip_yaw_joint",
-    "right_knee_joint",      "right_ankle_joint",
-    "left_arm_pitch_joint",  "left_arm_roll_joint",
-    "right_arm_pitch_joint", "right_arm_roll_joint",
+joint_names = [
+  "left_hip_pitch_joint",
+  "left_hip_roll_joint",
+  "left_hip_yaw_joint",
+  "left_knee_joint",
+  "left_ankle_joint",
+  "right_hip_pitch_joint",
+  "right_hip_roll_joint",
+  "right_hip_yaw_joint",
+  "right_knee_joint",
+  "right_ankle_joint",
+  "left_arm_pitch_joint",
+  "left_arm_roll_joint",
+  "right_arm_pitch_joint",
+  "right_arm_roll_joint",
 ]
 
 # ③ fps：Pikachu 用与 G1 相同的 tracking step_dt → output_fps=50
@@ -304,11 +313,19 @@ ONNX 导出（`MotionTrackingOnPolicyRunner.export_policy_to_onnx`）会把整�
    - `cfg.viewer.body_name = "base_link"`
 3. **body_names 建议**（锚 + 关键 body，控制数据体积与关注点）：
    ```python
-   ("base_link",
-    "left_hip_pitch_link", "left_knee_link", "left_ankle_link",
-    "right_hip_pitch_link", "right_knee_link", "right_ankle_link",
-    "left_arm_pitch_link", "left_arm_yaw_link",
-    "right_arm_pitch_link", "right_arm_yaw_link")
+   (
+     "base_link",
+     "left_hip_pitch_link",
+     "left_knee_link",
+     "left_ankle_link",
+     "right_hip_pitch_link",
+     "right_knee_link",
+     "right_ankle_link",
+     "left_arm_pitch_link",
+     "left_arm_yaw_link",
+     "right_arm_pitch_link",
+     "right_arm_yaw_link",
+   )
    ```
    `arm_yaw_link` 是手（四足撑地点），起立数据里手的位置/着地时机是核心，一定要追踪。
 4. **改 `csv_to_npz.py`** 的 scene + joint_names + output_fps（§3.3），跑通制作并检查 npz。

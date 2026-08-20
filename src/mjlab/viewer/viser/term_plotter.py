@@ -165,9 +165,7 @@ def _joint_image_parts(term_name: str) -> tuple[str, str, str] | None:
     for side in ("left", "right"):
       side_prefix = f"{side}_"
       if joint_name.startswith(side_prefix) and joint_name.endswith("_joint"):
-        return group, side, joint_name.removeprefix(side_prefix).removesuffix(
-          "_joint"
-        )
+        return group, side, joint_name.removeprefix(side_prefix).removesuffix("_joint")
   return None
 
 
@@ -184,9 +182,7 @@ def save_metrics_curve_images(
   Each group also gets all-joint, per-side, and fixed 1x7 left/right comparison
   figures. Images are rooted at ``<csv_parent>/images/<csv_stem>/``.
   """
-  selected = tuple(
-    dict.fromkeys(name for name in term_names if name in loaded.values)
-  )
+  selected = tuple(dict.fromkeys(name for name in term_names if name in loaded.values))
   if not selected:
     raise ValueError("Select at least one loaded metric before saving images")
 
@@ -339,9 +335,7 @@ def save_metrics_curve_images(
         if term_name is None:
           continue
         available_sides += 1
-        finite_values = loaded.values[term_name][
-          np.isfinite(loaded.values[term_name])
-        ]
+        finite_values = loaded.values[term_name][np.isfinite(loaded.values[term_name])]
         peak = np.max(np.abs(finite_values)) if finite_values.size else np.nan
         axis.plot(
           loaded.time_s,
@@ -423,9 +417,7 @@ class MetricsCsvRecorder:
 
     record_file = path.open("w", encoding="utf-8", newline="")
     writer = csv.writer(record_file)
-    writer.writerow(
-      ["sample", "sim_step", "time_s", "env_idx", "network", *selected]
-    )
+    writer.writerow(["sample", "sim_step", "time_s", "env_idx", "network", *selected])
     record_file.flush()
     with self._lock:
       self._file = record_file
@@ -667,9 +659,7 @@ class ViserTermPlotter:
         self._record_start.disabled = True
         self._record_stop.disabled = False
         self._return_live.disabled = True
-        self._set_data_status(
-          f"Recording {len(selected)} terms to `{path.name}`"
-        )
+        self._set_data_status(f"Recording {len(selected)} terms to `{path.name}`")
 
       @self._record_stop.on_click
       def _(_) -> None:
@@ -874,9 +864,7 @@ class ViserTermPlotter:
       if self._closed or generation != self._loaded_csv_generation:
         return
       self._save_images_button.disabled = False
-      self._set_data_status(
-        f"Saved {len(paths)} PNGs under `{csv_parent / 'images'}`"
-      )
+      self._set_data_status(f"Saved {len(paths)} PNGs under `{csv_parent / 'images'}`")
 
     future.add_done_callback(_on_export_done)
 

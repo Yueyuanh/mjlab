@@ -108,7 +108,16 @@
   #overview { height:600px; }
   #pair-section[hidden] { display:none; }
   .pair-grid { display:grid; grid-template-columns:1fr; gap:10px; }
-  .pair-card { height:280px; border:1px solid var(--line); border-radius:8px; background:#fff; }
+  .pair-card { height:340px; border:1px solid var(--line); border-radius:8px; background:#fff; display:flex; flex-direction:column; }
+  .pair-ctrl { display:flex; gap:8px; align-items:center; padding:8px 10px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .pair-ctrl .lbl { font:11px var(--mono); color:var(--muted); white-space:nowrap; }
+  .pair-ctrl input {
+    width:92px; padding:5px 7px; border:1px solid var(--line2); border-radius:7px;
+    font:12px var(--mono); color:var(--ink); background:#fff;
+  }
+  .pair-ctrl input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(232,89,12,.12); }
+  .pair-ctrl .btn { padding:5px 9px; font-size:12px; }
+  .pair-chart { flex:1; min-height:0; }
   .range-row { display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:center; }
   .range-label { font:11px var(--mono); color:var(--muted); white-space:nowrap; }
   .range-stack { position:relative; height:26px; }
@@ -126,6 +135,7 @@
   }
   .range-track { position:absolute; left:0; right:0; top:10px; height:6px; border-radius:99px; background:var(--line2); }
   .range-fill { position:absolute; top:10px; height:6px; border-radius:99px; background:var(--accent); opacity:.45; }
+  .box-wrap { height:400px; margin-bottom:12px; }
   .table-wrap { overflow:auto; max-height:560px; border:1px solid var(--line); border-radius:8px; }
   table { width:100%; border-collapse:collapse; font-size:11px; }
   th,td { padding:7px 9px; border-bottom:1px solid var(--line); text-align:right; white-space:nowrap; font-family:var(--mono); }
@@ -134,10 +144,34 @@
   tr:hover td { background:#f7f9fc; }
   .empty { padding:70px 20px; text-align:center; color:var(--faint); }
   footer { text-align:center; color:var(--faint); font-size:11px; padding:12px 20px 36px; }
-  @media(max-width:900px) {
-    .meta { grid-template-columns:repeat(2,1fr); }
-    .layout { grid-template-columns:1fr; }
-    aside { position:static; max-height:420px; }
+
+  /* ---- 打印/PDF 视图 ---- */
+  #print-root { display:none; }
+  @media print {
+    body,html{ background:#fff; }
+    body > header, body > .drop-zone, body > .meta, body > nav, body > .layout, body > footer { display:none !important; }
+    #print-root { display:block; }
+  }
+  #print-root .pv-head { font-size:20px; font-weight:700; color:var(--ink); margin:6px 0 2px; }
+  #print-root .pv-sub { font:12px var(--mono); color:var(--muted); margin-bottom:4px; }
+  #print-root .pv-meta { display:grid; grid-template-columns:repeat(5,minmax(120px,1fr)); gap:8px; margin:10px 0 6px; }
+  #print-root .pv-mtk { font:10px var(--mono); letter-spacing:.06em; color:var(--faint); text-transform:uppercase; }
+  #print-root .pv-mtv { font:13px var(--mono); color:var(--ink); }
+  #print-root .pv-cat { font-size:16px; font-weight:700; color:var(--accent2); border-bottom:2px solid var(--accent); padding:14px 0 4px; margin-top:16px; page-break-after:avoid; }
+  #print-root .pv-card { border:1px solid var(--line); border-radius:8px; padding:10px; margin:10px 0; }
+  #print-root .pv-card.pv-imgwrap { page-break-inside:avoid; }
+  #print-root .pv-img { width:100%; height:auto; display:block; }
+  #print-root .pv-card.pv-tall { page-break-inside:avoid; display:flex; justify-content:center; page-break-before:always; }
+  #print-root .pv-card.pv-tall .pv-img { width:auto; height:78vh; max-height:78vh; }
+  #print-root .pv-card.pv-imgwrap { display:flow-root; }
+  #print-root .pv-table { page-break-inside:auto; }
+  #print-root .pv-table { width:100%; border-collapse:collapse; font-size:10.5px; margin-top:8px; page-break-inside:auto; }
+  #print-root .pv-table th, #print-root .pv-table td { padding:5px 8px; border-bottom:1px solid var(--line); text-align:right; font-family:var(--mono); white-space:nowrap; }
+  #print-root .pv-table th { background:#f7f9fc; color:var(--muted); font-weight:600; position:static; }
+  #print-root .pv-table th:first-child, #print-root .pv-table td:first-child { text-align:left; }
+  #print-root .pv-note { font:10.5px var(--mono); color:var(--faint); margin-top:6px; }
+  @media(max-width:900px){
+    #print-root .pv-meta { grid-template-columns:repeat(2,1fr); }
   }
 </style>
 </head>
@@ -156,6 +190,7 @@
     <button class="btn primary" onclick="document.getElementById('file-input').click()">选择其他 CSV</button>
     <button class="btn" id="save-overview" onclick="saveOverviewPng()" disabled>保存当前总览 PNG</button>
     <button class="btn" id="save-pairs" onclick="savePairsPng()" disabled>保存左右 1×7 PNG</button>
+    <button class="btn" id="save-pdf" onclick="saveAllPdf()" disabled>保存全部为 PDF</button>
     <button class="btn" id="save-csv" onclick="saveSelectedCsv()" disabled>保存所选数据 CSV</button>
     <span id="status">请选择 Viser Metrics 录制的 CSV</span>
   </div>
@@ -222,13 +257,15 @@
 
     <div class="panel">
       <div class="panel-head">
-        <div><h2>统计摘要</h2><p>基于当前时间区间和所选字段，重点展示峰值、RMS 与绝对值 P95。</p></div>
+        <div><h2>统计摘要</h2><p>基于当前时间区间和所选字段，重点展示峰值、RMS 与绝对值 P95。上方为分布箱线图（箱内 Q1/中位/Q3，须为 1.5×IQR，菱形为均值）。</p></div>
       </div>
+      <div class="box-wrap" id="box-chart"><div class="empty">加载 CSV 后显示分布</div></div>
       <div class="table-wrap" id="stats"><div class="empty">暂无统计数据</div></div>
     </div>
   </main>
 </div>
 <footer>运行 <code>uv run python scripts/plot_logs/serve.py</code> 可自动发现 logs/ 下的 CSV；直接双击时仍可手动选择。</footer>
+<div id="print-root"></div>
 
 <script>
 const META_COLUMNS = new Set(['sample','sim_step','time_s','env_idx','network']);
@@ -236,9 +273,20 @@ const JOINT_GROUPS = {
   joint_position:{prefix:'joint_position_rad/', label:'关节位置', unit:'rad'},
   joint_velocity:{prefix:'joint_velocity_rad_s/', label:'关节速度', unit:'rad/s'},
   joint_torque:{prefix:'joint_torque_nm/', label:'关节扭矩', unit:'N·m'},
+  joint_torque_ratio:{prefix:'joint_torque_ratio/', label:'关节扭矩占用', unit:'ratio'},
+  joint_velocity_ratio:{prefix:'joint_velocity_ratio/', label:'关节速度占用', unit:'ratio'},
 };
 const PAIRS = ['hip_pitch','hip_roll','hip_yaw','knee','ankle','arm_pitch','arm_roll'];
-const CATEGORY_ORDER = ['joint_position','joint_velocity','joint_torque','base','foot','command','reward','contact','other'];
+const CATEGORY_ORDER = ['joint_position','joint_velocity','joint_torque','joint_torque_ratio','joint_velocity_ratio','base','foot','command','reward','contact','other'];
+// 电机规格（Pikachu DM 电机）——单一来源 pikachu_constants.py：
+//   hip_pitch/knee = J4310（vel 30 rad/s，effort 10 N·m）
+//   其余 = J3507（vel 10 rad/s，effort 15 N·m）
+const ACTUATOR_SPEC = {
+  hip_pitch:{vel:30,effort:10}, knee:{vel:30,effort:10},
+  hip_roll:{vel:10,effort:15}, hip_yaw:{vel:10,effort:15}, ankle:{vel:10,effort:15},
+  arm_pitch:{vel:10,effort:15}, arm_roll:{vel:10,effort:15},
+};
+function specFor(joint){return ACTUATOR_SPEC[joint]||null;}
 const METRIC_COLORS = ['#2563eb','#0891b2','#7c3aed','#059669','#4f46e5','#0284c7','#0d9488',
                        '#dc2626','#ea580c','#db2777','#c026d3','#e11d48','#d97706','#b91c1c'];
 const MAX_RENDER_POINTS = 6000;
@@ -250,7 +298,10 @@ let CATEGORIES = {};
 let ACTIVE = '';
 let SELECTED = new Set();
 let OVERVIEW = null;
+let BOX = null;
 let PAIR_CHARTS = [];
+let ASSUMED_TORQUE = {};   // joint -> 假设扭矩上限(N·m),重算时作为 ratio 的分母
+let RATIO_BACKUP = {};     // joint -> {left:[...], right:[...]} 原始 ratio 值,供重置恢复
 let RANGE = [0,100];
 let DISCOVERED_FILES = [];
 
@@ -362,7 +413,7 @@ async function loadCsvText(text,name){
     document.getElementById('m-samples').textContent=DATA.time.length.toLocaleString();
     document.getElementById('m-duration').textContent=(DATA.time.at(-1)-DATA.time[0]).toFixed(3)+' s';
     document.getElementById('m-envs').textContent=new Set(DATA.columns.env_idx||[]).size||'—';
-    for(const id of ['save-overview','save-csv']) document.getElementById(id).disabled=false;
+    for(const id of ['save-overview','save-pairs','save-pdf','save-csv']) document.getElementById(id).disabled=false;
     renderTabs(); renderTermList(); resetRange(); renderAll();
     setStatus('已加载 '+name+' · '+Object.keys(DATA.values).length+' 条曲线');
   }catch(err){ setStatus(err.message||String(err),true); }
@@ -490,11 +541,11 @@ function shortName(name){
   return m.side?m.side[0].toUpperCase()+' '+m.joint:name;
 }
 
-function overviewOption(names,exporting=false){
-  const unit=JOINT_GROUPS[ACTIVE]?.unit||'value';
+function overviewOption(names,exporting=false,key=ACTIVE){
+  const unit=JOINT_GROUPS[key]?.unit||'value';
   return {
     animation:false, backgroundColor:'#fff',
-    title:exporting?{text:categoryLabel(ACTIVE)+' · '+FILE_NAME,subtext:'Network: '+(DATA.columns.network?.find(Boolean)||'unknown'),left:'center'}:undefined,
+    title:exporting?{text:categoryLabel(key)+' · '+FILE_NAME,subtext:'Network: '+(DATA.columns.network?.find(Boolean)||'unknown'),left:'center'}:undefined,
     grid:{left:75,right:35,top:exporting?100:45,bottom:85},
     tooltip:{trigger:'axis',axisPointer:{type:'cross'}},
     legend:{type:'scroll',top:exporting?58:4,left:20,right:20},
@@ -519,8 +570,8 @@ function renderOverview(){
   OVERVIEW.setOption(overviewOption(names));
 }
 
-function pairedTerm(side,joint){
-  return CATEGORIES[ACTIVE].find(n=>TERM_META[n].side===side&&TERM_META[n].joint===joint);
+function pairedTerm(side,joint,key=ACTIVE){
+  return CATEGORIES[key].find(n=>TERM_META[n].side===side&&TERM_META[n].joint===joint);
 }
 
 function disposePairs(){ for(const c of PAIR_CHARTS)c.dispose(); PAIR_CHARTS=[]; }
@@ -531,8 +582,28 @@ function renderPairs(){
   section.hidden=!jointCategory; if(!jointCategory)return;
   const root=document.getElementById('pair-grid');root.innerHTML='';
   for(const joint of PAIRS){
-    const div=document.createElement('div');div.className='pair-card';root.appendChild(div);
-    const chart=echarts.init(div), series=[];
+    const spec=specFor(joint);
+    const card=document.createElement('div');card.className='pair-card';root.appendChild(card);
+
+    // 控制条仅显示在“扭矩占用”分类；显示本关节原本 Vel限/Torq限 + 重算/重置按钮。
+    const isTorqueRatio=ACTIVE==='joint_torque_ratio';
+    if(spec&&isTorqueRatio){
+      const ctrl=document.createElement('div');ctrl.className='pair-ctrl';
+      ctrl.innerHTML=(
+        `<span class="lbl" title="电机规格上限">Vel限 ${spec.vel} · Torq限 ${spec.effort}</span>`+
+        `<span class="lbl">假设Torq限</span>`+
+        `<input type="number" min="0" step="0.5" id="assumed-${joint}" value="${ASSUMED_TORQUE[joint]??spec.effort}" onkeydown="if(event.key==='Enter')recalcTorqueRatio('${joint}')">`+
+        `<button class="btn primary t-recalc" data-joint="${joint}" onclick="recalcTorqueRatio('${joint}')">重算</button>`+
+        `<button class="btn t-reset" data-joint="${joint}" onclick="resetTorqueRatio('${joint}')">重置</button>`
+      );
+      // 仅当该关节存在 torque_ratio 数据时才启用重算按钮。
+      if(!DATA.values[`joint_torque_ratio/left_${joint}_joint`]&&!DATA.values[`joint_torque_ratio/right_${joint}_joint`])
+        ctrl.querySelector('.t-recalc').disabled=true;
+      card.appendChild(ctrl);
+    }
+
+    const chartEl=document.createElement('div');chartEl.className='pair-chart';card.appendChild(chartEl);
+    const chart=echarts.init(chartEl), series=[];
     for(const [side,color] of [['left','#2563eb'],['right','#dc2626']]){
       const name=pairedTerm(side,joint);
       if(name&&SELECTED.has(name)) series.push({name:side==='left'?'Left':'Right',type:'line',data:sampledData(name),showSymbol:false,lineStyle:{width:1.7},itemStyle:{color}});
@@ -558,18 +629,125 @@ function statsFor(values,start,end){
 }
 
 function fmt(v){return Number.isFinite(v)?v.toPrecision(6):'—';}
+
+function boxColor(name){
+  const side=TERM_META[name]?.side;
+  if(side==='left')return '#2563eb';
+  if(side==='right')return '#dc2626';
+  return '#e8590c';
+}
+
+function boxStats(values,start,end){
+  const a=[]; for(let i=start;i<end;i++)if(Number.isFinite(values[i]))a.push(values[i]);
+  if(!a.length)return null;
+  a.sort((x,y)=>x-y);
+  const pct=p=>a[Math.min(a.length-1,Math.floor(p*(a.length-1)))];
+  const q1=pct(.25),median=pct(.5),q3=pct(.75),mean=a.reduce((s,v)=>s+v,0)/a.length;
+  const iqr=q3-q1,lo=q1-1.5*iqr,hi=q3+1.5*iqr;
+  return {box:[Math.max(a[0],lo),q1,median,q3,Math.min(a[a.length-1],hi)],
+          min:a[0],max:a[a.length-1],mean,outliers:a.filter(v=>v<lo||v>hi)};
+}
+
+function renderBox(){
+  const el=document.getElementById('box-chart');
+  if(!el)return;
+  if(BOX){BOX.dispose();BOX=null;}
+  el.innerHTML='';
+  if(!DATA||!window.echarts){el.innerHTML='<div class="empty">加载 CSV 后显示分布</div>';return;}
+  const [start,end]=rangeIndices();
+  const rows=CATEGORIES[ACTIVE].filter(n=>SELECTED.has(n))
+    .map(n=>[n,boxStats(DATA.values[n],start,end)]).filter(x=>x[1]);
+  if(!rows.length){el.innerHTML='<div class="empty">当前分类没有已选数据</div>';return;}
+  BOX=echarts.init(el,null,{renderer:'canvas'});
+  BOX.setOption(boxOption(rows));
+}
+
+function boxOption(rows,unit){
+  const boxData=rows.map(([n,s])=>({value:s.box,itemStyle:{color:boxColor(n)}}));
+  const outlierPts=rows.flatMap(([n,s],i)=>s.outliers.length?
+    s.outliers.map(v=>({value:[i,v],itemStyle:{color:boxColor(n)}})):[]);
+  const meanPts=rows.map(([n,s],i)=>({value:[i,s.mean],itemStyle:{color:boxColor(n)}}));
+  const series=[{name:'分布',type:'boxplot',data:boxData,
+    boxWidth:Math.min(60,240/rows.length),itemStyle:{borderWidth:1.4}}];
+  if(outlierPts.length)series.push({name:'离群',type:'scatter',data:outlierPts,symbol:'cross',symbolSize:6});
+  series.push({name:'均值',type:'scatter',data:meanPts,symbol:'diamond',symbolSize:7});
+  return {
+    animation:false,backgroundColor:'#fff',
+    grid:{left:72,right:28,top:48,bottom:94},
+    tooltip:{trigger:'item',
+      formatter:p=>{
+        if(p.seriesType==='boxplot'){
+          const b=p.data.value;
+          return `<b>${p.name}</b><br/>Min ${fmt(b[0])}<br/>Q1 ${fmt(b[1])}<br/>中位 ${fmt(b[2])}<br/>Q3 ${fmt(b[3])}<br/>Max ${fmt(b[4])}`;
+        }
+        return `<b>${p.name}</b><br/>均值 ${p.value?fmt(p.value[1]):'—'}`;
+      }},
+    xAxis:{type:'category',data:rows.map(([n])=>shortName(n)),
+      axisLabel:{interval:0,rotate:rows.length>8?45:0}},
+    yAxis:{type:'value',name:unit||JOINT_GROUPS[ACTIVE]?.unit||'value',scale:true},
+    series,
+  };
+}
+
+function specCell(name){
+  const m=TERM_META[name];
+  const spec=m&&specFor(m.joint);
+  return spec
+    ?`<td title="Vel限 ${spec.vel} rad/s">${spec.vel}</td><td title="Torq限 ${spec.effort} N·m">${spec.effort}</td>`
+    :'<td class="muted">—</td><td class="muted">—</td>';
+}
 function renderStats(){
   const root=document.getElementById('stats'),[start,end]=rangeIndices();
   const rows=CATEGORIES[ACTIVE].filter(n=>SELECTED.has(n)).map(n=>[n,statsFor(DATA.values[n],start,end)]).filter(x=>x[1]);
   if(!rows.length){root.innerHTML='<div class="empty">当前分类没有已选数据</div>';return;}
-  root.innerHTML='<table><thead><tr><th>Metric</th><th>N</th><th>Min</th><th>Max</th><th>Mean</th><th>RMS</th><th>Peak |x|</th><th>P95 |x|</th></tr></thead><tbody>'+
-    rows.map(([n,s])=>`<tr><td title="${n}">${n}</td><td>${s.n}</td><td>${fmt(s.min)}</td><td>${fmt(s.max)}</td><td>${fmt(s.mean)}</td><td>${fmt(s.rms)}</td><td>${fmt(s.peak)}</td><td>${fmt(s.p95)}</td></tr>`).join('')+
+  root.innerHTML='<table><thead><tr><th>Metric</th><th>Vel限</th><th>Torq限</th><th>N</th><th>Min</th><th>Max</th><th>Mean</th><th>RMS</th><th>Peak |x|</th><th>P95 |x|</th></tr></thead><tbody>'+
+    rows.map(([n,s])=>`<tr><td title="${n}">${n}</td>${specCell(n)}<td>${s.n}</td><td>${fmt(s.min)}</td><td>${fmt(s.max)}</td><td>${fmt(s.mean)}</td><td>${fmt(s.rms)}</td><td>${fmt(s.peak)}</td><td>${fmt(s.p95)}</td></tr>`).join('')+
     '</tbody></table>';
+}
+
+function ratioNames(joint){
+  return ['left','right'].map(s=>`joint_torque_ratio/${s}_${joint}_joint`).filter(n=>DATA.values[n]);
+}
+
+function recalcTorqueRatio(joint){
+  if(!DATA){setStatus('请先加载 CSV',true);return;}
+  const spec=specFor(joint),input=document.getElementById('assumed-'+joint);
+  const names=ratioNames(joint);
+  if(!spec||!names.length){setStatus(`关节 ${joint} 没有 joint_torque_ratio 数据`,true);return;}
+  const T=parseFloat(input.value);
+  if(!(T>0)||!Number.isFinite(T)){setStatus('请输入 >0 的假设扭矩上限 (N·m)',true);return;}
+  // 首次重算前备份原始 ratio（分母=原 effort_limit）。
+  if(!RATIO_BACKUP[joint])RATIO_BACKUP[joint]={};
+  for(const name of names){
+    const side=name.startsWith('joint_torque_ratio/left_')?'left':'right';
+    if(!(side in RATIO_BACKUP[joint]))RATIO_BACKUP[joint][side]=DATA.values[name].slice();
+    // 新 ratio = 实际扭矩 / 假设上限；实际扭矩 = 原 ratio × 原 effort_limit。
+    DATA.values[name]=RATIO_BACKUP[joint][side].map(v=>Number.isFinite(v)?v*spec.effort/T:v);
+  }
+  ASSUMED_TORQUE[joint]=T;
+  renderAll();
+  setStatus(`已按假设扭矩上限 ${T} N·m 重算 [${joint}] 的扭矩占用`);
+}
+
+function resetTorqueRatio(joint){
+  if(!DATA)return;
+  const backup=RATIO_BACKUP[joint],spec=specFor(joint);
+  if(backup){
+    for(const name of ratioNames(joint)){
+      const side=name.startsWith('joint_torque_ratio/left_')?'left':'right';
+      if(backup[side]!==undefined)DATA.values[name]=backup[side];
+    }
+  }
+  delete RATIO_BACKUP[joint];delete ASSUMED_TORQUE[joint];
+  const input=document.getElementById('assumed-'+joint);
+  if(input&&spec)input.value=spec.effort;   // 恢复输入框为原本上限
+  renderAll();
+  setStatus(`已重置 [${joint}] 的扭矩上限为原本 ${spec?spec.effort:'—'} N·m`);
 }
 
 function renderAll(){
   if(!DATA||!window.echarts)return;
-  renderOverview();renderPairs();renderStats();
+  renderOverview();renderPairs();renderBox();renderStats();
 }
 
 function onRangeChange(){
@@ -596,16 +774,16 @@ function saveOverviewPng(){
   exportOffscreen(1920,1080,overviewOption(names,true),safeStem()+'_'+ACTIVE+'_overview.png');
 }
 
-function pairExportOption(){
+function pairExportOption(key=ACTIVE){
   const grids=[],xAxis=[],yAxis=[],series=[],titles=[];
   const top0=4,gap=13.4,height=10.8;
   PAIRS.forEach((joint,row)=>{
     grids.push({left:115,right:45,top:(top0+row*gap)+'%',height:height+'%'});
     xAxis.push({type:'value',gridIndex:row,name:row===6?'Time (s)':'',axisLabel:{show:row===6},scale:true});
-    yAxis.push({type:'value',gridIndex:row,name:JOINT_GROUPS[ACTIVE].unit,scale:true});
+    yAxis.push({type:'value',gridIndex:row,name:JOINT_GROUPS[key].unit,scale:true});
     titles.push({text:joint,left:16,top:(top0+row*gap+3)+'%',textStyle:{fontSize:14}});
     for(const [side,color] of [['left','#2563eb'],['right','#dc2626']]){
-      const name=pairedTerm(side,joint);
+      const name=pairedTerm(side,joint,key);
       if(name&&SELECTED.has(name))series.push({name:(side==='left'?'Left ':'Right ')+joint,type:'line',xAxisIndex:row,yAxisIndex:row,data:sampledData(name),showSymbol:false,lineStyle:{width:1.7},itemStyle:{color}});
     }
   });
@@ -617,12 +795,95 @@ function savePairsPng(){
 }
 
 function exportOffscreen(width,height,option,name){
-  const div=document.createElement('div');Object.assign(div.style,{position:'fixed',left:'-10000px',top:'0',width:width+'px',height:height+'px'});
-  document.body.appendChild(div);const chart=echarts.init(div,null,{renderer:'canvas',width,height});
-  chart.setOption(option);requestAnimationFrame(()=>{
-    const url=chart.getDataURL({type:'png',pixelRatio:1,backgroundColor:'#fff'});
-    downloadUrl(url,name);chart.dispose();div.remove();setStatus('已生成 '+name);
+  renderOffscreenUrl(width,height,option).then(url=>{downloadUrl(url,name);setStatus('已生成 '+name);});
+}
+
+function renderOffscreenUrl(width,height,option){
+  return new Promise((resolve,reject)=>{
+    const div=document.createElement('div');Object.assign(div.style,{position:'fixed',left:'-10000px',top:'0',width:width+'px',height:height+'px'});
+    document.body.appendChild(div);
+    const chart=echarts.init(div,null,{renderer:'canvas',width,height});
+    chart.setOption(option);
+    requestAnimationFrame(()=>{
+      try{
+        const url=chart.getDataURL({type:'png',pixelRatio:1,backgroundColor:'#fff'});
+        chart.dispose();div.remove();resolve(url);
+      }catch(err){div.remove();reject(err);}
+    });
   });
+}
+
+// 汇总同一分类的多条命名字段,统计值(与 renderStats 同口径)。
+function statRowsFor(key){
+  const [start,end]=rangeIndices();
+  return CATEGORIES[key].filter(n=>SELECTED.has(n))
+    .map(n=>[n,statsFor(DATA.values[n],start,end)]).filter(x=>x[1]);
+}
+
+function statsHtml(rows){
+  return '<table class="pv-table"><thead>'+
+    '<tr><th>Metric</th><th>Vel限</th><th>Torq限</th><th>N</th><th>Min</th><th>Max</th><th>Mean</th><th>RMS</th><th>Peak |x|</th><th>P95 |x|</th></tr></thead><tbody>'+
+    rows.map(([n,s])=>{const m=TERM_META[n],spec=m&&specFor(m.joint);
+      return `<tr><td title="${n}">${n}</td><td>${spec?spec.vel:'—'}</td><td>${spec?spec.effort:'—'}</td><td>${s.n}</td><td>${fmt(s.min)}</td><td>${fmt(s.max)}</td><td>${fmt(s.mean)}</td><td>${fmt(s.rms)}</td><td>${fmt(s.peak)}</td><td>${fmt(s.p95)}</td></tr>`;
+    }).join('')+'</tbody></table>';
+}
+
+async function saveAllPdf(){
+  if(!DATA){setStatus('请先加载 CSV',true);return;}
+  const root=document.getElementById('print-root');
+  root.innerHTML='';
+
+  // 顶部概况卡(与页面左栏一致)
+  const network=DATA.columns.network?.find(Boolean)||'unknown';
+  const dur=(DATA.time.at(-1)-DATA.time[0]).toFixed(3);
+  root.innerHTML=
+    `<div class="pv-head">Pikachu Metrics 数据分析 ${FILE_NAME.replace(/\.csv$/i,'')}</div>`+
+    `<div class="pv-meta">`+
+      `<div><div class="pv-mtk">File</div><div class="pv-mtv">${FILE_NAME}</div></div>`+
+      `<div><div class="pv-mtk">Network</div><div class="pv-mtv">${network}</div></div>`+
+      `<div><div class="pv-mtk">Samples</div><div class="pv-mtv">${DATA.time.length.toLocaleString()}</div></div>`+
+      `<div><div class="pv-mtk">Duration</div><div class="pv-mtv">${dur} s</div></div>`+
+      `<div><div class="pv-mtk">Environments</div><div class="pv-mtv">${new Set(DATA.columns.env_idx||[]).size||'—'}</div></div>`+
+    `</div>`+
+    `<div class="pv-note">时间区间: ${DATA.time[rangeIndices()[0]].toFixed(3)} – ${DATA.time[rangeIndices()[1]-1].toFixed(3)} s · 仅含已勾选字段</div>`;
+
+  // 逐分类
+  const cats=orderedCategories().filter(k=>CATEGORIES[k].some(n=>SELECTED.has(n)));
+  for(const key of cats){
+    const names=CATEGORIES[key].filter(n=>SELECTED.has(n));
+    const label=categoryLabel(key);
+    let html=`<div class="pv-cat">${label}</div>`;
+
+    // 1) 总览图
+    const ov=await renderOffscreenUrl(1200,720,overviewOption(names,true,key)).catch(()=>null);
+    if(ov)html+=`<div class="pv-card pv-imgwrap"><img class="pv-img" src="${ov}" alt="${label} 总览"></div>`;
+
+    // 2) 统计表
+    const rows=statRowsFor(key);
+    if(rows.length)html+=`<div class="pv-card">${statsHtml(rows)}</div>`;
+
+    // 3) 箱线图
+    const [start,end]=rangeIndices();
+    const boxRows=names.map(n=>[n,boxStats(DATA.values[n],start,end)]).filter(x=>x[1]);
+    if(boxRows.length){
+      const bx=await renderOffscreenUrl(1200,720,boxOption(boxRows,JOINT_GROUPS[key]?.unit)).catch(()=>null);
+      if(bx)html+=`<div class="pv-card pv-imgwrap"><img class="pv-img" src="${bx}" alt="${label} 箱线图"></div>`;
+    }
+
+    // 4) 关节类:左右同名对比 1×7(完整居中,限制页内高度避免被切)
+    if(JOINT_GROUPS[key]){
+      const po=pairExportOption(key);
+      if(po.series.length){
+        const pr=await renderOffscreenUrl(1000,3200,po).catch(()=>null);
+        if(pr)html+=`<div class="pv-card pv-tall"><img class="pv-img" src="${pr}" alt="${label} 左右对比"></div>`;
+      }
+    }
+
+    root.innerHTML+=html;
+  }
+  // 稍等图片/layout 就绪后触发打印
+  requestAnimationFrame(()=>setTimeout(()=>window.print(),80));
+  setStatus('已生成 PDF(在打印对话框中选择「另存为 PDF」)');
 }
 
 function csvEscape(v){const s=String(v??'');return /[",\r\n]/.test(s)?'"'+s.replaceAll('"','""')+'"':s;}
@@ -638,7 +899,7 @@ function saveSelectedCsv(){
 }
 
 window.addEventListener('resize',()=>{
-  OVERVIEW?.resize();for(const c of PAIR_CHARTS)c.resize();
+  OVERVIEW?.resize();BOX?.resize();for(const c of PAIR_CHARTS)c.resize();
 });
 discoverCsvs(true);
 </script>

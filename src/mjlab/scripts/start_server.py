@@ -745,9 +745,7 @@ def _process_snapshot() -> dict[int, dict[str, Any]]:
   return snapshot
 
 
-def _descendant_pids(
-  root_pid: int, snapshot: dict[int, dict[str, Any]]
-) -> set[int]:
+def _descendant_pids(root_pid: int, snapshot: dict[int, dict[str, Any]]) -> set[int]:
   children: dict[int, list[int]] = {}
   for pid, info in snapshot.items():
     children.setdefault(info["parent"], []).append(pid)
@@ -779,9 +777,7 @@ def _is_launcher_helper(args: list[str]) -> bool:
   )
 
 
-def _is_stale_process_tree(
-  root_pid: int, snapshot: dict[int, dict[str, Any]]
-) -> bool:
+def _is_stale_process_tree(root_pid: int, snapshot: dict[int, dict[str, Any]]) -> bool:
   """Detect a launcher whose real workers exited but were never reaped."""
   descendants = _descendant_pids(root_pid, snapshot)
   if not descendants:
@@ -789,9 +785,7 @@ def _is_stale_process_tree(
   if not any(snapshot[pid]["state"] == "Z" for pid in descendants):
     return False
   live_descendants = [
-    snapshot[pid]
-    for pid in descendants
-    if snapshot[pid]["state"] != "Z"
+    snapshot[pid] for pid in descendants if snapshot[pid]["state"] != "Z"
   ]
   return all(_is_launcher_helper(info["args"]) for info in live_descendants)
 
@@ -940,11 +934,7 @@ def discover_external_jobs(
   candidates: dict[int, dict[str, Any]] = {}
   own_pid = os.getpid()
   for pid, info in snapshot.items():
-    if (
-      pid == own_pid
-      or info["session"] in ignored_sessions
-      or info["state"] == "Z"
-    ):
+    if pid == own_pid or info["session"] in ignored_sessions or info["state"] == "Z":
       continue
     args = info["args"]
     command = " ".join(args)
@@ -999,9 +989,7 @@ class Dashboard:
 
   def __init__(self, repo_root: Path, ssh_target: str | None = None):
     self.repo_root = repo_root
-    self.ssh_target = ssh_target or (
-      f"{getpass.getuser()}@{socket.gethostname()}"
-    )
+    self.ssh_target = ssh_target or (f"{getpass.getuser()}@{socket.gethostname()}")
     self.token = secrets.token_urlsafe(24)
     self._catalog: Catalog | None = None
     self._catalog_time = 0.0
@@ -1027,9 +1015,7 @@ class Dashboard:
       return self._gpu
 
   def _managed_sessions(self) -> set[int]:
-    return {
-      job.pid for job in self._jobs.values() if _live_session_pids(job.pid)
-    }
+    return {job.pid for job in self._jobs.values() if _live_session_pids(job.pid)}
 
   def conflicts(self, gpu_ids: tuple[int, ...] | None = ()) -> list[dict[str, Any]]:
     with self._lock:
@@ -1101,8 +1087,7 @@ class Dashboard:
       viewer_port: int | None = None
       viewer = _text(payload, "viewer") or "auto"
       uses_viser = kind == "play" and (
-        viewer == "viser"
-        or (viewer == "auto" and not os.environ.get("DISPLAY"))
+        viewer == "viser" or (viewer == "auto" and not os.environ.get("DISPLAY"))
       )
       if uses_viser:
         viewer_port = _find_free_tcp_port()
@@ -1164,9 +1149,7 @@ class Dashboard:
       external = discover_external_jobs(self.repo_root, self._managed_sessions())
       stale_jobs = [item for item in external if item["stale"]]
       stale_gpu_processes = [
-        process
-        for process in gpu["processes"]
-        if process["stale"]
+        process for process in gpu["processes"] if process["stale"]
       ]
       return {
         "repo_root": str(self.repo_root),

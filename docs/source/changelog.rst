@@ -78,6 +78,18 @@ Added
   is meaningless and is forced back to ``kinematic``. Reuses the COM
   projection overlay and space-to-pause / loop / fast interactions from
   ``preview`` — useful to inspect recording results before training.
+- Added ``check_reference_feasibility.py``, an offline feasibility check for
+  reference-motion NPZ files before they enter tracking training: it reports
+  hovering feet (sole height), stance-phase foot sliding, joint position/
+  velocity vs hardware limits and DM motor speed spec, and a ``feasible``
+  verdict plus an issues list.
+- Pikachu telemetry now adds stance-phase foot-slip velocity and slide
+  fraction (same threshold and wording as the offline check), per-joint peak
+  torque/velocity as a ratio of the DM motor spec
+  (``joint_torque_ratio`` / ``joint_velocity_ratio``), an aggregate
+  ``actuator_spec_violation`` step fraction, and mean action acceleration
+  (action smoothness) to every velocity and tracking task. Tasks that do not
+  already define ``feet_ground_contact`` get the sensor added automatically.
 
 Changed
 ^^^^^^^
@@ -122,6 +134,16 @@ Changed
   ``/tmp/motion.npz``. A new ``--output-file <path>`` flag overrides the
   destination. This also changes the wandb artifact source: with ``--wandb``,
   the artifact now uploads from the project ``npz`` path.
+
+Fixed
+^^^^^
+
+- ``tests/test_start_server.py``: restored the truncated ``play`` command
+  assertion (missing task name and tuple close) that was a syntax error and
+  blocked ``make check``.
+- ``csv_to_npz_pikachu.py``: the lazy ``import wandb`` inside ``run_sim``
+  shadowed the ``wandb: bool`` parameter; the module is now imported as
+  ``wandb_mod`` so the artifact upload path type-checks.
 
 Version 1.6.0 (August 8, 2026)
 ------------------------------

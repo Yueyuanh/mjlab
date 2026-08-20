@@ -42,8 +42,17 @@ dependent task out of an old task branch.
 
 ## Out of scope for git
 
-Training artifacts — weights, logs, `.pyc` files — stay out of version control
-(`.gitignore` or git-lfs). They must not ride along on branch switches.
+Training artifacts — checkpoint weights, run logs, ad-hoc `metrics_*.csv`,
+`.pyc` files — stay out of version control (`.gitignore` or git-lfs). They
+must not ride along on branch switches.
+
+**Exception — deploy corpus (`pre_train/`)**: `pre_train/rsl_rl/<task>/<run>/`
+holds the trained, stable models and their recorded metrics used for
+**deployment** (reference motions plus the metrics CSVs / dashboard PDFs used
+to verify them). These are committed to git on purpose so the pinned
+deployable version stays reproducible — do not add them to an ignore rule and
+do not delete them. Treatment differs from transient scratch (recordings under
+`mocap/tmp/`, ad-hoc plots), which may be left untracked.
 
 # Development Workflow
 

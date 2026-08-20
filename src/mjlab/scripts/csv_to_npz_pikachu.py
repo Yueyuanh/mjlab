@@ -364,10 +364,10 @@ def run_sim(
 
         if wandb:
           print("Uploading to Weights & Biases...")
-          import wandb
+          import wandb as wandb_mod  # 函数参数同名，模块别名为 wandb_mod
 
           COLLECTION = output_name
-          run = wandb.init(project="csv_to_npz", name=COLLECTION)
+          run = wandb_mod.init(project="csv_to_npz", name=COLLECTION)
           print(f"[INFO]: Logging motion to wandb: {COLLECTION}")
           REGISTRY = "motions"
           logged_artifact = run.log_artifact(
@@ -386,9 +386,11 @@ def run_sim(
             media.write_video("./motion.mp4", frames, fps=output_fps)
 
             print("Logging video to wandb...")
-            wandb.log({"motion_video": wandb.Video("./motion.mp4", format="mp4")})
+            wandb_mod.log(
+              {"motion_video": wandb_mod.Video("./motion.mp4", format="mp4")}
+            )
 
-          wandb.finish()
+          wandb_mod.finish()
 
 
 def main(

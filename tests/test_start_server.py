@@ -9,10 +9,10 @@ from typing import Any
 import pytest
 
 from mjlab.scripts.start_server import (
+  _VISER_URL_RE,
   BuildError,
   _experiment_kind,
   _is_stale_process_tree,
-  _VISER_URL_RE,
   build_experiment_command,
   discover_catalog,
   discover_checkpoints,
@@ -158,6 +158,10 @@ def test_play_command_uses_local_model_without_shell(tmp_path: Path) -> None:
     "uv",
     "run",
     "play",
+    "Mjlab-Tracking-Flat-Pikachu-Down",
+  )
+  assert "--checkpoint-file" in result.argv
+  assert result.argv[-2:] == ("--camera", "tracking camera")
 
 
 def test_stale_process_tree_requires_only_dead_workers() -> None:
@@ -187,7 +191,3 @@ def test_extracts_viser_http_port() -> None:
 
   assert match is not None
   assert int(match.group("port")) == 18432
-    "Mjlab-Tracking-Flat-Pikachu-Down",
-  )
-  assert "--checkpoint-file" in result.argv
-  assert result.argv[-2:] == ("--camera", "tracking camera")

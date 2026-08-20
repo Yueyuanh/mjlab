@@ -241,6 +241,9 @@ uv run python src/mjlab/tasks/tracking/scripts/evaluate.py \
 rsync -avz --progress yons@192.168.0.117:/home/yons/pikachu/mjlab/logs/ /home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/4090-logs
 
 
+
+
+
 # 4090-dual git 无权限
 
 ```

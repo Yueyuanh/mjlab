@@ -299,9 +299,9 @@ def run_play(task_id: str, cfg: PlayConfig):
   else:
     resolved_viewer = cfg.viewer
 
-  metrics_output_dir = log_dir or (
-    Path(cfg.log_root) / agent_cfg.experiment_name
-  ).resolve()
+  metrics_output_dir = (
+    log_dir or (Path(cfg.log_root) / agent_cfg.experiment_name).resolve()
+  )
 
   def metrics_source_name() -> str:
     checkpoint_name = (

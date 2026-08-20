@@ -7,7 +7,6 @@ import numpy as np
 from mjlab.mocap.keyframes import PoseKeyframe
 from mjlab.mocap.recorder import load_keyframes_json, record_to_csv
 
-
 JOINT_NAMES = (
   "left_hip_pitch_joint",
   "left_hip_roll_joint",
