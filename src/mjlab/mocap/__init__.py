@@ -36,6 +36,7 @@ from mjlab.mocap.keyframes import (
   Trajectory,
   build_trajectory,
 )
+from mjlab.mocap.metrics_logger import record_metrics_to_csv
 from mjlab.mocap.mocap_env import MocapEnv
 from mjlab.mocap.preview import preview_keyframes
 from mjlab.mocap.recorder import (
@@ -54,4 +55,5 @@ __all__ = [
   "RecordingResult",
   "load_keyframes_json",
   "record_to_csv",
+  "record_metrics_to_csv",
 ]

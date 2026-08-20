@@ -14,15 +14,23 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def discover_csv_files(repo_root: Path, kind: str) -> list[dict[str, Any]]:
-  """Return newest-first dashboard CSV metadata below ``repo_root/logs``."""
+  """Return newest-first dashboard CSV metadata below ``repo_root`` roots.
+
+  Metrics are scanned from ``logs/`` (live runs) plus ``pre_train/`` (saved
+  runs e.g. ``pre_train/rsl_rl/<task>/<run>/metrics_*.csv``) and
+  ``src/mjlab/mocap/logs`` (mocap PD-recording metrics logs).
+  """
   logs_root = repo_root / "logs"
+  pre_train_root = repo_root / "pre_train"
+  mocap_root = repo_root / "src" / "mjlab" / "mocap" / "logs"
   if kind not in {"metrics", "response"}:
     raise ValueError(f"Unsupported CSV kind: {kind}")
-  if not logs_root.is_dir():
-    return []
 
   if kind == "metrics":
-    paths = logs_root.rglob("metrics_*.csv")
+    roots = {logs_root, pre_train_root, mocap_root}
+    paths = [
+      path for root in roots if root.is_dir() for path in root.rglob("metrics_*.csv")
+    ]
   else:
     response_root = logs_root / "response"
     paths = response_root.rglob("response.csv") if response_root.is_dir() else ()

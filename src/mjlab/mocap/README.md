@@ -251,6 +251,81 @@ uv run python -m mjlab.mocap.replay_cli \
 uv run python -m mjlab.mocap.replay_cli   --input-file  src/mjlab/mocap/npz/Pikachu-Transition-Up.npz
 ```
 
+## Metrics 日志（对比 RL 控制器 vs 单点位插值控制）
+
+除上述 **21 列运动学参考 CSV**（给 tracking 训练消费）外，mocap 录制还可以
+**额外**产出一份与 RL tracking 阶段 `play ... --viewer viser` 录制出的
+`metrics_*.csv` **同格式**的电机输出日志。两者并存：运动学 CSV 给训练，
+metrics 日志给离线对比「RL policy 控制器 vs 单点位插值控制」下**电机输出
+（关节侧 `qfrc_actuator` 扭矩等）是否一致**，保存到
+`src/mjlab/mocap/logs/`，可进 plot_logs dashboard 分析。
+
+### 怎么录
+
+在 `record_cli` 加 `--metrics-log <目录>`（建议 `src/mjlab/mocap/logs`）；
+`--metrics-source <标识>` 写入 `network` 列与文件名，缺省取关键帧文件名。
+
+```sh
+# 录一段 transition_down，同时产出一份 metrics 日志
+uv run python -m mjlab.mocap.record_cli \
+    src/mjlab/mocap/configs/transition_down.json \
+    src/mjlab/mocap/tmp/transition_down.csv \
+    --fps 30.0 \
+    --metrics-log src/mjlab/mocap/logs \
+    --metrics-source Pikachu-Mocap-TransitionDown__pd
+
+# 产物：mocap/logs/metrics_Pikachu-Mocap-TransitionDown__pd_<stamp>.csv
+```
+
+Python API 对应入口是 `record_metrics_to_csv`（参数语义与 `record_to_csv`
+一致，只是按帧额外采样电机输出）：
+
+```python
+from mjlab.mocap.metrics_logger import record_metrics_to_csv
+record_metrics_to_csv(keyframes, "src/mjlab/mocap/logs", "Pikachu-Mocap-X__pd",
+                      fps=30.0)
+```
+
+### 列格式（对齐 RL `metrics_*.csv`）
+
+表头前 5 列固定：`sample, sim_step, time_s, env_idx, network`。随后是
+指标列（与 RL `add_pikachu_telemetry_metrics` 同序、同前缀）：
+
+- `base_height_m`
+- 逐关节（14 关节 × 5 指标）：`joint_position_rad/<j>`、
+  `joint_velocity_rad_s/<j>`、`joint_torque_nm/<j>`（= 关节侧 `qfrc_actuator`，
+  N·m）、`joint_torque_ratio/<j>`（= |扭矩|/effort_limit）、
+  `joint_velocity_ratio/<j>`（= |角速度|/velocity_limit）
+- `actuator_spec_violation`（该帧任一关节扭矩或角速度超电机 spec → 1）
+
+比例的分母（effort/velocity 限位）复用 `pikachu_metrics._actuator_spec` 这个
+单一来源，与 RL 那份完全同口径，可直接并排对比。
+
+### 在 plot_logs dashboard 看
+
+```sh
+uv run python scripts/plot_logs/serve.py   # 然后浏览器打开打印的 URL
+```
+
+`serve.py` 的 metrics 扫描现已包含 `src/mjlab/mocap/logs`，dashboard 会自动
+把 mocap/logs 下的 `metrics_*.csv` 与 RL 的 metrics 放进同一关节/扭矩分类；
+选择对应条目即可左右脚/左右关节对比、绘制扭矩/位置/速度曲线。
+
+### 与 RL 样本的可比性 & 差异
+
+**逐字节对齐**：表头结构、5 个关节分类前缀、各列名、`metrics_*_<stamp>.csv`
+命名 → dashboard 把它们归入同一分类、可分别加载对比。
+
+**不会对齐 / 需注意**：
+- **无 `foot_slip_velocity_m_s` / `foot_slide_fraction` / `action_acc`**：
+  mocap 没有接触传感器和 action manager，这三列省略（RL 样本里有）。
+- **时间轴**：`time_s = 帧间隔 × steps_per_frame × physics_dt`（mocap 是
+  物理步推进，通常 0.005s）；RL 用的是 `env.step_dt`=0.02s 控制周期。两者
+  duration 都正确，但细腻度不同——dashboard 的 x 轴是 `time_s`，属正常差异。
+- **`network` 列**：填 `--metrics-source`（标识 mocap + 动作名），RL 那份
+  填的是 `{task_id}__{checkpoint}`。
+- **`sim_step`**：mocap 为累计物理步计数；RL 为 env 的物理步计数器，语义对齐。
+
 ## 注意事项
 
 - **关键帧数值微调**：`configs/` 里的过渡中间态是粗设占位。建议在 viewer

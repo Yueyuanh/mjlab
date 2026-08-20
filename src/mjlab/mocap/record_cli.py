@@ -10,16 +10,30 @@
 
 录制出的 CSV 与 ``scripts/csv_to_npz.py`` 输入格式完全对齐（21 列，
 root_quat 为 xyzw 序），可直接用 csv_to_npz 细化成 50fps 的 motion.npz。
+
+可选让 mocap 录制同时产出一份与 RL tracking ``metrics_*.csv`` 对齐的电机
+输出日志（保存到 ``--metrics-log`` 目录，配合 plot_logs dashboard 分析），
+用于对比「RL policy 控制器 vs 单点位插值控制」的电机输出：
+
+.. code-block:: sh
+
+  uv run python -m mjlab.mocap.record_cli \
+      src/mjlab/mocap/configs/transition_down.json \
+      /tmp/transition_down.csv \
+      --metrics-log src/mjlab/mocap/logs \
+      --metrics-source Pikachu-Mocap-TransitionDown__pd
 """
 
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 from typing import Literal
 
 import tyro
 
 import mjlab
+from mjlab.mocap.metrics_logger import record_metrics_to_csv
 from mjlab.mocap.recorder import load_keyframes_json, record_to_csv
 
 
@@ -31,6 +45,8 @@ def main(
   device: str = "cpu",
   physics_dt: float = 0.005,
   write_root: bool = False,
+  metrics_log: str | None = None,
+  metrics_source: str | None = None,
 ) -> None:
   """录制 Pikachu 动作 CSV（PD 打点 + 插值）。
 
@@ -46,6 +62,11 @@ def main(
     physics_dt: 物理仿真步长（秒）。
     write_root: 是否把 root 运动学写入（钉在插值轨迹上）。默认 False，
       root 由浮动基座动力学 + 关节 PD 自由演化（JSON 只需配置关节角）。
+    metrics_log: 若给出，额外录一份对齐 RL tracking 的电机输出 metrics
+      日志到该目录（如 ``src/mjlab/mocap/logs``），供 plot_logs dashboard
+      对比「RL policy vs 单点位插值控制」的电机输出。
+    metrics_source: 写入 metrics 日志 ``network`` 列 / 文件名的标识（例如
+      ``Pikachu-Mocap-TransitionDown__pd``）。默认取 keyframes 文件名。
   """
   kf_list, cfg = load_keyframes_json(keyframes)
   # CLI 显式参数优先于 JSON 里的 fps / easing。
@@ -64,6 +85,20 @@ def main(
     write_root=write_root,
     verbose=True,
   )
+
+  if metrics_log is not None:
+    source = metrics_source or Path(keyframes).stem
+    record_metrics_to_csv(
+      kf_list,
+      metrics_log,
+      source,
+      fps=cfg.fps,
+      easing=cfg.easing,
+      device=device,
+      physics_dt=physics_dt,
+      write_root=write_root,
+      verbose=True,
+    )
 
 
 def _normalize_argv(argv: list[str]) -> list[str]:
