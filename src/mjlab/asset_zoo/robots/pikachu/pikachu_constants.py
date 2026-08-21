@@ -243,25 +243,25 @@ BIPED_KEYFRAME = KNEES_BENT_KEYFRAME
 #   - 关节限位参考 defaults.xml：left_hip_pitch [-2.44, 0.698]、left_knee
 #     [-1.57, 0]、left_ankle [-1.05, 0.52]、left_arm_pitch [-3.14, 1.05]。
 QUAD_KEYFRAME = EntityCfg.InitialStateCfg(
-  pos=(0, 0, 0.075),  # TODO(微调): base 离地高度
-  rot=(0.7071, 0.0, 0.7071, 0.0),  # TODO(微调): 绕 world y 前俯 90°（w=cos45, z=sin45）
+  pos=(0, 0, 0.15),
+  rot=(0.593497, 0.0, 0.804837,0),
+  # rot=(0.7071, 0, 0.7071, 0),
   joint_pos={
     # 腿：后支撑（四足时腿在 base 后方弯曲），左右取反
-    "left_hip_pitch_joint": -0.5,  # TODO: 大腿前后倾角
-    "right_hip_pitch_joint": 0.5,
+    "left_hip_pitch_joint": -2.4,
+    "right_hip_pitch_joint": 2.4,
     "left_hip_roll_joint": 0.0,
     "right_hip_roll_joint": 0.0,
     "left_hip_yaw_joint": 0.0,
     "right_hip_yaw_joint": 0.0,
-    "left_knee_joint": -0.8,  # TODO: 膝弯曲角
-    "right_knee_joint": 0.8,
-    "left_ankle_joint": -0.4,  # TODO: 踝补偿（保持脚底水平着地）
-    "right_ankle_joint": 0.4,
-    # 臂：前撑地（负角=向前摆），roll 小外展
-    "left_arm_pitch_joint": -1.2,  # 已验证着地；>1.5 挥过头手上扬
-    "right_arm_pitch_joint": 1.2,
-    "left_arm_roll_joint": 0.2,
-    "right_arm_roll_joint": -0.2,
+    "left_knee_joint": -1.2,
+    "right_knee_joint": 1.2,
+    "left_ankle_joint": -0.7,
+    "right_ankle_joint": 0.7,
+    "left_arm_pitch_joint": -2.0,
+    "right_arm_pitch_joint": 2.0,
+    "left_arm_roll_joint": 0.0,
+    "right_arm_roll_joint": -0.0,
   },
   joint_vel={".*": 0.0},
 )

@@ -5,6 +5,7 @@ import os
 import sys
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
+from functools import partial
 from pathlib import Path
 from typing import Literal, cast
 
@@ -31,6 +32,12 @@ class TrainConfig:
   video_length: int = 200
   video_interval: int = 2000
   enable_nan_guard: bool = False
+  console_extras: bool = False
+  """Whether to print per-iteration episode extras (Episode_Reward/Termination/
+  Metrics/Curriculum) to the console. Default False to keep the terminal quiet;
+  only the header (mean reward, episode length, action std, losses) is printed.
+  The extras are still logged to tensorboard/wandb and the log file. Set to
+  True to restore the per-iteration console dump."""
   log_root: str = "logs/rsl_rl"
   """Root directory under which experiment logs are written."""
   torchrunx_log_dir: str | None = None
@@ -165,6 +172,13 @@ def run_train(task_id: str, cfg: TrainConfig, log_dir: Path) -> None:
     dump_yaml(log_dir / "params" / "agent.yaml", agent_cfg)
 
   runner = runner_cls(env, agent_cfg, str(log_dir), device, **runner_kwargs)
+
+  if not cfg.console_extras:
+    # Silent the per-iteration episode-extras dump on the console (rsl_rl
+    # logger.log receives no print_minimal from its runner, so bind it here).
+    # The extras are still written to tensorboard/wandb + the log file via
+    # logger.process_env_step; only the stdout block is suppressed.
+    runner.logger.log = partial(runner.logger.log, print_minimal=True)
 
   add_wandb_tags(cfg.agent.wandb_tags)
   runner.add_git_repo_to_log(__file__)

@@ -234,6 +234,13 @@ uv run python src/mjlab/tasks/tracking/scripts/evaluate.py \
 
 ```
 
+# velocity train
+uv run train Mjlab-Velocity-Flat-Pikachu-Quad \
+  --agent.run-name trial-quad-smoke \
+  --agent.max_iterations 200 \
+  --env.scene.num_envs 256 \
+  --gpu-ids "[0]"
+
 # scp rsync
 
 拉到本地play

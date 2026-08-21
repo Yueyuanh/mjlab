@@ -8,6 +8,16 @@ Upcoming version (not yet released)
 Added
 ^^^^^
 
+- Added ``Mjlab-Velocity-Flat-Pikachu-Quad``, a Pikachu **quadruped** omnidirectional
+  velocity task: the robot starts in the shared ``QUAD_KEYFRAME`` pose (hands + feet
+  on the ground, torso pitched forward) and learns to move in all directions with the
+  front legs (= arms) as support. It is isolated in a new independent namespace —
+  ``asset_zoo/robots/pikachu/pikachu_quad_constants.py`` (quad start pose, support
+  geoms, action scale) and ``tasks/velocity/config/pikachu_quad/`` (env / rl cfg), with
+  a private ``quad_mdp`` whose ``quad_upright`` / ``quad_bad_orientation`` target a
+  torso back-axis at a ``tilt_deg`` offset (parameterized and marked TODO until
+  calibrated in the viewer). Shared ``pikachu_constants`` and the shared velocity
+  mdp are untouched, so the existing biped tasks are unaffected.
 - Added ``uv run start_server``: a local experiment dashboard that discovers
   registered tasks, the newest checkpoint in every ``logs`` / ``pre_train``
   run, and local motion NPZ files. It builds copyable TrainSpec-compatible

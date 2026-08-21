@@ -28,8 +28,12 @@ def go1_velocity_task_ids(velocity_task_ids: list[str]) -> list[str]:
 
 @pytest.fixture(scope="module")
 def pikachu_velocity_task_ids(velocity_task_ids: list[str]) -> list[str]:
-  """Get all Pikachu velocity task IDs."""
-  return [t for t in velocity_task_ids if "Pikachu" in t]
+  """Get all Pikachu velocity task IDs.
+
+  下文的行走步态断言是**双足特化**(人形 base 高度 0.17、飞行惩罚等),四足
+  Quad 任务有自己的基座高度/朝向,不适用 → 显式排除带 ``Quad`` 的 ID。
+  """
+  return [t for t in velocity_task_ids if "Pikachu" in t and "Quad" not in t]
 
 
 @pytest.fixture(scope="module")
