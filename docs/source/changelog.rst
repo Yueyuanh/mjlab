@@ -8,6 +8,11 @@ Upcoming version (not yet released)
 Added
 ^^^^^
 
+- Added ``Mjlab-Velocity-Flat-Pikachu-Quad-Bounding`` as an isolated forward
+  quadruped bounding task. It uses separate front-hand and rear-foot contact
+  sensors, an ordered rear-stance / flight / front-stance / flight reward,
+  synchronized pair landings, and its own PPO experiment and W&B namespace.
+  The existing Quad and biped task configurations remain unchanged.
 - Added ``Mjlab-Velocity-Flat-Pikachu-Quad``, a Pikachu **quadruped** omnidirectional
   velocity task: the robot starts in the shared ``QUAD_KEYFRAME`` pose (hands + feet
   on the ground, torso pitched forward) and learns to move in all directions with the

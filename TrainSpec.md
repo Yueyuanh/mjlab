@@ -236,9 +236,9 @@ uv run python src/mjlab/tasks/tracking/scripts/evaluate.py \
 
 # velocity train
 uv run train Mjlab-Velocity-Flat-Pikachu-Quad \
-  --agent.run-name trial-quad-smoke \
-  --agent.max_iterations 200 \
-  --env.scene.num_envs 256 \
+  --agent.run-name trial-quad-1 \
+  --agent.max_iterations 5000 \
+  --env.scene.num_envs 4096
 
 
 
@@ -261,7 +261,13 @@ rsync -avz --progress yons@192.168.0.117:/home/yons/pikachu/mjlab/logs/ /home/fi
 eval "$(ssh-agent -s)"
 
 # 2. 添加密钥
+4090-dual
+
 ssh-add ~/.ssh/id_ed25519_company
+
+finnox4090
+ssh-add ~/.ssh/id_ed25519_yue_gitlab
+
 
 # 3. 测试连接
 ssh -T git@git.finnoxcorp.com -p 2222
