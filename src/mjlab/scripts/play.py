@@ -20,6 +20,7 @@ from mjlab.utils.os import get_wandb_checkpoint_path
 from mjlab.utils.torch import configure_torch_backends
 from mjlab.utils.wrappers import VideoRecorder
 from mjlab.viewer import NativeMujocoViewer, ViserPlayViewer
+from mjlab.viewer.viser.arm_swing_viewer import ArmSwingViewer
 from mjlab.viewer.viser.viewer import CheckpointManager, format_time_ago
 
 
@@ -46,7 +47,7 @@ class PlayConfig:
   video_height: int | None = None
   video_width: int | None = None
   camera: int | str | None = None
-  viewer: Literal["auto", "native", "viser"] = "auto"
+  viewer: Literal["auto", "native", "viser", "arm-swing"] = "auto"
   no_terminations: bool = False
   """Disable all termination conditions (useful for viewing motions with dummy agents)."""
   sampling_mode: Literal["adaptive", "uniform", "start"] | None = None
@@ -315,6 +316,14 @@ def run_play(task_id: str, cfg: PlayConfig):
     NativeMujocoViewer(env, policy).run()
   elif resolved_viewer == "viser":
     ViserPlayViewer(
+      env,
+      policy,
+      checkpoint_manager=ckpt_manager,
+      metrics_output_dir=metrics_output_dir,
+      metrics_source_name=metrics_source_name,
+    ).run()
+  elif resolved_viewer == "arm-swing":
+    ArmSwingViewer(
       env,
       policy,
       checkpoint_manager=ckpt_manager,

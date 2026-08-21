@@ -104,7 +104,7 @@ ARMATURE_J3507 = reflected_inertia(
 ACTUATOR_J4310 = ElectricActuator(
   reflected_inertia=ARMATURE_J4310,
   velocity_limit=20.0,  #  TMax 30  限速20.94（200rpm）
-  effort_limit=10,      #  TMax 12.5  软件力矩上限 10N·m
+  effort_limit=10,  #  TMax 12.5  软件力矩上限 10N·m
 )
 ACTUATOR_J3507 = ElectricActuator(
   reflected_inertia=ARMATURE_J3507,
@@ -137,8 +137,8 @@ DAMPING_RATIO = 2.0
 STIFFNESS_J4310 = ARMATURE_J4310 * NATURAL_FREQ**2  # Kp 8.709
 STIFFNESS_J3507 = ARMATURE_J3507 * NATURAL_FREQ**2  # Kp 12.187
 
-DAMPING_J4310 = 2.0 * DAMPING_RATIO * ARMATURE_J4310 * NATURAL_FREQ # Kd 0.554
-DAMPING_J3507 = 2.0 * DAMPING_RATIO * ARMATURE_J3507 * NATURAL_FREQ # Kd 0.776
+DAMPING_J4310 = 2.0 * DAMPING_RATIO * ARMATURE_J4310 * NATURAL_FREQ  # Kd 0.554
+DAMPING_J3507 = 2.0 * DAMPING_RATIO * ARMATURE_J3507 * NATURAL_FREQ  # Kd 0.776
 
 # 腿部执行器：髋 pitch 与膝（使用 DM-J4310P，大扭矩）。
 # target_names_expr 为正则表达式，匹配被该执行器驱动的关节名。

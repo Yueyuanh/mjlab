@@ -30,6 +30,17 @@ Added
 - Added ``Mjlab-Tracking-Flat-Pikachu-Walk``, a Pikachu motion-tracking task
   that learns the recorded 0.185 m/s forward walk and reuses the transition
   task's robot, tracking bodies, randomization, telemetry, and PPO setup.
+- Reworked ``Mjlab-Tracking-Flat-Pikachu-Walk-Base`` into a true arm ablation:
+  the policy input, output, and reference are trimmed to the 10 leg joints only,
+  and the arms are driven by a new zero-dimension ``ArmSineAction`` side-effect
+  term (``envs/mdp/actions/arm_sine.py``) that superimposes an anti-phase sine on
+  the default arm pose every physics substep. A training curriculum ramps the
+  swing amplitude from 0 (first ~1000 iters learn stable walking with arms still)
+  to ``default_amp_pitch`` / ``default_amp_roll`` over the following ~2500 iters.
+  The ``--viewer arm-swing`` player now drives that term's pitch/roll amplitude
+  and frequency directly via Viser sliders instead of rewriting policy actions.
+  Added ``scripts/make_walk_base_npz.py`` to produce the leg-only (10-DOF)
+  reference NPZ from the 14-DOF forward-walk clip.
 - Added ``mjlab.mocap``, a MuJoCo data-recording environment for Pikachu
   (PD keyframe + interpolation → CSV, aligned with ``csv_to_npz.py`` input).
   It loads the Pikachu robot on flat terrain, drives joints via position

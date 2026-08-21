@@ -28,6 +28,8 @@ from mjlab.envs.mdp.actions.actions import TendonVelocityAction as TendonVelocit
 from mjlab.envs.mdp.actions.actions import (
   TendonVelocityActionCfg as TendonVelocityActionCfg,
 )
+from mjlab.envs.mdp.actions.arm_sine import ArmSineAction as ArmSineAction
+from mjlab.envs.mdp.actions.arm_sine import ArmSineActionCfg as ArmSineActionCfg
 from mjlab.envs.mdp.actions.differential_ik import (
   DifferentialIKAction as DifferentialIKAction,
 )

@@ -81,6 +81,13 @@ class MotionCommand(CommandTerm):
     self.motion = MotionLoader(
       self.cfg.motion_file, self.body_indexes, device=self.device
     )
+    self._joint_ids: torch.Tensor | None = None
+    if self.cfg.joint_names:
+      self._joint_ids = torch.tensor(
+        self.robot.find_joints(self.cfg.joint_names, preserve_order=True)[0],
+        dtype=torch.long,
+        device=self.device,
+      )
     self.time_steps = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
     self.body_pos_relative_w = torch.zeros(
       self.num_envs, len(cfg.body_names), 3, device=self.device
@@ -172,13 +179,19 @@ class MotionCommand(CommandTerm):
   def anchor_ang_vel_w(self) -> torch.Tensor:
     return self.motion.body_ang_vel_w[self.time_steps, self.motion_anchor_body_index]
 
+  def _robot_joints(self, name: str) -> torch.Tensor:
+    value = getattr(self.robot.data, name)
+    if self._joint_ids is None:
+      return value
+    return value[:, self._joint_ids]
+
   @property
   def robot_joint_pos(self) -> torch.Tensor:
-    return self.robot.data.joint_pos
+    return self._robot_joints("joint_pos")
 
   @property
   def robot_joint_vel(self) -> torch.Tensor:
-    return self.robot.data.joint_vel
+    return self._robot_joints("joint_vel")
 
   @property
   def robot_body_pos_w(self) -> torch.Tensor:
@@ -309,9 +322,18 @@ class MotionCommand(CommandTerm):
     joint_vel: torch.Tensor,
   ) -> None:
     """Clip joint positions and write root + joint state to sim."""
-    soft_limits = self.robot.data.soft_joint_pos_limits[env_ids]
-    joint_pos = torch.clip(joint_pos, soft_limits[:, :, 0], soft_limits[:, :, 1])
-    self.robot.write_joint_state_to_sim(joint_pos, joint_vel, env_ids=env_ids)
+    joint_ids = self._joint_ids
+    if joint_ids is None:
+      soft_limits = self.robot.data.soft_joint_pos_limits[env_ids]
+      joint_pos = torch.clip(joint_pos, soft_limits[:, :, 0], soft_limits[:, :, 1])
+    else:
+      # Leg-only reference: clip and write only the tracked joints, leaving the
+      # arm joints at their previous (default) state.
+      soft_limits = self.robot.data.soft_joint_pos_limits[env_ids][:, joint_ids]
+      joint_pos = torch.clip(joint_pos, soft_limits[:, :, 0], soft_limits[:, :, 1])
+    self.robot.write_joint_state_to_sim(
+      joint_pos, joint_vel, joint_ids=joint_ids, env_ids=env_ids
+    )
 
     root_state = torch.cat([root_pos, root_ori, root_lin_vel, root_ang_vel], dim=-1)
     self.robot.write_root_state_to_sim(root_state, env_ids=env_ids)
@@ -471,7 +493,15 @@ class MotionCommand(CommandTerm):
         qpos = np.zeros(self._env.sim.mj_model.nq)
         qpos[free_joint_q_adr[0:3]] = self.body_pos_w[batch, 0].cpu().numpy()
         qpos[free_joint_q_adr[3:7]] = self.body_quat_w[batch, 0].cpu().numpy()
-        qpos[joint_q_adr] = self.joint_pos[batch].cpu().numpy()
+        # Apply the reference joints into the ghost qpos. When the command only
+        # tracks a subset of joints (e.g. the walk-base 10-DOF legs), project the
+        # reference onto those joints instead of the full model.
+        if self._joint_ids is None:
+          qpos[joint_q_adr] = self.joint_pos[batch].cpu().numpy()
+        else:
+          qpos[joint_q_adr[self._joint_ids.cpu().numpy()]] = (
+            self.joint_pos[batch].cpu().numpy()
+          )
 
         visualizer.add_ghost_mesh(
           qpos,
@@ -609,6 +639,11 @@ class MotionCommandCfg(CommandTermCfg):
   motion_file: str
   anchor_body_name: str
   body_names: tuple[str, ...]
+  joint_names: tuple[str, ...] | None = None
+  """Joint subset the diagnostic ``error_joint_pos`` / ``error_joint_vel``
+   compare against. If a leg-only reference motion is provided (as in the
+   walk-base arm ablation), set this to the same leg joints so the metric
+   doesn't miscompare against all 14. Default ``None`` = all joints."""
   entity_name: str
   pose_range: dict[str, tuple[float, float]] = field(default_factory=dict)
   velocity_range: dict[str, tuple[float, float]] = field(default_factory=dict)

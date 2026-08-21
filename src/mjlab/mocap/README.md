@@ -282,8 +282,10 @@ Python API 对应入口是 `record_metrics_to_csv`（参数语义与 `record_to_
 
 ```python
 from mjlab.mocap.metrics_logger import record_metrics_to_csv
-record_metrics_to_csv(keyframes, "src/mjlab/mocap/logs", "Pikachu-Mocap-X__pd",
-                      fps=30.0)
+
+record_metrics_to_csv(
+  keyframes, "src/mjlab/mocap/logs", "Pikachu-Mocap-X__pd", fps=30.0
+)
 ```
 
 ### 列格式（对齐 RL `metrics_*.csv`）

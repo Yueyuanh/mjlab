@@ -288,6 +288,7 @@ class BaseViewer(ABC):
       with torch.no_grad():
         obs = self.env.get_observations()
         actions = self.policy(obs)
+        actions = self._postprocess_actions(actions)
         self.env.step(actions)
         self._step_count += 1
         self._stats_steps += 1
@@ -300,6 +301,15 @@ class BaseViewer(ABC):
       )
       self.pause()
       return False
+
+  def _postprocess_actions(self, actions: torch.Tensor) -> torch.Tensor:
+    """Hook to modify policy actions before they reach the environment.
+
+    Default is a pass-through; subclasses may override to inject external
+    commands (e.g. ablation experiments) between ``policy(obs)`` and
+    ``env.step(actions)``.
+    """
+    return actions
 
   def _step_physics(self, dt: float) -> None:
     """Run physics steps for this frame's sim-time budget."""
