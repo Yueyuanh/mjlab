@@ -1,18 +1,19 @@
-"""Pikachu 四足私有 mdp:世界系速度奖励、朝向奖励、摔倒终止。
+"""Pikachu 四足私有 mdp:四足前方系命令/速度观测、带偏角朝向奖励、摔倒终止。
 
 独立于共享 ``velocity/mdp``(不动共享 ``upright``/``bad_orientation``/
 ``track_linear_velocity`` 等)。
 
-四足采用 **base 前俯**(``QUAD_START`` rot 前俯 ≈90°)的爬行 morphology。
-因此共享 base-frame 速度语义不再适用:
-  - 共享 ``track_linear_velocity`` 用 ``vel_command_b``(base 局部)比
-    ``root_link_lin_vel_b`` —— base 前俯后 base+X 不再沿世界水平,前进轴
-    被竖起来,共享奖励失效。四足改为**世界系**命令/速度(companion env
-    把 twist 设成 ``is_world_env``),这里读 ``vel_command_w`` 与
-    ``root_link_lin_vel_w`` 直接按世界方向跟踪。
-  - ``upright`` 退回带 ``tilt_deg`` 偏角:奖励峰在躯干背轴(+Z)与世界 up
-    夹角 ≈ ``tilt_deg``(= 四足前俯角),而不是竖直(=0)。``fell_over``
-    同理:背轴偏离 ``tilt_deg`` 超过限位即终止。
+四足采用 **base 前俯**(``QUAD_START`` rot 前俯 ≈90°)的爬行 morphology,共享
+base-frame 速度语义失效:base+X 被竖起来,共享 reward/obs 的 ``vel_command_b``
+比 ``root_link_lin_vel_b`` 不再沿世界水平。四足统一到 **四足前方系**:
+  命令(``vel_command_w``)与反馈(``root_link_lin_vel_w``)都绕世界竖直旋转 Φ,
+  使背轴(+Z,``QUAD_BODY_AXIS``)水平投影指向 +X → 策略看到"相对四足前方的
+  前进/横移/转向"。Φ 正交,差范数与在世界系一致,只是换 frame 表达。
+- ``upright`` 退回带 ``tilt_deg`` 偏角:奖励峰在躯干背轴与世界 up 夹角 ≈
+  ``tilt_deg``(= 四足前俯角),而不是竖直(=0)。``fell_over`` 同理:背轴偏离
+  ``tilt_deg`` 超过限位即终止。
+- viser 摇杆(shared ``compute`` 只写 ``vel_command_b``)在四足子类里转写到
+  ``vel_command_w``,与观测/奖励同帧,推摇杆才能被策略看到。
 
 保留 debug_vis:从 base 出发画两根箭头 —— **橙=当前背轴**、**紫=目标
 (按 ``tilt_deg`` 转好)方向**,夹角即当前对四足目标姿态的偏离。
@@ -227,13 +228,42 @@ def quad_front_ang_vel(env: ManagerBasedRlEnv) -> torch.Tensor:
 
 
 class QuadUniformVelocityCommand(UniformVelocityCommand):
-  """在世界系画命令/实际速度箭头的四足命令(仅 debug_vis 覆盖)。
+  """四足命令:摇杆前方系写入 ``vel_command_w`` + 世界系 debug_vis。
 
-  共享 ``_debug_vis_impl`` 把蓝箭头画成 ``vel_command_b``(base-frame)再经
-  ``matrix_from_quat(base_quat_w)`` 投影 → base 前俯时显示成机体平面方向、误导。
-  四足版直接画 ``vel_command_w`` 与 ``root_link_*_vel_w``(世界),方向即世界意图,
-  不经过 base 姿态。其余采样/更新逻辑全部继承父类。
+  共享 ``UniformVelocityCommand`` 里摇杆只写 ``vel_command_b``、debug_vis 只画
+  base-frame,两者在 base 前俯下都失真。四足覆盖:
+    - ``compute``:摇杆滑块按"相对四足前方"解释,经 Φ⁻¹ 转回世界写
+      ``vel_command_w``(四足观测/奖励同帧);训练路径继承父类,摇杆禁用时不变。
+    - ``_debug_vis_impl``:直接画 ``vel_command_w`` 与 ``root_link_*_vel_w``
+      (世界系),方向即世界意图,不经过 base 姿态。
+  采样/更新/重置逻辑全部继承父类。
   """
+
+  def compute(
+    self, dt: float | torch.Tensor, env_ids: torch.Tensor | None = None
+  ) -> None:
+    """摇杆命令写入四足前方系,再经 Φ⁻¹ 转回世界 ``vel_command_w``。
+
+    共享 ``UniformVelocityCommand.compute`` 把摇杆滑块直接写 ``vel_command_b``
+    (base 局部,含前俯污染),而四足观测/奖励读 ``vel_command_w`` — 二者通道错位,
+    viser 里使能 commands twist 推摇杆,策略根本看不到。这里在 super() 之后把
+    滑块解释为"相对四足前方"速度并转回世界写 ``vel_command_w``,使四足观测/奖励
+    与摇杆一致(``quad_front_command`` 读回前方系即得滑块值)。训练路径(摇杆禁用)
+    完全继承父类,不受影响。
+    """
+    super().compute(dt, env_ids)
+    if self._joystick_enabled is not None and self._joystick_enabled.value:
+      assert self._joystick_get_env_idx is not None
+      idx = self._joystick_get_env_idx()
+      v_f = float(self._joystick_sliders[0].value)  # 前方系前进(沿四足前方)
+      v_s = float(self._joystick_sliders[1].value)  # 前方系侧向
+      w = float(self._joystick_sliders[2].value)  # 转向角速度
+      # 前方系 → 世界:Φ⁻¹ = Φᵀ,即 [vx, vy] = [fx -fy; fy fx]·[v_f, v_s]。
+      # 取当前 env 前方轴,与 quad_front_command/quad_track_linear_velocity 同帧。
+      fx, fy = _quad_front_axes(self._env)
+      self.vel_command_w[idx, 0] = fx[idx] * v_f - fy[idx] * v_s
+      self.vel_command_w[idx, 1] = fy[idx] * v_f + fx[idx] * v_s
+      self.vel_command_w[idx, 2] = w
 
   def _debug_vis_impl(self, visualizer: DebugVisualizer) -> None:
     env_indices = visualizer.get_env_indices(self.num_envs)
