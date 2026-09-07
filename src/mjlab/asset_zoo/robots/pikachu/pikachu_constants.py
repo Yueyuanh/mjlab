@@ -244,7 +244,7 @@ BIPED_KEYFRAME = KNEES_BENT_KEYFRAME
 #     [-1.57, 0]、left_ankle [-1.05, 0.52]、left_arm_pitch [-3.14, 1.05]。
 QUAD_KEYFRAME = EntityCfg.InitialStateCfg(
   pos=(0, 0, 0.15),
-  rot=(0.593497, 0.0, 0.804837,0),
+  rot=(0.593497, 0.0, 0.804837, 0),
   # rot=(0.7071, 0, 0.7071, 0),
   joint_pos={
     # 腿：后支撑（四足时腿在 base 后方弯曲），左右取反

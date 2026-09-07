@@ -36,3 +36,9 @@ from mjlab.envs.mdp.actions.differential_ik import (
 from mjlab.envs.mdp.actions.differential_ik import (
   DifferentialIKActionCfg as DifferentialIKActionCfg,
 )
+from mjlab.envs.mdp.actions.random_flail import (
+  RandomFlailAction as RandomFlailAction,
+)
+from mjlab.envs.mdp.actions.random_flail import (
+  RandomFlailActionCfg as RandomFlailActionCfg,
+)

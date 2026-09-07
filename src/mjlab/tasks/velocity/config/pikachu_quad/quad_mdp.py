@@ -43,6 +43,7 @@ if TYPE_CHECKING:
 __all__ = [
   "QUAD_TILT_DEG",
   "QUAD_BODY_AXIS",
+  "quad_base_height",
   "quad_track_linear_velocity",
   "quad_track_angular_velocity",
   "quad_front_command",
@@ -68,6 +69,73 @@ QUAD_TILT_DEG: float = 110.0
 QUAD_BODY_AXIS: tuple[float, float, float] = (0.0, 0.0, 1.0)
 
 _DEFAULT_ASSET_CFG = SceneEntityCfg("robot")
+
+
+class quad_base_height:
+  """四足 base 高度惩罚 + viewer 标定参考盘。
+
+  与共享 ``velocity.mdp.rewards.base_height_penalty`` 同构的 class-based term
+  (obj = 躯干 root_link 高度稳定在 ``target_height``),但附带 ``debug_vis``：
+  在 ``target_height`` 处画一个**水平参考盘**、并在当前 base 位置画一个点——
+  让 ``--agent zero`` 标定时直接看到躯干离目标高度差多少。不改共享 reward。
+  """
+
+  def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRlEnv):
+    self._env = env
+    self._asset_cfg = cfg.params.get("asset_cfg", _DEFAULT_ASSET_CFG)
+    self._target_height = float(cfg.params.get("target_height", 0.0))
+    self._std = float(cfg.params.get("std", 0.0))
+    self._debug_vis_enabled = True
+    self._vis_radius = 0.06
+    self._vis_disk_t = 0.005
+
+  def __call__(
+    self,
+    env: ManagerBasedRlEnv,
+    target_height: float,
+    std: float,
+    asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+  ) -> torch.Tensor:
+    """Penalize normalized root-height error around the target base height."""
+    if std <= 0.0:
+      raise ValueError(f"std must be positive, got {std}")
+    asset: Entity = env.scene[asset_cfg.name]
+    height = asset.data.root_link_pos_w[:, 2] - env.scene.env_origins[:, 2]
+    env.extras["log"]["Metrics/base_height_mean"] = torch.mean(height)
+    return torch.square((height - target_height) / std)
+
+  def reset(self, env_ids: torch.Tensor) -> None:
+    del env_ids  # 无状态。
+
+  def debug_vis(self, visualizer: "DebugVisualizer") -> None:
+    if not self._debug_vis_enabled:
+      return
+    env = self._env
+    asset: Entity = env.scene[self._asset_cfg.name]
+    env_indices = list(visualizer.get_env_indices(env.num_envs))
+    if not env_indices:
+      return
+    base_w = asset.data.root_link_pos_w.cpu().numpy()
+    origins = env.scene.env_origins.cpu().numpy()
+    target = float(self._target_height)
+    for i in env_indices:
+      ox, oy, oz = origins[i]
+      tz = oz + target
+      # 参考高度盘:水平薄圆柱(盘面在 target_height 之上 t 厚)。
+      visualizer.add_cylinder(
+        start=np.asarray([ox, oy, tz]),
+        end=np.asarray([ox, oy, tz + self._vis_disk_t]),
+        radius=self._vis_radius,
+        color=(0.2, 0.9, 0.3, 0.5),  # 绿半透明盘
+        label=f"base_height target={target:.3f}",
+      )
+      # 当前 base 位置点 + 实测高度差。
+      visualizer.add_sphere(
+        center=base_w[i],
+        radius=0.02,
+        color=(1.0, 0.5, 0.0, 0.9),  # 橙:当前位置
+        label=f"base_z={base_w[i, 2] - oz:.3f} (Δ {base_w[i, 2] - oz - target:+.3f})",
+      )
 
 
 def quad_track_linear_velocity(

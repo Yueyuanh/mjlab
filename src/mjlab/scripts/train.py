@@ -30,7 +30,10 @@ class TrainConfig:
   registry_name: str | None = None
   video: bool = False
   video_length: int = 200
-  video_interval: int = 2000
+  video_interval: int | None = None
+  """录视频的步间隔(每多少 policy-step 录一段)。为 None 时默认与保存 pt 的频率对齐:
+  取 ``save_interval × num_steps_per_env``(每个保存点录一段,方便对着 pt 检查模型)。
+  显式传 ``--video-interval`` 则按该值覆盖。"""
   enable_nan_guard: bool = False
   console_extras: bool = False
   """Whether to print per-iteration episode extras (Episode_Reward/Termination/
@@ -143,14 +146,21 @@ def run_train(task_id: str, cfg: TrainConfig, log_dir: Path) -> None:
 
   # Only record videos on rank 0 to avoid multiple workers writing to the same files.
   if cfg.video and rank == 0:
+    # 默认与保存 pt 频率对齐:save_interval Iterations × num_steps_per_env(policy-step)/
+    #   Iteration → video_interval 换算成 policy-step,使每个保存点都录一段。
+    video_interval = cfg.video_interval
+    if video_interval is None:
+      video_interval = cfg.agent.save_interval * cfg.agent.num_steps_per_env
     env = VideoRecorder(
       env,
       video_folder=Path(log_dir) / "videos" / "train",
-      step_trigger=lambda step: step % cfg.video_interval == 0,
+      step_trigger=lambda step: step % video_interval == 0,
       video_length=cfg.video_length,
       disable_logger=True,
     )
-    print("[INFO] Recording videos during training.")
+    print(
+      f"[INFO] Recording videos during training every {video_interval} steps."
+    )
 
   env = RslRlVecEnvWrapper(env, clip_actions=cfg.agent.clip_actions)
 

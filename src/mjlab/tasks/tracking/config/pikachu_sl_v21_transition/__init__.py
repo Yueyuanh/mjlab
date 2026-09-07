@@ -1,0 +1,41 @@
+"""Pikachu v2.1 sample-links transition tracking task registration.
+
+注册两个方向（Down / Up）的 v2.1 状态转换 tracking 任务，任务 ID 采用
+``Mjlab-Tracking-Flat-Pikachu-Sl21-<方向>`` 命名。
+
+参考动作沿用旧 transition 数据（``mocap/npz/Pikachu-Transition-Down/Up.npz``），
+已作为配置默认值打入 ``motion_file``。
+"""
+
+from mjlab.tasks.registry import register_mjlab_task
+from mjlab.tasks.tracking.rl import MotionTrackingOnPolicyRunner
+
+from .env_cfgs import (
+  pikachu_sl_v21_transition_down_env_cfg,
+  pikachu_sl_v21_transition_up_env_cfg,
+)
+from .rl_cfg import pikachu_sl_v21_transition_ppo_runner_cfg
+
+# biped→quad（趴下）过渡。
+register_mjlab_task(
+  task_id="Mjlab-Tracking-Flat-Pikachu-Sl21-Down",
+  env_cfg=pikachu_sl_v21_transition_down_env_cfg(),
+  play_env_cfg=pikachu_sl_v21_transition_down_env_cfg(play=True),
+  rl_cfg=pikachu_sl_v21_transition_ppo_runner_cfg(
+    wandb_project="pikachu-sl21-transition-down",
+    wandb_tags=("transition", "down"),
+  ),
+  runner_cls=MotionTrackingOnPolicyRunner,
+)
+
+# quad→biped（站起）过渡。
+register_mjlab_task(
+  task_id="Mjlab-Tracking-Flat-Pikachu-Sl21-Up",
+  env_cfg=pikachu_sl_v21_transition_up_env_cfg(),
+  play_env_cfg=pikachu_sl_v21_transition_up_env_cfg(play=True),
+  rl_cfg=pikachu_sl_v21_transition_ppo_runner_cfg(
+    wandb_project="pikachu-sl21-transition-up",
+    wandb_tags=("transition", "up"),
+  ),
+  runner_cls=MotionTrackingOnPolicyRunner,
+)

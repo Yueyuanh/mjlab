@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pikachu 数字孪生 — 控制台</title>
+<style>
+  :root { --bg:#12141a; --panel:#1c2028; --line:#2a2f3a; --txt:#dde3ec; --dim:#8a93a3;
+          --ok:#35d07f; --warn:#ffb454; --err:#ff6b6b; --acc:#4ea1ff; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:22px; background:var(--bg); color:var(--txt);
+         font:14px/1.55 -apple-system,"Segoe UI",Roboto,"Microsoft YaHei",sans-serif; }
+  h1 { font-size:18px; margin:0 0 4px; font-weight:700; }
+  .sub { color:var(--dim); font-size:12.5px; margin-bottom:18px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px;
+          padding:16px 18px; margin-bottom:14px; max-width:760px; }
+  .row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .grow { flex:1; min-width:160px; }
+  .dot { display:inline-block; width:11px; height:11px; border-radius:50%; margin-right:7px;
+         vertical-align:middle; background:var(--dim); }
+  .dot.ok { background:var(--ok); box-shadow:0 0 8px var(--ok); }
+  .dot.err { background:var(--err); }
+  label { color:var(--dim); font-size:12px; margin-right:6px; }
+  select, input[type=range] { font-size:13px; }
+  select { background:#0f1216; color:var(--txt); border:1px solid var(--line);
+           border-radius:7px; padding:6px 10px; min-width:280px; }
+  select:disabled { opacity:.5; }
+  button { background:#232836; color:var(--txt); border:1px solid var(--line);
+           border-radius:8px; padding:7px 14px; font-size:13px; cursor:pointer; }
+  button:hover { border-color:#3a4254; }
+  button.primary { background:var(--acc); color:#04121f; font-weight:600; border:none; }
+  button.primary:disabled { opacity:.45; cursor:not-allowed; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  .tag { color:var(--dim); font-size:12px; }
+  .value { font-variant-numeric:tabular-nums; min-width:84px; display:inline-block; color:var(--txt); }
+  .log { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; max-height:130px;
+         overflow:auto; margin-top:8px; color:var(--dim); white-space:pre-wrap; }
+  .log .up { color:var(--ok); } .log .web { color:var(--acc); } .log .bad { color:var(--err); }
+  .hint { color:var(--dim); font-size:12px; }
+  progress { width:100%; accent-color:var(--acc); }
+</style>
+</head>
+<body>
+  <h1>⚡ Pikachu 数字孪生控制台</h1>
+  <div class="sub">Python 播放 mocap CSV → WebSocket → Unity 实时驱动 URDF + 皮肤</div>
+
+  <div class="card">
+    <div class="row">
+      <span class="dot" id="wsDot"></span><span id="wsText" class="tag">未连接</span>
+      <span class="grow"></span>
+      <span id="unityTag" class="tag">Unity: <b>—</b></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <label for="csvSel">动作 CSV</label>
+      <select id="csvSel" disabled><option>连接后载入…</option></select>
+      <button id="loadBtn" class="primary" disabled>载入</button>
+      <button id="playBtn" disabled>▶ 播放</button>
+      <button id="pauseBtn" disabled>⏸ 暂停</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <label>播放位置</label>
+      <input type="range" id="seek" min="0" max="1" step="1" value="0" disabled style="flex:1">
+      <span class="value" id="posText">-- / --</span>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <label>倍速 ×</label>
+      <input type="range" id="speed" min="0.05" max="4" step="0.05" value="1.0" style="flex:0 0 200px">
+      <span class="value" id="speedText">1.00×</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:baseline">
+      <span style="font-weight:600">连接日志</span>
+      <span class="tag">网页按住 seek 拖动即时跳帧；倍速即时生效</span>
+    </div>
+    <div class="log" id="log"></div>
+  </div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+let ws = null, playing = false, total = 0, dragging = false;
+
+function log(cls, text) {
+  const el = $("log");
+  const line = document.createElement("div");
+  line.className = cls || "";
+  line.textContent = new Date().toLocaleTimeString() + "  " + text;
+  el.appendChild(line);
+  while (el.children.length > 60) el.removeChild(el.firstChild);
+  el.scrollTop = el.scrollHeight;
+}
+
+function setConn(on) {
+  $("wsDot").className = "dot " + (on ? "ok" : "err");
+  $("wsText").textContent = on ? "WebSocket 已连接（服务端 ws://" + wsUrl() + "）" : "未连接（请先启动 twin_server.py）";
+  $("csvSel").disabled = !on;
+  $("loadBtn").disabled = !on;
+  if (on) { try { ws.send('{"cmd":"list"}'); } catch(e){} }
+}
+
+function wsUrl() {
+  const loc = location;
+  const host = loc.hostname || "127.0.0.1";
+  return host + ":8765/ws";
+}
+
+function connect() {
+  if (ws && ws.readyState === 1) return;
+  try { ws = new WebSocket("ws://" + wsUrl()); } catch(e) { log("bad", "WS 创建失败: " + e); setTimeout(connect, 1500); return; }
+  ws.onopen = () => { setConn(true); log("up", "已连上服务端 " + wsUrl()); };
+  ws.onclose = () => { setConn(false); log("bad", "连接断开，1.5s 后重连…"); setTimeout(connect, 1500); };
+  ws.onerror = () => { /* onclose 处理 */ };
+  ws.onmessage = ev => {
+    let m; try { m = JSON.parse(ev.data); } catch(e){ return; }
+    if (m.cmd === "list") {
+      const sel = $("csvSel");
+      sel.innerHTML = (m.files && m.files.length)
+        ? m.files.map(f => `<option value="${f}">${f}</option>`).join("")
+        : "<option>（csv 目录为空）</option>";
+      sel.disabled = !(m.files && m.files.length);
+      $("loadBtn").disabled = !(m.files && m.files.length);
+    } else if (m.cmd === "state") {
+      total = m.n || 0;
+      $("unityTag").innerHTML = "Unity: <b>" + m.connected_unity + "</b> 连 · Web:" + m.connected_web;
+      playing = !!m.playing;
+      $("playBtn").disabled = total <= 0 || playing;
+      $("pauseBtn").disabled = total <= 0 || !playing;
+      $("seek").disabled = total <= 0;
+      if (!dragging) {
+        $("seek").max = Math.max(total - 1, 0);
+        if (total > 0 && $("seek").value !== String(m.idx)) $("seek").value = m.idx;
+      }
+      $("posText").textContent = (m.idx + 1) + " / " + total;
+      if (Math.abs($("speed").value - (m.speed||1)) > 0.01) $("speed").value = m.speed;
+      $("speedText").textContent = (m.speed||1).toFixed(2) + "×";
+    }
+  };
+}
+connect();
+
+function send(cmd) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(cmd)); }
+
+$("loadBtn").onclick = () => {
+  const f = $("csvSel").value;
+  if (f) { send({cmd:"load", file:f}); log("web", "载入 CSV → " + f); }
+};
+$("playBtn").onclick = () => { send({cmd:"play"}); log("web", "▶ 播放"); };
+$("pauseBtn").onclick = () => { send({cmd:"pause"}); log("web", "⏸ 暂停"); };
+$("seek").oninput = () => { dragging = true; $("posText").textContent = (+$("seek").value + 1) + " / " + (total||1); };
+$("seek").onchange = () => { send({cmd:"seek", idx:+$("seek").value}); dragging = false; };
+$("speed").oninput = () => { $("speedText").textContent = (+$("speed").value).toFixed(2) + "×"; };
+$("speed").onchange = () => { send({cmd:"speed", value:+$("speed").value}); log("web", "倍速 → " + (+$("speed").value).toFixed(2) + "×"); };
+</script>
+</body>
+</html>

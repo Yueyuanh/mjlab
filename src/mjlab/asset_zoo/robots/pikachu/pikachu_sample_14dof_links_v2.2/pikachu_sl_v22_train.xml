@@ -1,0 +1,146 @@
+<mujoco model="pikachu_sl_v22_train">
+  
+  <!-- Pikachu v2.2 sample-links 训练适配体 (pikachu_sl_v22)。
+       与 source sample XML (v2.2) 的差异
+       为满足与旧 14 关节机器人 / 参考 npz "同构复用"，做与 v2.1 相同的三处适配
+       (另：v2.2 相比 v2.1 髋距减窄 y=0.0515、腿短 L71、臂更短更细、base 质量
+      2.472 kg —— 即修复"左右腿间距过大、整体笨重"；arm_roll 进一步缩短到 0.1m、
+      手掌 arm_yaw 占位体收成紧贴臂末端的小型手掌垫，见手臂段注释)：
+       1) 丢弃 head (head_joint 原为第 15 个 hinge，会让 robot.joint_pos 变 15 列，
+          与 npz 14 列失配)。
+       2) 关节轴向 + 限位恢复旧 capsule XML (defaults.xml) 约定 —— 源 XML 限位
+          方向反转且只正 (knee 0..1.57 / hip_pitch 0..2.44)，会把参考 npz 的负向
+          关节值 clip 而无法跟踪。
+       3) body 树顺序 = 旧 17 body / 14 hinge：右臂补回 l_arm_yaw / r_arm_yaw 两个
+          "刚性占位体"(无 joint)，保 body id 13/16，使 npz body_pos_w 17 列不错位。
+       4) 几何/质量/惯量 = v2.2 sample XML；arm_yaw 占位体用旧 capsule 手几何。
+       5) 命名碰撞 geom 为 *_collision / 视觉 *_visual；脚=ankle_link box，
+          手=arm_yaw_link box —— 供 foot/hand 正则匹配（双足行走 + 四足撑地）。
+       6) 内联 IMU/传感器 + 脚 site (left/right_foot) —— 源 XML 无 sensors。
+   -->
+  <compiler angle="radian" />
+
+  <worldbody>
+    <body name="base_link" pos="0 0 0">
+      <freejoint name="floating_base"/>
+      <site name="imu" pos="0 0 0" quat="0.593497 0 -0.804837 0" size="0.01" />
+      <inertial pos="0 0 0.1" mass="2.472" diaginertia="0.010425 0.009558 0.003504" />
+      <geom name="base_link_collision" type="box" size="0.04 0.0515 0.1" pos="0 0 0.1" contype="1" conaffinity="1" group="0" rgba="0.55 0.6 0.75 1" />
+      <geom name="base_link_visual" type="box" size="0.04 0.0515 0.1" pos="0 0 0.1" contype="0" conaffinity="0" group="1" rgba="0.55 0.6 0.75 1" />
+
+      <body name="left_hip_pitch_link" pos="0 0.0515 0">
+        <inertial pos="0 0.01775 0" quat="0 0.707107 0 0.707107" mass="0.05325" diaginertia="1.3e-05 1e-05 8e-06" />
+        <joint name="left_hip_pitch_joint" pos="0 0 0" axis="0 1 0" range="-2.9 0.698" actuatorfrcrange="-12.5 12.5" />
+        <geom name="left_hip_pitch_link_collision" type="box" size="0.02 0.01775 0.0125" pos="0 0.01775 0" contype="1" conaffinity="1" group="0" rgba="0.9 0.35 0.8 1" />
+        <geom name="left_hip_pitch_link_visual" type="box" size="0.02 0.01775 0.0125" pos="0 0.01775 0" contype="0" conaffinity="0" group="1" rgba="0.9 0.35 0.8 1" />
+        <body name="left_hip_roll_link" pos="0 0.0355 0">
+          <inertial pos="0 0 -0.023" quat="0.707107 0 0 0.707107" mass="0.069" diaginertia="2.1e-05 1.6e-05 1.3e-05" />
+          <joint name="left_hip_roll_joint" pos="0 0 0" axis="1 0 0" range="-0.09 0.26" actuatorfrcrange="-9 9" />
+          <geom name="left_hip_roll_link_collision" type="box" size="0.02 0.0125 0.023" pos="0 0 -0.023" contype="1" conaffinity="1" group="0" rgba="1 0.6 0.2 1" />
+          <geom name="left_hip_roll_link_visual" type="box" size="0.02 0.0125 0.023" pos="0 0 -0.023" contype="0" conaffinity="0" group="1" rgba="1 0.6 0.2 1" />
+          <body name="left_hip_yaw_link" pos="0 0 -0.046">
+            <inertial pos="0 0 -0.0125" quat="0.5 0.5 0.5 0.5" mass="0.0375" diaginertia="7e-06 7e-06 4e-06" />
+            <joint name="left_hip_yaw_joint" pos="0 0 0" axis="0 0 -1" range="-0.09 0.26" actuatorfrcrange="-9 9" />
+            <geom name="left_hip_yaw_link_collision" type="box" size="0.02 0.0125 0.0125" pos="0 0 -0.0125" contype="1" conaffinity="1" group="0" rgba="0.35 0.55 1 1" />
+            <geom name="left_hip_yaw_link_visual" type="box" size="0.02 0.0125 0.0125" pos="0 0 -0.0125" contype="0" conaffinity="0" group="1" rgba="0.35 0.55 1 1" />
+            <body name="left_knee_link" pos="0 0 -0.025">
+              <inertial pos="0 0 -0.035" quat="0.707107 0 0 0.707107" mass="0.105" diaginertia="5.7e-05 4.8e-05 1.9e-05" />
+              <joint name="left_knee_joint" pos="0 0 0" axis="0 -1 0" range="-1.57 0" actuatorfrcrange="-12.5 12.5" />
+              <geom name="left_knee_link_collision" type="box" size="0.02 0.0125 0.035" pos="0 0 -0.035" contype="1" conaffinity="1" group="0" rgba="0.3 0.8 0.35 1" />
+              <geom name="left_knee_link_visual" type="box" size="0.02 0.0125 0.035" pos="0 0 -0.035" contype="0" conaffinity="0" group="1" rgba="0.3 0.8 0.35 1" />
+              <body name="left_ankle_link" pos="0 0 -0.07">
+                <inertial pos="0.0133333 0 -0.01" quat="0 0.707107 0 0.707107" mass="0.12" diaginertia="8.9e-05 6.8e-05 2.9e-05" />
+                <joint name="left_ankle_joint" pos="0 0 0" axis="0 1 0" range="-1.05 0.52" actuatorfrcrange="-9 9" />
+                <geom name="left_ankle_link_collision" type="box" size="0.04 0.025 0.01" pos="0.0133333 0 -0.01" contype="1" conaffinity="1" group="0" rgba="0.25 0.28 0.35 1" />
+                <geom name="left_ankle_link_visual" type="box" size="0.04 0.025 0.01" pos="0.0133333 0 -0.01" contype="0" conaffinity="0" group="1" rgba="0.25 0.28 0.35 1" />
+                <site name="left_foot" pos="0.0133333 0 -0.02" size="0.01" rgba="1 0 0 1"/>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+
+      <body name="right_hip_pitch_link" pos="0 -0.0515 0">
+        <inertial pos="0 -0.01775 0" quat="0 0.707107 0 0.707107" mass="0.05325" diaginertia="1.3e-05 1e-05 8e-06" />
+        <joint name="right_hip_pitch_joint" pos="0 0 0" axis="0 -1 0" range="-0.698 2.9" actuatorfrcrange="-12.5 12.5" />
+        <geom name="right_hip_pitch_link_collision" type="box" size="0.02 0.01775 0.0125" pos="0 -0.01775 0" contype="1" conaffinity="1" group="0" rgba="0.9 0.35 0.8 1" />
+        <geom name="right_hip_pitch_link_visual" type="box" size="0.02 0.01775 0.0125" pos="0 -0.01775 0" contype="0" conaffinity="0" group="1" rgba="0.9 0.35 0.8 1" />
+        <body name="right_hip_roll_link" pos="0 -0.0355 0">
+          <inertial pos="0 0 -0.023" quat="0.707107 0 0 0.707107" mass="0.069" diaginertia="2.1e-05 1.6e-05 1.3e-05" />
+          <joint name="right_hip_roll_joint" pos="0 0 0" axis="1 0 0" range="-0.09 0.26" actuatorfrcrange="-9 9" />
+          <geom name="right_hip_roll_link_collision" type="box" size="0.02 0.0125 0.023" pos="0 0 -0.023" contype="1" conaffinity="1" group="0" rgba="1 0.6 0.2 1" />
+          <geom name="right_hip_roll_link_visual" type="box" size="0.02 0.0125 0.023" pos="0 0 -0.023" contype="0" conaffinity="0" group="1" rgba="1 0.6 0.2 1" />
+          <body name="right_hip_yaw_link" pos="0 0 -0.046">
+            <inertial pos="0 0 -0.0125" quat="0.5 0.5 0.5 0.5" mass="0.0375" diaginertia="7e-06 7e-06 4e-06" />
+            <joint name="right_hip_yaw_joint" pos="0 0 0" axis="0 0 -1" range="-0.09 0.26" actuatorfrcrange="-9 9" />
+            <geom name="right_hip_yaw_link_collision" type="box" size="0.02 0.0125 0.0125" pos="0 0 -0.0125" contype="1" conaffinity="1" group="0" rgba="0.35 0.55 1 1" />
+            <geom name="right_hip_yaw_link_visual" type="box" size="0.02 0.0125 0.0125" pos="0 0 -0.0125" contype="0" conaffinity="0" group="1" rgba="0.35 0.55 1 1" />
+            <body name="right_knee_link" pos="0 0 -0.025">
+              <inertial pos="0 0 -0.035" quat="0.707107 0 0 0.707107" mass="0.105" diaginertia="5.7e-05 4.8e-05 1.9e-05" />
+              <joint name="right_knee_joint" pos="0 0 0" axis="0 1 0" range="0 1.57" actuatorfrcrange="-12.5 12.5" />
+              <geom name="right_knee_link_collision" type="box" size="0.02 0.0125 0.035" pos="0 0 -0.035" contype="1" conaffinity="1" group="0" rgba="0.3 0.8 0.35 1" />
+              <geom name="right_knee_link_visual" type="box" size="0.02 0.0125 0.035" pos="0 0 -0.035" contype="0" conaffinity="0" group="1" rgba="0.3 0.8 0.35 1" />
+              <body name="right_ankle_link" pos="0 0 -0.07">
+                <inertial pos="0.0133333 0 -0.01" quat="0 0.707107 0 0.707107" mass="0.12" diaginertia="8.9e-05 6.8e-05 2.9e-05" />
+                <joint name="right_ankle_joint" pos="0 0 0" axis="0 -1 0" range="-0.52 1.05" actuatorfrcrange="-9 9" />
+                <geom name="right_ankle_link_collision" type="box" size="0.04 0.025 0.01" pos="0.0133333 0 -0.01" contype="1" conaffinity="1" group="0" rgba="0.25 0.28 0.35 1" />
+                <geom name="right_ankle_link_visual" type="box" size="0.04 0.025 0.01" pos="0.0133333 0 -0.01" contype="0" conaffinity="0" group="1" rgba="0.25 0.28 0.35 1" />
+                <site name="right_foot" pos="0.0133333 0 -0.02" size="0.01" rgba="1 0 0 1"/>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+
+      <body name="left_arm_pitch_link" pos="0 0.0515 0.2">
+        <inertial pos="0 0.0245 0" quat="0.707107 0.707107 0 0" mass="0.06615" diaginertia="1.8e-05 1.8e-05 1e-05" />
+        <joint name="left_arm_pitch_joint" pos="0 0 0" axis="0 1 0" range="-3.14 1.05" actuatorfrcrange="-2 2" />
+        <geom name="left_arm_pitch_link_collision" type="box" size="0.015 0.0245 0.015" pos="0 0.0245 0" contype="1" conaffinity="1" group="0" rgba="0.75 0.35 1 1" />
+        <geom name="left_arm_pitch_link_visual" type="box" size="0.015 0.0245 0.015" pos="0 0.0245 0" contype="0" conaffinity="0" group="1" rgba="0.75 0.35 1 1" />
+        <body name="left_arm_roll_link" pos="0 0.049 0">
+          <inertial pos="0 0 -0.05" mass="0.2025" diaginertia="0.000395 0.000395 3e-05" />
+          <joint name="left_arm_roll_joint" pos="0 0 0" axis="1 0 0" range="0.0 1.57" actuatorfrcrange="-2 2" />
+          <geom name="left_arm_roll_link_collision" type="box" size="0.015 0.015 0.05" pos="0 0 -0.05" contype="1" conaffinity="1" group="0" rgba="1 0.9 0.25 1" />
+          <geom name="left_arm_roll_link_visual" type="box" size="0.015 0.015 0.05" pos="0 0 -0.05" contype="0" conaffinity="0" group="1" rgba="1 0.9 0.25 1" />
+          <!-- 刚性占位体(无 joint)：保 body id 13 与旧机器人对齐，使 npz body 列不错位。
+               原来是 0.02/0.022/0.04 的较大 box、视觉上"套在手臂上"，现收成紧贴新臂末端的
+               小型手掌垫，同时仍充当四足前腿着地点（手）。 -->
+          <body name="left_arm_yaw_link" pos="0 0 -0.1">
+            <inertial pos="0 0 -0.01" mass="0.0245464" diaginertia="1.16361e-05 1.04086e-05 8.25893e-06" />
+            <geom name="left_arm_yaw_link_collision" type="box" size="0.02 0.02 0.01" pos="0 0 -0.01" contype="1" conaffinity="1" group="0" rgba="0.698039 0.698039 0.698039 1" />
+            <geom name="left_arm_yaw_link_visual" type="box" size="0.02 0.02 0.01" pos="0 0 -0.01" contype="0" conaffinity="0" group="1" rgba="0.698039 0.698039 0.698039 1" />
+          </body>
+        </body>
+      </body>
+
+      <body name="right_arm_pitch_link" pos="0 -0.0515 0.2">
+        <inertial pos="0 -0.0245 0" quat="0.707107 0.707107 0 0" mass="0.06615" diaginertia="1.8e-05 1.8e-05 1e-05" />
+        <joint name="right_arm_pitch_joint" pos="0 0 0" axis="0 -1 0" range="-1.05 3.14" actuatorfrcrange="-2 2" />
+        <geom name="right_arm_pitch_link_collision" type="box" size="0.015 0.0245 0.015" pos="0 -0.0245 0" contype="1" conaffinity="1" group="0" rgba="0.75 0.35 1 1" />
+        <geom name="right_arm_pitch_link_visual" type="box" size="0.015 0.0245 0.015" pos="0 -0.0245 0" contype="0" conaffinity="0" group="1" rgba="0.75 0.35 1 1" />
+        <body name="right_arm_roll_link" pos="0 -0.049 0">
+          <inertial pos="0 0 -0.05" mass="0.2025" diaginertia="0.000395 0.000395 3e-05" />
+          <joint name="right_arm_roll_joint" pos="0 0 0" axis="1 0 0" range="-1.57 0.0" actuatorfrcrange="-2 2" />
+          <geom name="right_arm_roll_link_collision" type="box" size="0.015 0.015 0.05" pos="0 0 -0.05" contype="1" conaffinity="1" group="0" rgba="1 0.9 0.25 1" />
+          <geom name="right_arm_roll_link_visual" type="box" size="0.015 0.015 0.05" pos="0 0 -0.05" contype="0" conaffinity="0" group="1" rgba="1 0.9 0.25 1" />
+          <!-- 刚性占位体(无 joint)：保 body id 16 与旧机器人对齐；同时充当四足前腿着地点（手）。 -->
+          <body name="right_arm_yaw_link" pos="0 0 -0.1">
+            <inertial pos="0 0 -0.01" mass="0.0245464" diaginertia="1.16361e-05 1.04086e-05 8.25893e-06" />
+            <geom name="right_arm_yaw_link_collision" type="box" size="0.02 0.02 0.01" pos="0 0 -0.01" contype="1" conaffinity="1" group="0" rgba="0.698039 0.698039 0.698039 1" />
+            <geom name="right_arm_yaw_link_visual" type="box" size="0.02 0.02 0.01" pos="0 0 -0.01" contype="0" conaffinity="0" group="1" rgba="0.698039 0.698039 0.698039 1" />
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <sensor>
+    <framequat name="imu_quat" objtype="site" objname="imu" />
+    <gyro name="imu_ang_vel" site="imu" />
+    <velocimeter name="imu_lin_vel" site="imu" />
+    <accelerometer name="imu_acc" site="imu" />
+    <framepos name="frame_pos" objtype="site" objname="imu" />
+    <framelinvel name="frame_vel" objtype="site" objname="imu" />
+    <subtreeangmom name="root_angmom" body="base_link"/>
+  </sensor>
+</mujoco>

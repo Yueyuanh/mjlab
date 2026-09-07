@@ -275,3 +275,36 @@ ssh -T git@git.finnoxcorp.com -p 2222
 # 4. 如果成功，推送
 git push
 ```
+
+$ uv run list-envs
++---------------------------------------------------------+
+|             Available Environments in mjlab             |
++----+----------------------------------------------------+
+| #  | Task ID                                            |
++----+----------------------------------------------------+
+| 1  | Mjlab-Cartpole-Balance                             |
+| 2  | Mjlab-Cartpole-Swingup                             |
+| 3  | Mjlab-Lift-Cube-Yam                                |
+| 4  | Mjlab-Lift-Cube-Yam-Depth                          |
+| 5  | Mjlab-Lift-Cube-Yam-Rgb                            |
+| 6  | Mjlab-Multi-Cube-Seg-Yam                           |
+| 7  | Mjlab-Tracking-Flat-Pikachu-Down                   |
+| 8  | Mjlab-Tracking-Flat-Pikachu-Sl21-Down              |
+| 9  | Mjlab-Tracking-Flat-Pikachu-Sl21-Up                |
+| 10 | Mjlab-Tracking-Flat-Pikachu-Sl21-Walk              |
+| 11 | Mjlab-Tracking-Flat-Pikachu-Sl22-Walk              |
+| 12 | Mjlab-Tracking-Flat-Pikachu-Up                     |
+| 13 | Mjlab-Tracking-Flat-Pikachu-Walk                   |
+| 14 | Mjlab-Tracking-Flat-Pikachu-Walk-Base              |
+| 15 | Mjlab-Tracking-Flat-Unitree-G1                     |
+| 16 | Mjlab-Tracking-Flat-Unitree-G1-No-State-Estimation |
+| 17 | Mjlab-Velocity-Flat-Pikachu                        |
+| 18 | Mjlab-Velocity-Flat-Pikachu-Quad                   |
+| 19 | Mjlab-Velocity-Flat-Pikachu-Quad-Bounding          |
+| 20 | Mjlab-Velocity-Flat-Pikachu-Sl22-Quad              |
+| 21 | Mjlab-Velocity-Flat-Unitree-G1                     |
+| 22 | Mjlab-Velocity-Flat-Unitree-Go1                    |
+| 23 | Mjlab-Velocity-Rough-Pikachu                       |
+| 24 | Mjlab-Velocity-Rough-Unitree-G1                    |
+| 25 | Mjlab-Velocity-Rough-Unitree-Go1                   |
++----+----------------------------------------------------+
