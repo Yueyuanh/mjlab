@@ -171,22 +171,22 @@ PIKACHU_27DOF_ARTICULATION = EntityArticulationInfoCfg(
 # 关键帧：腿微蹲起步（值与旧 KNEES_BENT 一致，left/right 轴反相），上肢零位。
 ##
 KNEES_BENT_27DOF_KEYFRAME = EntityCfg.InitialStateCfg(
-  pos=(0, 0, 0.195),  # 站立 geniz 高度 ≈ 腿链伸直深度（微蹲后略降）。
+  pos=(0, 0, 0.165),  # 站立 geniz 
   joint_pos={
     # 腿：明显下蹲，踝反向补偿保持脚底水平，左右轴反相（同旧 KNEES_BENT）。
-    "left_hip_pitch_joint": -0.3,
-    "right_hip_pitch_joint": 0.3,
+    "left_hip_pitch_joint": -0.0,
+    "right_hip_pitch_joint": 0.0,
     "left_hip_roll_joint": 0.0,
     "right_hip_roll_joint": 0.0,
     "left_hip_yaw_joint": 0.0,
     "right_hip_yaw_joint": 0.0,
-    "left_knee_joint": -0.5,
-    "right_knee_joint": 0.5,
-    "left_ankle_joint": -0.5,
-    "right_ankle_joint": 0.5,
+    "left_knee_joint": -0.0,
+    "right_knee_joint": 0.0,
+    "left_ankle_joint": -0.0,
+    "right_ankle_joint": 0.0,
     # 臂：自然放松。
-    "left_arm_pitch_joint": 0.2,
-    "right_arm_pitch_joint": -0.2,
+    "left_arm_pitch_joint": 0.0,
+    "right_arm_pitch_joint": -0.0,
     "left_arm_roll_joint": 0.0,
     "right_arm_roll_joint": -0.0,
     "left_arm_yaw_joint": 0.0,
