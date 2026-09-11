@@ -1,0 +1,152 @@
+{
+  "fps": 30.0,
+  "easing": "linear",
+  "keyframes": [
+    {
+      "duration": 2,
+      "root_pos": [
+        0.0,
+        0.0,
+        0.2
+      ],
+      "root_quat": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "joint_pos": {
+
+        "left_hip_pitch_joint": 0.0,
+        "left_hip_roll_joint": 0.0,
+        "left_hip_yaw_joint": 0.0,
+        "left_knee_joint": 0,
+        "left_ankle_joint": 0,
+
+        "right_hip_pitch_joint": 0,
+        "right_hip_roll_joint": 0.0,
+        "right_hip_yaw_joint": 0.0,
+        "right_knee_joint": 0,
+        "right_ankle_joint": 0,
+
+        "left_arm_pitch_joint": 0,
+        "left_arm_roll_joint": -1.57,
+        "right_arm_pitch_joint": 0,
+        "right_arm_roll_joint": -1.57,
+        "head_pitch_joint": 0.0,
+        "head_yaw_joint": 0.0,
+        "head_roll_joint": 0.0,
+        "left_ear_pitch_joint": 0.0,
+        "left_ear_roll_joint": 0.0,
+        "right_ear_pitch_joint": 0.0,
+        "right_ear_roll_joint": 0.0,
+        "tail_pitch_joint": 0.0,
+        "tail_yaw_joint": 0.0,
+        "left_arm_yaw_joint": 0.0,
+        "left_elbow_joint": 0.0,
+        "right_arm_yaw_joint": 0.0,
+        "right_elbow_joint": 0.0
+      }
+    },
+    {
+      "duration": 2.0,
+      "joint_pos": {
+        "left_hip_pitch_joint": 2,
+        "left_hip_roll_joint": 0.0,
+        "left_hip_yaw_joint": 0.0,
+        "left_knee_joint": 1.4,
+        "left_ankle_joint": 0.4,
+
+        "right_hip_pitch_joint": 2,
+        "right_hip_roll_joint": 0.0,
+        "right_hip_yaw_joint": 0.0,
+        "right_knee_joint": 1.4,
+        "right_ankle_joint": 0.4,
+
+        "left_arm_pitch_joint": 0.5,
+        "left_arm_roll_joint": -1.57,
+        "right_arm_pitch_joint": 0.5,
+        "right_arm_roll_joint": -1.57,
+        "head_pitch_joint": 0.0,
+        "head_yaw_joint": 0.0,
+        "head_roll_joint": 0.0,
+        "left_ear_pitch_joint": 0.0,
+        "left_ear_roll_joint": 0.0,
+        "right_ear_pitch_joint": 0.0,
+        "right_ear_roll_joint": 0.0,
+        "tail_pitch_joint": 0.0,
+        "tail_yaw_joint": 0.0,
+        "left_arm_yaw_joint": 0.0,
+        "left_elbow_joint": 0.0,
+        "right_arm_yaw_joint": 0.0,
+        "right_elbow_joint": 0.0
+      }
+    },
+    {
+      "duration": 2.0,
+      "joint_pos": {
+        "left_hip_pitch_joint": 2.9,
+        "left_hip_roll_joint": 0.0,
+        "left_hip_yaw_joint": 0.0,
+        "left_knee_joint": 1.5,
+        "left_ankle_joint": 0.4,
+
+        "right_hip_pitch_joint": 2.9,
+        "right_hip_roll_joint": 0.0,
+        "right_hip_yaw_joint": 0.0,
+        "right_knee_joint": 1.5,
+        "right_ankle_joint": 0.4,
+
+        "left_arm_pitch_joint": 1.77,
+        "left_arm_roll_joint": -1.57,
+        "right_arm_pitch_joint": 1.77,
+        "right_arm_roll_joint": -1.57,
+        "head_pitch_joint": 0.0,
+        "head_yaw_joint": 0.0,
+        "head_roll_joint": 0.0,
+        "left_ear_pitch_joint": 0.0,
+        "left_ear_roll_joint": 0.0,
+        "right_ear_pitch_joint": 0.0,
+        "right_ear_roll_joint": 0.0,
+        "tail_pitch_joint": 0.0,
+        "tail_yaw_joint": 0.0,
+        "left_arm_yaw_joint": 0.0,
+        "left_elbow_joint": 0.0,
+        "right_arm_yaw_joint": 0.0,
+        "right_elbow_joint": 0.0
+      }
+    },
+    {
+      "duration": 4.0,
+      "joint_pos": {
+        "left_hip_pitch_joint": 2.9,
+        "left_hip_roll_joint": 0.0,
+        "left_hip_yaw_joint": 0.0,
+        "left_knee_joint": 1.5,
+        "left_ankle_joint": 0.4,
+        "right_hip_pitch_joint": 2.9,
+        "right_hip_roll_joint": 0.0,
+        "right_hip_yaw_joint": 0.0,
+        "right_knee_joint": 1.5,
+        "right_ankle_joint": 0.4,
+        "left_arm_pitch_joint": 1.77,
+        "left_arm_roll_joint": -1.57,
+        "right_arm_pitch_joint": 1.77,
+        "right_arm_roll_joint": -1.57,
+        "head_pitch_joint": 0.0,
+        "head_yaw_joint": 0.0,
+        "head_roll_joint": 0.0,
+        "left_ear_pitch_joint": 0.0,
+        "left_ear_roll_joint": 0.0,
+        "right_ear_pitch_joint": 0.0,
+        "right_ear_roll_joint": 0.0,
+        "tail_pitch_joint": 0.0,
+        "tail_yaw_joint": 0.0,
+        "left_arm_yaw_joint": 0.0,
+        "left_elbow_joint": 0.0,
+        "right_arm_yaw_joint": 0.0,
+        "right_elbow_joint": 0.0
+      }
+    }
+  ]
+}

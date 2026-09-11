@@ -80,9 +80,7 @@ class RandomFlailAction(ActionTerm):
 
   def __init__(self, cfg: RandomFlailActionCfg, env: ManagerBasedRlEnv):
     super().__init__(cfg=cfg, env=env)
-    joint_ids, _ = self._entity.find_joints(
-      self.cfg.joint_names, preserve_order=True
-    )
+    joint_ids, _ = self._entity.find_joints(self.cfg.joint_names, preserve_order=True)
     self._ids = torch.tensor(joint_ids, device=self.device, dtype=torch.long)
     self._raw_actions = torch.empty(
       self.num_envs, 0, device=self.device, dtype=torch.float32
@@ -94,9 +92,7 @@ class RandomFlailAction(ActionTerm):
     self._half_width = 0.5 * (self._hi - self._lo)
     self._center = self._entity.data.default_joint_pos[:, self._ids].clone()
 
-    self._offset = torch.zeros(
-      self.num_envs, len(cfg.joint_names), device=self.device
-    )
+    self._offset = torch.zeros(self.num_envs, len(cfg.joint_names), device=self.device)
     self._timer = torch.zeros(self.num_envs, device=self.device)
     # Prime per-env random pose/timer so the very first substep moves limbs.
     self.reset()
@@ -142,9 +138,7 @@ class RandomFlailAction(ActionTerm):
     target = self._center + self._offset * scale * factor
     target = torch.clamp(target, self._lo, self._hi)
     encoder_bias = self._entity.data.encoder_bias[:, self._ids]
-    self._entity.set_joint_position_target(
-      target - encoder_bias, joint_ids=self._ids
-    )
+    self._entity.set_joint_position_target(target - encoder_bias, joint_ids=self._ids)
 
   def _curriculum_factor(self) -> float:
     """Return 0..1 ramp factor from the training curriculum (or 0 when off)."""

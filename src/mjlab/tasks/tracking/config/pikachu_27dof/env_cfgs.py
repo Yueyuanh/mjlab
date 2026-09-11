@@ -119,9 +119,9 @@ def pikachu_27dof_walk_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   motion_cmd.joint_names = LEG_JOINT_NAMES
 
   # -- 事件 / 奖励 / 终止 ------------------------------------------------------
-  cfg.events["foot_friction"].params["asset_cfg"].geom_names = (
-    PIKACHU_27DOF_FOOT_GEOM_NAMES
-  )
+  cfg.events["foot_friction"].params[
+    "asset_cfg"
+  ].geom_names = PIKACHU_27DOF_FOOT_GEOM_NAMES
   cfg.events["base_com"].params["asset_cfg"].body_names = (ANCHOR_BODY_NAME,)
 
   # joint limit 只限腿（上肢被 random_flail 有意推近限位）。

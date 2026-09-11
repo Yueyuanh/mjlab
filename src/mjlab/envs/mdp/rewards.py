@@ -55,6 +55,40 @@ def joint_acc_l2(
   return torch.sum(torch.square(asset.data.joint_acc[:, asset_cfg.joint_ids]), dim=1)
 
 
+def joint_power_l1(
+  env: ManagerBasedRlEnv, asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG
+) -> torch.Tensor:
+  """Penalize mechanical power draw (sum of |torque x joint velocity|), in W.
+
+  Power is the instantaneous energy rate a joint either injects into
+  (positive) or recovers from (negative, braking/regeneration) the system.
+  Limiting ``sum_i |tau_i * dot_q_i|`` bounds the combined effort--velocity
+  usage, which a torque-only or velocity-only penalty cannot see alone.
+
+  Each actuator is paired with the **joint it actually drives** via
+  ``mjModel.actuator_trnid``, so this is correct even when actuator indices
+  are ordered differently from joint indices (as in the Pikachu robots).
+  Only JOINT-transmission actuators are included; non-joint transmissions
+  (tendon/site) are skipped.
+  """
+  asset: Entity = env.scene[asset_cfg.name]
+  actuator_feedforward = torch.as_tensor(
+    env.sim.mj_model.actuator_trnid, device=asset.data.device
+  )
+  actuator_ids = asset_cfg.actuator_ids
+  if isinstance(actuator_ids, slice) or actuator_ids is None:
+    actuator_ids = torch.arange(
+      actuator_feedforward.shape[0], device=asset.data.device
+    )
+  else:
+    actuator_ids = torch.as_tensor(actuator_ids, device=asset.data.device)
+  driven_joint_ids = actuator_feedforward[actuator_ids, 0]
+  joint_mask = driven_joint_ids >= 0
+  torque = asset.data.actuator_force[:, actuator_ids[joint_mask]]
+  joint_vel = asset.data.joint_vel[:, driven_joint_ids[joint_mask]]
+  return torch.sum((torque * joint_vel).abs(), dim=1)
+
+
 def action_rate_l2(env: ManagerBasedRlEnv) -> torch.Tensor:
   """Penalize the rate of change of the actions using L2 squared kernel.
 

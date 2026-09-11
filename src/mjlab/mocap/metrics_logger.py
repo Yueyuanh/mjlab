@@ -111,6 +111,7 @@ def record_metrics_to_csv(
   device: str = "cpu",
   physics_dt: float = 0.005,
   write_root: bool = False,
+  pd_gain_multiplier: float = 1.0,
   verbose: bool = True,
 ) -> Path:
   """录制一段 mocap PD 动作的 metrics 日志到 ``out_dir/metrics_<source>_<stamp>.csv``。
@@ -129,12 +130,16 @@ def record_metrics_to_csv(
     device: 仿真设备。
     physics_dt: 物理仿真步长（秒）。
     write_root: 是否把 root 运动学写入。
+    pd_gain_multiplier: 执行器 Kp/Kd 统一放大倍率（默认 1.0）。语义与
+      ``record_to_csv`` 一致。
     verbose: 是否打印统计。
 
   Returns:
     写入的 metrics CSV 路径。
   """
-  env = MocapEnv(device=device, physics_dt=physics_dt)
+  env = MocapEnv(
+    device=device, physics_dt=physics_dt, pd_gain_multiplier=pd_gain_multiplier
+  )
   cfg = InterpConfig(fps=fps, easing=easing)
   initial_root_pos, initial_root_quat_xyzw, _ = env.get_state()
   traj = build_trajectory(

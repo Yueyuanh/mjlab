@@ -165,7 +165,12 @@ def _carry_forward(
     if initial_root_quat_xyzw is not None
     else np.array([0.0, 0.0, 0.0, 1.0])
   )
-  carry_joint: dict[str, float] = dict(initial_joint_pos or {})
+  # 每个关节都先给 0 兜底，再从 initial_joint_pos / 关键帧逐层覆盖。
+  # 否则某个关节从未在任何处被指定（如 27dof 的 head_pitch_joint）时，
+  # 下方 `d[name]` 会 KeyError。
+  carry_joint: dict[str, float] = {name: 0.0 for name in joint_names}
+  if initial_joint_pos:
+    carry_joint.update(initial_joint_pos)
 
   full_pos: list[np.ndarray] = []
   full_quat: list[np.ndarray] = []
@@ -187,6 +192,58 @@ def _carry_forward(
   return full_pos, full_quat, dof_full
 
 
+def _append_loop_closure(
+  traj: Trajectory,
+  keyframe_times: list[float],
+  cfg: InterpConfig,
+) -> Trajectory:
+  """为循环播放补一段末帧→首帧的过渡段，消除折回时的姿态跳变。
+
+  有限关键帧插值出的轨迹首末通常不一致；循环时若直接折回第 0 帧会在
+  边界处瞬跳（尤其 pd 模式 PD 目标突变会猛拉一下）。这里按一段平均关键帧
+  时长，沿原 easing 从末帧回退插值到首帧，使轨迹首尾闭合——末帧恰好等于
+  首帧，折回即无缝。若首末帧姿态本已一致（周期动作），无需回退，原样返回。
+  """
+  d0, d1 = traj.dof_pos[-1], traj.dof_pos[0]
+  r0, r1 = traj.root_pos[-1], traj.root_pos[0]
+  qa, qb = traj.root_quat_xyzw[-1], traj.root_quat_xyzw[0]
+  if (
+    np.allclose(d0, d1, atol=1e-3)
+    and np.allclose(r0, r1, atol=1e-3)
+    and np.allclose(qa, qb, atol=1e-3)
+  ):
+    return traj
+
+  seg_gaps = np.diff(np.asarray(keyframe_times, dtype=float))
+  mean_seg = float(np.mean(seg_gaps)) if seg_gaps.size else 1.0 / cfg.fps
+  n_seg = max(1, round(mean_seg * cfg.fps))
+
+  dt = 1.0 / cfg.fps
+  t_end = float(traj.t[-1])
+  q0w = _quat_wxyz_from_xyzw(qa)
+  q1w = _quat_wxyz_from_xyzw(qb)
+
+  add_t: list[float] = []
+  add_pos: list[np.ndarray] = []
+  add_quat: list[np.ndarray] = []
+  add_dof: list[np.ndarray] = []
+  for k in range(1, n_seg + 1):  # k=n_seg 时 blend=1 → 恰好等于首帧
+    blend = k / n_seg
+    eased = _ease(blend, cfg.easing)
+    add_t.append(t_end + dt * k)
+    add_pos.append((1.0 - eased) * r0 + eased * r1)
+    add_dof.append((1.0 - eased) * d0 + eased * d1)
+    q = _quat_slerp(q0w, q1w, blend)
+    add_quat.append(_quat_xyzw_from_wxyz(q))
+
+  return Trajectory(
+    t=np.concatenate([traj.t, np.asarray(add_t)]),
+    root_pos=np.concatenate([traj.root_pos, np.stack(add_pos)]),
+    root_quat_xyzw=np.concatenate([traj.root_quat_xyzw, np.stack(add_quat)]),
+    dof_pos=np.concatenate([traj.dof_pos, np.stack(add_dof)]),
+  )
+
+
 def build_trajectory(
   keyframes: list[PoseKeyframe],
   joint_names: tuple[str, ...],
@@ -194,6 +251,7 @@ def build_trajectory(
   initial_joint_pos: dict[str, float] | None = None,
   initial_root_pos: np.ndarray | None = None,
   initial_root_quat_xyzw: np.ndarray | None = None,
+  loop: bool = False,
 ) -> Trajectory:
   """把关键帧列表插值为稠密轨迹。
 
@@ -205,9 +263,12 @@ def build_trajectory(
     initial_joint_pos: 第一个关键帧缺省关节的兜底值。
     initial_root_pos / initial_root_quat_xyzw: 第一个关键帧缺省 root
       的兜底值（四元数 xyzw 序）。
+    loop: 是否为循环预览补一条末帧→首帧的回退段（使轨迹首尾闭合、
+      消除循环折回时的姿态跳变）。False 时轨迹保持"从首到末"的有限段。
 
   Returns:
     Trajectory：位置/关节线性插值，四元数按配置 slerp 的稠密轨迹。
+    ``loop=True`` 时末尾多出回退段，末帧精确等于首帧。
 
   Raises:
     ValueError: 关键帧列表为空、关节名缺失、time/duration 混用等。
@@ -267,9 +328,12 @@ def build_trajectory(
       q = q / np.linalg.norm(q)
     root_quat_out.append(_quat_xyzw_from_wxyz(q))
 
-  return Trajectory(
+  traj = Trajectory(
     t=np.asarray(frame_times, dtype=float),
     root_pos=np.stack(root_pos_out),
     root_quat_xyzw=np.stack(root_quat_out),
     dof_pos=np.stack(dof_out),
   )
+  if loop:
+    traj = _append_loop_closure(traj, times, cfg)
+  return traj

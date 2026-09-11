@@ -22,6 +22,7 @@ import mujoco
 import mujoco.viewer
 import numpy as np
 
+from mjlab.entity import EntityCfg
 from mjlab.mocap.keyframes import build_trajectory
 from mjlab.mocap.mocap_env import MocapEnv
 from mjlab.mocap.recorder import load_keyframes_json
@@ -125,6 +126,8 @@ def preview_keyframes(
   physics_dt: float = 0.005,
   write_root: bool = False,
   show_com: bool = True,
+  robot_cfg: EntityCfg | None = None,
+  pd_gain_multiplier: float = 1.0,
 ) -> None:
   """在交互 viewer 中预览一组关键帧动作。
 
@@ -143,17 +146,27 @@ def preview_keyframes(
     show_com: 是否叠加显示整机质心 COM 及其地面投影（黄竖线 + 绿点 +
       红点）。默认 True，用于观察机器人是否稳定（COM 投影是否落在支撑
       多边形内）。
+    robot_cfg: 机器人实体配置。None 用默认 14dof；传
+      ``get_pikachu_27dof_mocap_robot_cfg()`` 可预览 27dof 机器人（此时
+      关键帧 JSON 需含全部 27 个关节的 ``joint_pos``）。
+    pd_gain_multiplier: 执行器 Kp/Kd 统一放大倍率（>0）。默认 1.0。
+      调到 >1 让 PD 跟随更"硬"，适合动作响应偏软时预览。只影响本预览。
 
   Raises:
     RuntimeError: 当前环境无法打开原生 MuJoCo viewer（需要本地图形界面）。
   """
-  env = MocapEnv(device=device, physics_dt=physics_dt)
+  env = MocapEnv(
+    device=device,
+    physics_dt=physics_dt,
+    robot_cfg=robot_cfg,
+    pd_gain_multiplier=pd_gain_multiplier,
+  )
   kf_list, cfg = load_keyframes_json(keyframes)
   if fps != 30.0:
     cfg.fps = fps
   if easing != "linear":
     cfg.easing = easing
-  traj = build_trajectory(kf_list, env.joint_names, cfg=cfg)
+  traj = build_trajectory(kf_list, env.joint_names, cfg=cfg, loop=loop)
 
   # 起始姿态：运动学写入第一帧，viewer 打开即可见。
   env.reset(

@@ -23,15 +23,51 @@
 
 from __future__ import annotations
 
+import dataclasses
+
 import mujoco
 import numpy as np
 import torch
 
 from mjlab.asset_zoo.robots import get_pikachu_robot_cfg
-from mjlab.entity import Entity
+from mjlab.entity import Entity, EntityCfg
 from mjlab.scene import Scene, SceneCfg
 from mjlab.sim.sim import MujocoCfg, Simulation, SimulationCfg
 from mjlab.terrains import TerrainEntityCfg
+
+
+def scale_pd_gains(robot_cfg: EntityCfg, multiplier: float) -> EntityCfg:
+  """返回把各执行器 Kp/Kd 统一乘以 ``multiplier`` 的配置副本。
+
+  仅用于 mocap 预览/录制时调硬 PD 跟随（预算外部不修改原配置，也不碰
+  训练共享的执行器定义）。对含 ``stiffness``/``damping`` 的执行器 cfg 用
+  ``dataclasses.replace`` 生成新实例，其余执行器原样保留。``multiplier==1.0``
+  时原样返回入参。
+
+  Args:
+    robot_cfg: 机器人实体配置（含 articulation 执行器）。
+    multiplier: PD 增益倍率（>0）。1.0 表示不缩放。
+
+  Raises:
+    ValueError: 配置缺 articulation，无从缩放。
+  """
+  if multiplier == 1.0:
+    return robot_cfg
+  art = robot_cfg.articulation
+  if art is None:
+    raise ValueError("robot_cfg 缺少 articulation，无法缩放 PD 增益")
+
+  def _scaled(act: object) -> object:
+    if hasattr(act, "stiffness") and hasattr(act, "damping"):
+      return dataclasses.replace(
+        act,
+        stiffness=act.stiffness * multiplier,
+        damping=act.damping * multiplier,
+      )
+    return act
+
+  new_art = dataclasses.replace(art, actuators=tuple(_scaled(a) for a in art.actuators))
+  return dataclasses.replace(robot_cfg, articulation=new_art)
 
 
 class MocapEnv:
@@ -41,16 +77,31 @@ class MocapEnv:
     device: 仿真设备（``"cpu"`` 或 ``"cuda:0"``）。默认 ``"cpu"``，
       无需 GPU 也能录制。
     physics_dt: 物理仿真步长（秒）。默认 0.005，与 tracking env 一致。
+    robot_cfg: 机器人实体配置，默认 14dof（``get_pikachu_robot_cfg()``）；
+      传 ``get_pikachu_27dof_mocap_robot_cfg()`` 可预览/录制 27dof 机器人。
+    pd_gain_multiplier: 把执行器 Kp/Kd 统一放大的倍率（映射缩小预览/录制
+      用的 PD 硬度）。默认 1.0 不缩放；觉得跟随太软可调大到 1.5~3。
+      只影响本 mocap 环境，训练共享常数不受影响。
   """
 
-  def __init__(self, device: str = "cpu", physics_dt: float = 0.005):
+  def __init__(
+    self,
+    device: str = "cpu",
+    physics_dt: float = 0.005,
+    robot_cfg: EntityCfg | None = None,
+    pd_gain_multiplier: float = 1.0,
+  ):
     self.device = device
     self.physics_dt = physics_dt
 
+    if robot_cfg is None:
+      robot_cfg = get_pikachu_robot_cfg()
+    if pd_gain_multiplier != 1.0:
+      robot_cfg = scale_pd_gains(robot_cfg, pd_gain_multiplier)
     scene_cfg = SceneCfg(
       num_envs=1,
       terrain=TerrainEntityCfg(terrain_type="plane"),
-      entities={"robot": get_pikachu_robot_cfg()},
+      entities={"robot": robot_cfg},
     )
     self._scene = Scene(scene_cfg, device=device)
     model = self._scene.compile()
@@ -63,7 +114,7 @@ class MocapEnv:
     self.joint_names: tuple[str, ...] = self.robot.joint_names
     self.actuator_names: tuple[str, ...] = self.robot.actuator_names
 
-    # 软限位（0.9 × 硬限位），形状 (14, 2)，joint_names 序。
+    # 软限位（0.9 × 硬限位），形状 (D, 2)，D = 关节数，joint_names 序。
     self.soft_joint_pos_limits: np.ndarray = (
       self.robot.data.soft_joint_pos_limits[0].cpu().numpy()
     )
@@ -124,11 +175,11 @@ class MocapEnv:
     """把关节目标（joint_names 序）重排为 ctrl（actuator_names 序）。
 
     Args:
-      joint_target: 关节名→角度（弧度）的 dict，或 ``(14,)`` 数组
-        （joint_names 序）。
+      joint_target: 关节名→角度（弧度）的 dict，或 ``(D,)`` 数组
+        （joint_names 序，D = 关节数）。
 
     Returns:
-      ``(1, 14)`` 张量，槽位顺序 = actuator_names（= ctrl 槽位）。
+      ``(1, D)`` 张量，槽位顺序 = actuator_names（= ctrl 槽位）。
     """
     if isinstance(joint_target, dict):
       # dict 必须提供全部关节（缺省会 KeyError，比静默填 0 更安全）。
@@ -155,7 +206,7 @@ class MocapEnv:
     用于在录制开始前把机器人摆到第一个关键帧的姿态。
 
     Args:
-      joint_pos: ``(14,)`` 数组（joint_names 序）或关节名→角度 dict。
+      joint_pos: ``(D,)`` 数组（joint_names 序）或关节名→角度 dict。
         None 表示保持当前关节角。
       root_pos: ``(3,)`` 世界系位置。None 表示保持当前位置。
       root_quat_xyzw: ``(4,)`` 世界系四元数（**xyzw 序**）。
@@ -211,7 +262,7 @@ class MocapEnv:
       ``(root_pos, root_quat_xyzw, dof_pos)``：
         - ``root_pos`` ``(3,)`` 世界系位置（米）
         - ``root_quat_xyzw`` ``(4,)`` 世界系四元数，**xyzw 序**
-        - ``dof_pos`` ``(14,)`` 关节角（弧度），**joint_names 序**
+        - ``dof_pos`` ``(D,)`` 关节角（弧度），**joint_names 序**
       前 7 个值与后 14 个值拼接即为 CSV 的每一行（21 列）。
     """
     pose = self.robot.data.root_link_pose_w[0].cpu().numpy()
@@ -229,12 +280,12 @@ class MocapEnv:
     """检查一组关节角是否落在软限位内。
 
     Args:
-      dof_pos: ``(14,)`` 或 ``(N, 14)`` 关节角（joint_names 序）。
+      dof_pos: ``(D,)`` 或 ``(N, D)`` 关节角（joint_names 序，D = 关节数）。
       joint_names: 仅用于报错信息里的标识（例如"关键帧"）。
 
     Returns:
       ``(ok, margins)``：``ok`` 是否全部在限位内；``margins`` 为每个关节
-      距最近限位的距离（``(14,)`` 或 ``(N, 14)``，负值表示越界）。
+      距最近限位的距离（``(D,)`` 或 ``(N, D)``，负值表示越界）。
     """
     arr = np.asarray(dof_pos, dtype=float)
     lo = self.soft_joint_pos_limits[:, 0]

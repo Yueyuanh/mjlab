@@ -191,7 +191,7 @@ QUAD_SL22_KEYFRAME = EntityCfg.InitialStateCfg(
   pos=(0, 0, 0.112),
   # rot=(0.593497, 0.0, 0.804837,0),# 117
   # rot=(0.7071, 0, 0.7071, 0), #90
-  rot=(0.6756, 0, 0.7373, 0), #95
+  rot=(0.6756, 0, 0.7373, 0),  # 95
   joint_pos={
     # 腿：后支撑（四足时腿在 base 后方弯曲），左右取反
     "left_hip_pitch_joint": -2.4,
@@ -230,7 +230,7 @@ QUAD_SL22_BODY_AXIS: tuple[float, float, float] = (0.0, 0.0, 1.0)
 #     塌成趴地(实测静置背轴角 ≈75°、base_z≈0.04、base 触地),**不是有效四足姿态**。
 #     必须先调好四足趴姿(手脚四点支撑、躯干不塌),再用 viewer 让紫箭头(目标)对准
 #     实际目标背轴后再回填,不要直接照抄 keyframe 的 90°。
-QUAD_SL22_TILT_DEG: float = 90.0+5.0
+QUAD_SL22_TILT_DEG: float = 90.0 + 5.0
 
 # 四足前腿 = 手的支撑几何：手掌(arm_yaw_link)撑地。
 QUAD_SL22_HAND_GEOM_NAMES = PIKACHU_SL22_HAND_GEOM_NAMES

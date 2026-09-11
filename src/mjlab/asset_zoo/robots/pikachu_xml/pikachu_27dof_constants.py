@@ -171,7 +171,7 @@ PIKACHU_27DOF_ARTICULATION = EntityArticulationInfoCfg(
 # 关键帧：腿微蹲起步（值与旧 KNEES_BENT 一致，left/right 轴反相），上肢零位。
 ##
 KNEES_BENT_27DOF_KEYFRAME = EntityCfg.InitialStateCfg(
-  pos=(0, 0, 0.165),  # 站立 geniz 
+  pos=(0, 0, 0.165),  # 站立 geniz
   joint_pos={
     # 腿：明显下蹲，踝反向补偿保持脚底水平，左右轴反相（同旧 KNEES_BENT）。
     "left_hip_pitch_joint": -0.0,
@@ -226,6 +226,33 @@ FEET_ONLY_COLLISION = CollisionCfg(
 )
 
 ##
+# 全身碰撞（mocap / 关键帧预览用）。
+#
+# 训练体 XML 已给全部实心 box 碰撞代理补了 ``*_collision`` 名字（见
+# ``pikachu_27dof_train.xml``），本配置匹配 ``.*_collision`` 即启用全身
+# 接触。语义镜像 14dof 的 ``FULL_COLLISION_WITHOUT_SELF``：
+#   - contype=0 → 机器人自身 geom 之间不自碰撞；
+#   - conaffinity=1 / 脚底 condim=3 + friction → 各肢体/躯干都能与地面
+#     真实接触（下蹲、跌倒、滚翻时不会穿地）。
+# 未命名的皮肤 mesh、group=1 标记点、0.002 枢轴微盒不匹配，保持禁用。
+# 仅供关键帧**预览/录制**（视觉完整性），训练体仍用上面的 FEET_ONLY。
+##
+PIKACHU_27DOF_FULL_COLLISION = CollisionCfg(
+  geom_names_expr=(".*_collision",),
+  contype=0,
+  conaffinity=1,
+  condim={
+    PIKACHU_27DOF_FOOT_GEOM_NAMES: 3,
+    ".*_collision": 1,
+  },
+  priority={
+    PIKACHU_27DOF_FOOT_GEOM_NAMES: 1,
+    ".*": 0,
+  },
+  friction={PIKACHU_27DOF_FOOT_GEOM_NAMES: (0.6,)},
+)
+
+##
 # 腿动作缩放（velocity 策略动作只驱动腿；与旧双足一致）。
 ##
 LEG_ACTION_SCALE: dict[str, float] = {
@@ -238,10 +265,30 @@ LEG_ACTION_SCALE: dict[str, float] = {
 
 
 def get_pikachu_27dof_robot_cfg() -> EntityCfg:
-  """获取 27-dof 双足机器人配置（微蹲起步，只脚底碰撞，全关节执行器）。"""
+  """获取 27-dof 双足机器人配置（微蹲起步，只脚底碰撞，全关节执行器）。
+
+  用于**训练**：只保留脚底-地面接触，其余身体几何一律禁用，避免上肢随机
+  摆动干扰时自碰撞/夹持。
+  """
   return EntityCfg(
     init_state=KNEES_BENT_27DOF_KEYFRAME,
     collisions=(FEET_ONLY_COLLISION,),
+    spec_fn=get_spec,
+    articulation=PIKACHU_27DOF_ARTICULATION,
+  )
+
+
+def get_pikachu_27dof_mocap_robot_cfg() -> EntityCfg:
+  """获取 mocap / 关键帧预览用的 27-dof 配置：**全身碰撞**。
+
+  与训练体共用同一 XML/执行器/起步姿态，仅把碰撞换成全身
+  ``PIKACHU_27DOF_FULL_COLLISION``，让预览/录制时躯干、手臂、头、耳、尾
+  都能真实接触地面（下蹲、跌倒、滚翻不穿地），而不影响训练的
+  ``get_pikachu_27dof_robot_cfg``（仍是脚底碰撞）。
+  """
+  return EntityCfg(
+    init_state=KNEES_BENT_27DOF_KEYFRAME,
+    collisions=(PIKACHU_27DOF_FULL_COLLISION,),
     spec_fn=get_spec,
     articulation=PIKACHU_27DOF_ARTICULATION,
   )
@@ -259,9 +306,11 @@ __all__ = [
   "LEG_JOINT_NAMES",
   "PIKACHU_27DOF_ARTICULATION",
   "PIKACHU_27DOF_FOOT_GEOM_NAMES",
+  "PIKACHU_27DOF_FULL_COLLISION",
   "PIKACHU_27DOF_XML",
   "PICK_START_KEYFRAME",
   "TAIL_JOINT_NAMES",
+  "get_pikachu_27dof_mocap_robot_cfg",
   "get_pikachu_27dof_robot_cfg",
   "get_spec",
 ]

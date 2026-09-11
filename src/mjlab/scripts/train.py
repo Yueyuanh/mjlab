@@ -158,9 +158,7 @@ def run_train(task_id: str, cfg: TrainConfig, log_dir: Path) -> None:
       video_length=cfg.video_length,
       disable_logger=True,
     )
-    print(
-      f"[INFO] Recording videos during training every {video_interval} steps."
-    )
+    print(f"[INFO] Recording videos during training every {video_interval} steps.")
 
   env = RslRlVecEnvWrapper(env, clip_actions=cfg.agent.clip_actions)
 

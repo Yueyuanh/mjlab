@@ -136,6 +136,12 @@
   .range-track { position:absolute; left:0; right:0; top:10px; height:6px; border-radius:99px; background:var(--line2); }
   .range-fill { position:absolute; top:10px; height:6px; border-radius:99px; background:var(--accent); opacity:.45; }
   .box-wrap { height:400px; margin-bottom:12px; }
+  #inertia-panel[hidden] { display:none; }
+  .inertia-input {
+    width:88px; padding:5px 7px; border:1px solid var(--line2); border-radius:7px;
+    font:12px var(--mono); color:var(--ink); background:#fff;
+  }
+  .inertia-input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(232,89,12,.12); }
 
   /* ---- 数据对比面板（左右两来源） ---- */
   #compare-panel { margin:16px 20px 4px; }
@@ -265,6 +271,19 @@
       <div id="overview"><div class="empty">加载 CSV 后显示曲线</div></div>
     </div>
 
+    <div class="panel" id="inertia-panel" hidden>
+      <div class="panel-head">
+        <div><h2>关节惯性扭矩需求（τ_inertia = J_total × α_max）</h2><p>由关节速度差分求区间内最大角加速度 α_max(rad/s²)，需求扭矩 = 系统绕轴总转动惯量 J_total × α_max。惯量可直接在表内编辑(回车/失焦重算)，驱动下方「惯量扭矩需求」曲线与统计；超电机规格限时红字标注。</p></div>
+        <button class="btn" onclick="resetInertia()">恢复默认惯量</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>关节</th><th>J_total (kg·m²)</th><th>α_max (rad/s²)</th><th>τ需求峰值 (N·m)</th><th>实测扭矩峰值 (N·m)</th><th>超电机限?</th></tr></thead>
+          <tbody id="inertia-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="panel" id="pair-section" hidden>
       <div class="panel-head">
         <div><h2>左右同名关节对比（1列×7行）</h2><p>蓝色为左侧，红色为右侧；即使字段缺失也保留固定七行，便于逐关节排查。</p></div>
@@ -334,9 +353,11 @@ const JOINT_GROUPS = {
   joint_torque:{prefix:'joint_torque_nm/', label:'关节扭矩', unit:'N·m'},
   joint_torque_ratio:{prefix:'joint_torque_ratio/', label:'关节扭矩占用', unit:'ratio'},
   joint_velocity_ratio:{prefix:'joint_velocity_ratio/', label:'关节速度占用', unit:'ratio'},
+  joint_accel:{prefix:'joint_accel_rad_s2/', label:'关节加速度', unit:'rad/s²'},
+  joint_inertia_torque:{prefix:'joint_inertia_torque_nm/', label:'惯量扭矩需求', unit:'N·m'},
 };
 const PAIRS = ['hip_pitch','hip_roll','hip_yaw','knee','ankle','arm_pitch','arm_roll'];
-const CATEGORY_ORDER = ['joint_position','joint_target','joint_velocity','joint_torque','joint_torque_ratio','joint_velocity_ratio','base','foot','command','reward','contact','other'];
+const CATEGORY_ORDER = ['joint_position','joint_target','joint_velocity','joint_torque','joint_torque_ratio','joint_velocity_ratio','joint_accel','joint_inertia_torque','base','foot','command','reward','contact','other'];
 // 电机规格（Pikachu DM 电机）——单一来源 pikachu_constants.py：
 //   hip_pitch/knee = J4310（vel 30 rad/s，effort 10 N·m）
 //   其余 = J3507（vel 10 rad/s，effort 15 N·m）
@@ -346,6 +367,13 @@ const ACTUATOR_SPEC = {
   arm_pitch:{vel:10,effort:15}, arm_roll:{vel:10,effort:15},
 };
 function specFor(joint){return ACTUATOR_SPEC[joint]||null;}
+// 各关节系统绕转轴总转动惯量 J_total(kg·m²)的默认估计；加载后可在「惯量扭矩需求」
+// 面板内编辑并重算。具体值应按实际机构/减速比/负载校核替换。
+const JOINT_INERTIA_DEFAULTS = {
+  hip_pitch:0.05, hip_roll:0.04, hip_yaw:0.03,
+  knee:0.025, ankle:0.006,
+  arm_pitch:0.08, arm_roll:0.015,
+};
 const METRIC_COLORS = ['#2563eb','#0891b2','#7c3aed','#059669','#4f46e5','#0284c7','#0d9488',
                        '#dc2626','#ea580c','#db2777','#c026d3','#e11d48','#d97706','#b91c1c'];
 const MAX_RENDER_POINTS = 6000;
@@ -361,6 +389,7 @@ let BOX = null;
 let PAIR_CHARTS = [];
 let ASSUMED_TORQUE = {};   // joint -> 假设扭矩上限(N·m),重算时作为 ratio 的分母
 let RATIO_BACKUP = {};     // joint -> {left:[...], right:[...]} 原始 ratio 值,供重置恢复
+let INERTIA = Object.assign({}, JOINT_INERTIA_DEFAULTS);   // joint -> 系统绕轴总转动惯量 J_total(kg·m²)
 let RANGE = [0,100];
 let DISCOVERED_FILES = [];
 // 关节目标分类：开关开启后，为每个已选 target 叠加绘制同关节实际位置(joint_position_rad)，
@@ -464,11 +493,57 @@ function orderedCategories(){
   });
 }
 
+// 由关节速度(rad/s)用后向差分改出关节加速度(rad/s²):a[i]=(v[i]-v[i-1])/(t[i]-t[i-1])。
+function deriveAccel(vel,time){
+  const a=new Array(vel.length).fill(0);
+  for(let i=1;i<vel.length;i++){
+    const dt=time[i]-time[i-1], v0=Number(vel[i-1]), v1=Number(vel[i]);
+    if(Number.isFinite(v0)&&Number.isFinite(v1)&&dt>0)a[i]=(v1-v0)/dt; else a[i]=NaN;
+  }
+  return a;
+}
+
+// 为每个有关节速度的 left/right 关节生成派生列:
+//   joint_accel_rad_s2/<side>_<joint>_joint      —— 加速度 α(t)
+//   joint_inertia_torque_nm/<side>_<joint>_joint —— τ_inertia(t)=J_total×|α(t)|
+function computeDerived(){
+  if(!DATA)return;
+  for(const name of Object.keys(DATA.values)){
+    if(!name.startsWith('joint_velocity_rad_s/'))continue;
+    const m=TERM_META[name];
+    if(!m||!m.side)continue;
+    const accelName=`joint_accel_rad_s2/${m.side}_${m.joint}_joint`;
+    DATA.values[accelName]=deriveAccel(DATA.values[name],DATA.time);
+    recomputeInertiaSeries(m.joint);
+  }
+}
+
+// 按当前 INERTIA[joint] 重算某关节左右两侧的惯性扭矩需求序列；J 未知则删除派生列。
+function recomputeInertiaSeries(joint){
+  if(!DATA)return;
+  const J=INERTIA[joint];
+  for(const side of ['left','right']){
+    const an=`joint_accel_rad_s2/${side}_${joint}_joint`, tn=`joint_inertia_torque_nm/${side}_${joint}_joint`;
+    if(!DATA.values[an])continue;
+    if(J>0&&Number.isFinite(J))DATA.values[tn]=DATA.values[an].map(a=>Number.isFinite(a)?Math.abs(a)*J:NaN);
+    else delete DATA.values[tn];
+  }
+}
+function recomputeAllInertiaSeries(){ for(const j of PAIRS)recomputeInertiaSeries(j); }
+function resetInertia(){
+  INERTIA=Object.assign({},JOINT_INERTIA_DEFAULTS);
+  recomputeAllInertiaSeries();renderAll();
+  setStatus('已恢复默认系统总惯量 J_total(可再在面板内编辑)');
+}
+
 async function loadCsvText(text,name){
   try{
     setStatus('正在解析 '+name+'…');
     await waitEcharts();
-    DATA=parseCsv(text); FILE_NAME=name; buildTaxonomy();
+    DATA=parseCsv(text); FILE_NAME=name;
+    buildTaxonomy();      // 先分类原始列,供 computeDerived 定位各关节
+    computeDerived();     // 由关节速度差分出加速度,再按 J 算出惯性扭矩需求
+    buildTaxonomy();      // 重新分类,纳入新生成的派生列
     SELECTED=new Set(Object.keys(DATA.values)); ACTIVE=orderedCategories()[0]; RANGE=[0,100]; ACTUAL_POSITION_ON=false;
     document.getElementById('m-file').textContent=name;
     document.getElementById('m-network').textContent=DATA.columns.network?.find(Boolean)||'unknown';
@@ -713,6 +788,48 @@ function renderPairs(){
   }
 }
 
+// 「惯量扭矩需求」面板：逐关节列出可编辑的 J_total、区间内 α_max、
+// τ需求峰值(=J×α_max)、实测扭矩峰值，并按电机规格标注是否超限。
+function renderInertiaPanel(){
+  const panel=document.getElementById('inertia-panel');
+  const show=Boolean(DATA&&ACTIVE==='joint_inertia_torque');
+  panel.hidden=!show; if(!show)return;
+  const [start,end]=rangeIndices();
+  const tbody=document.getElementById('inertia-tbody');tbody.innerHTML='';
+  for(const joint of PAIRS){
+    const J=INERTIA[joint];
+    let hasAccel=false; let alphaPeak=-Infinity,reqPeak=-Infinity; let measPeak=null;
+    for(const side of ['left','right']){
+      const aS=DATA.values[`joint_accel_rad_s2/${side}_${joint}_joint`];
+      const tS=DATA.values[`joint_inertia_torque_nm/${side}_${joint}_joint`];
+      const mS=DATA.values[`joint_torque_nm/${side}_${joint}_joint`];
+      const sa=aS&&statsFor(aS,start,end), st=tS&&statsFor(tS,start,end), sm=mS&&statsFor(mS,start,end);
+      if(sa){hasAccel=true;alphaPeak=Math.max(alphaPeak,sa.peak);}
+      if(st)reqPeak=Math.max(reqPeak,st.peak);
+      if(sm)measPeak=measPeak===null?sm.peak:Math.max(measPeak,sm.peak);
+    }
+    const alpha=hasAccel?alphaPeak:NaN, req=hasAccel?reqPeak:NaN;
+    const spec=specFor(joint), over=spec&&Number.isFinite(req)&&req>spec.effort;
+    const tr=document.createElement('tr');
+    tr.innerHTML=
+      `<td>${joint}</td>`+
+      `<td><input class="inertia-input" type="number" min="0" step="0.001" value="${J??''}" data-joint="${joint}" title="系统线旋转轴总转动惯量 J_total (kg·m²)，回车或失焦后重算"></td>`+
+      `<td>${fmt(alpha)}</td>`+
+      `<td>${fmt(req)}</td>`+
+      `<td>${measPeak===null?'—':fmt(measPeak)}</td>`+
+      `<td>${over?'<b style="color:var(--err)">超限</b>':'否'}</td>`;
+    tbody.appendChild(tr);
+  }
+  for(const input of tbody.querySelectorAll('.inertia-input')){
+    const apply=()=>{
+      const joint=input.dataset.joint, v=parseFloat(input.value);
+      if(Number.isFinite(v)&&v>=0)INERTIA[joint]=v; else delete INERTIA[joint];
+      recomputeInertiaSeries(joint);renderAll();
+    };
+    input.onchange=apply; input.onkeydown=e=>{if(e.key==='Enter')apply();};
+  }
+}
+
 function statsFor(values,start,end){
   const a=[]; for(let i=start;i<end;i++)if(Number.isFinite(values[i]))a.push(values[i]);
   if(!a.length)return null;
@@ -841,7 +958,7 @@ function resetTorqueRatio(joint){
 
 function renderAll(){
   if(!DATA||!window.echarts)return;
-  renderOverview();renderPairs();renderBox();renderStats();
+  renderOverview();renderPairs();renderInertiaPanel();renderBox();renderStats();
 }
 
 function onRangeChange(){

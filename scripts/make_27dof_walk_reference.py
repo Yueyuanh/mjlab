@@ -8,6 +8,7 @@ RandomFlail 干扰)填 0(限位中位、正位)。
 
 用法: uv run python <此脚本> <输出目录>
 """
+
 import sys
 
 import numpy as np
@@ -17,47 +18,119 @@ SRC_DIR = "src/mjlab/mocap/npz/pikachu_walk_base_npz"
 
 # 27dof 机器人 body 顺序(索引 = 布局列)。来自 pakachu_27dof_train.xml。
 BODY_27 = [
-  "base_link", "head_pitch_link", "head_yaw_link", "head_roll_link",
-  "left_ear_pitch_link", "left_ear_roll_link", "right_ear_pitch_link",
-  "right_ear_roll_link", "tail_pitch_link", "tail_yaw_link",
-  "left_hip_pitch_link", "left_hip_roll_link", "left_hip_yaw_link",
-  "left_knee_link", "left_ankle_link", "right_hip_pitch_link",
-  "right_hip_roll_link", "right_hip_yaw_link", "right_knee_link",
-  "right_ankle_link", "left_arm_pitch_link", "left_arm_roll_link",
-  "left_arm_yaw_link", "left_elbow_link", "right_arm_pitch_link",
-  "right_arm_roll_link", "right_arm_yaw_link", "right_elbow_link",
+  "base_link",
+  "head_pitch_link",
+  "head_yaw_link",
+  "head_roll_link",
+  "left_ear_pitch_link",
+  "left_ear_roll_link",
+  "right_ear_pitch_link",
+  "right_ear_roll_link",
+  "tail_pitch_link",
+  "tail_yaw_link",
+  "left_hip_pitch_link",
+  "left_hip_roll_link",
+  "left_hip_yaw_link",
+  "left_knee_link",
+  "left_ankle_link",
+  "right_hip_pitch_link",
+  "right_hip_roll_link",
+  "right_hip_yaw_link",
+  "right_knee_link",
+  "right_ankle_link",
+  "left_arm_pitch_link",
+  "left_arm_roll_link",
+  "left_arm_yaw_link",
+  "left_elbow_link",
+  "right_arm_pitch_link",
+  "right_arm_roll_link",
+  "right_arm_yaw_link",
+  "right_elbow_link",
 ]
 
 # 27dof 关节顺序(索引 = dof 列)。
 JOINT_27 = [
-  "head_pitch_joint", "head_yaw_joint", "head_roll_joint",
-  "left_ear_pitch_joint", "left_ear_roll_joint", "right_ear_pitch_joint",
-  "right_ear_roll_joint", "tail_pitch_joint", "tail_yaw_joint",
-  "left_hip_pitch_joint", "left_hip_roll_joint", "left_hip_yaw_joint",
-  "left_knee_joint", "left_ankle_joint", "right_hip_pitch_joint",
-  "right_hip_roll_joint", "right_hip_yaw_joint", "right_knee_joint",
-  "right_ankle_joint", "left_arm_pitch_joint", "left_arm_roll_joint",
-  "left_arm_yaw_joint", "left_elbow_joint", "right_arm_pitch_joint",
-  "right_arm_roll_joint", "right_arm_yaw_joint", "right_elbow_joint",
+  "head_pitch_joint",
+  "head_yaw_joint",
+  "head_roll_joint",
+  "left_ear_pitch_joint",
+  "left_ear_roll_joint",
+  "right_ear_pitch_joint",
+  "right_ear_roll_joint",
+  "tail_pitch_joint",
+  "tail_yaw_joint",
+  "left_hip_pitch_joint",
+  "left_hip_roll_joint",
+  "left_hip_yaw_joint",
+  "left_knee_joint",
+  "left_ankle_joint",
+  "right_hip_pitch_joint",
+  "right_hip_roll_joint",
+  "right_hip_yaw_joint",
+  "right_knee_joint",
+  "right_ankle_joint",
+  "left_arm_pitch_joint",
+  "left_arm_roll_joint",
+  "left_arm_yaw_joint",
+  "left_elbow_joint",
+  "right_arm_pitch_joint",
+  "right_arm_roll_joint",
+  "right_arm_yaw_joint",
+  "right_elbow_joint",
 ]
 
 # 13dof 源 body 顺序(flat_14dof_lite):base + 双腿5 + 双臂3。
 BODY_SRC = [
   "base_link",
-  "left_hip_pitch_link", "left_hip_roll_link", "left_hip_yaw_link",
-  "left_knee_link", "left_ankle_link",
-  "right_hip_pitch_link", "right_hip_roll_link", "right_hip_yaw_link",
-  "right_knee_link", "right_ankle_link",
-  "left_arm_pitch_link", "left_arm_roll_link", "left_arm_yaw_link",
-  "right_arm_pitch_link", "right_arm_roll_link", "right_arm_yaw_link",
+  "left_hip_pitch_link",
+  "left_hip_roll_link",
+  "left_hip_yaw_link",
+  "left_knee_link",
+  "left_ankle_link",
+  "right_hip_pitch_link",
+  "right_hip_roll_link",
+  "right_hip_yaw_link",
+  "right_knee_link",
+  "right_ankle_link",
+  "left_arm_pitch_link",
+  "left_arm_roll_link",
+  "left_arm_yaw_link",
+  "right_arm_pitch_link",
+  "right_arm_roll_link",
+  "right_arm_yaw_link",
 ]
 
 # 腿 10(顺序与 LEG_JOINT_NAMES 一致)。
 LEG_JOINTS = [
-  "left_hip_pitch_joint", "left_hip_roll_joint", "left_hip_yaw_joint",
-  "left_knee_joint", "left_ankle_joint",
-  "right_hip_pitch_joint", "right_hip_roll_joint", "right_hip_yaw_joint",
-  "right_knee_joint", "right_ankle_joint",
+  "left_hip_pitch_joint",
+  "left_hip_roll_joint",
+  "left_hip_yaw_joint",
+  "left_knee_joint",
+  "left_ankle_joint",
+  "right_hip_pitch_joint",
+  "right_hip_roll_joint",
+  "right_hip_yaw_joint",
+  "right_knee_joint",
+  "right_ankle_joint",
+]
+
+# 27dof 与 14dof(walk-base 源)旋转轴相反的腿部关节列索引,需取负才能让
+# 27dof 机器人复现与源相同的肢体位形。
+#
+# 原因:14dof 机器人腿关节左右镜像对称(left 用 [0,±1,0]…,right 用反号),
+# 是"正确"的;而 27dof 机器人 left_hip_pitch/yaw/knee/ankle 被定义成与
+# 右腿同向,等于把左腿轴做反了,right_hip_roll 亦然。若不取负,walk 参考
+# 套到 27dof 上右腿转向正确、左腿整套转向相反(见 axis 对比)。
+#   14dof → 27dof 轴翻转的列:
+#   left_hip_pitch [0,1,0]→[0,-1,0], left_hip_yaw [0,0,-1]→[0,0,1],
+#   left_knee [0,-1,0]→[0,1,0], left_ankle [0,1,0]→[0,-1,0],
+#   right_hip_roll [1,0,0]→[-1,0,0]。
+FLIP_COLS = [
+  LEG_JOINTS.index("left_hip_pitch_joint"),
+  LEG_JOINTS.index("left_hip_yaw_joint"),
+  LEG_JOINTS.index("left_knee_joint"),
+  LEG_JOINTS.index("left_ankle_joint"),
+  LEG_JOINTS.index("right_hip_roll_joint"),
 ]
 
 # 从 27dof body 中复用 walk 参考的 body:base + legs。
@@ -67,8 +140,12 @@ _src_of = {b: i for i, b in enumerate(BODY_SRC)}
 # LEG body(7):base + 双腿 hip_pitch/knee/ankle(与 walk_base env_cfg 一致)。
 LEG_BODIES = (
   "base_link",
-  "left_hip_pitch_link", "left_knee_link", "left_ankle_link",
-  "right_hip_pitch_link", "right_knee_link", "right_ankle_link",
+  "left_hip_pitch_link",
+  "left_knee_link",
+  "left_ankle_link",
+  "right_hip_pitch_link",
+  "right_knee_link",
+  "right_ankle_link",
 )
 BODY_MAP = {_27_of[b]: _src_of[b] for b in LEG_BODIES}  # 27dof col -> src col
 JOINT_MAP = {JOINT_27.index(j): LEG_JOINTS.index(j) for j in LEG_JOINTS}
@@ -76,11 +153,11 @@ JOINT_MAP = {JOINT_27.index(j): LEG_JOINTS.index(j) for j in LEG_JOINTS}
 
 def main(out_dir: str) -> None:
   import os
+
   os.makedirs(out_dir, exist_ok=True)
   d = np.load(f"{SRC_DIR}/{SRC}")
   n_frames = d["joint_pos"].shape[0]
   n_body = len(BODY_27)
-  n_joint = len(JOINT_27)
 
   bp = np.zeros((n_frames, n_body, 3), dtype=np.float32)
   bq = np.zeros((n_frames, n_body, 4), dtype=np.float32)
@@ -105,13 +182,20 @@ def main(out_dir: str) -> None:
   # joint_ids 一一对应）。上肢关节由 RandomFlail 独立干扰，不进参考。
   jp = d["joint_pos"].astype(np.float32)
   jv = d["joint_vel"].astype(np.float32)
+  # 轴翻转的关节列取负,把 27dof 左腿(及右 roll)转到与 14dof 一致的方向。
+  jp[:, FLIP_COLS] *= -1.0
+  jv[:, FLIP_COLS] *= -1.0
 
   out = f"{out_dir}/pikachu_walk_0.185_27dof.npz"
   np.savez(
     out,
     fps=d["fps"],
-    joint_pos=jp, joint_vel=jv,
-    body_pos_w=bp, body_quat_w=bq, body_lin_vel_w=bl, body_ang_vel_w=ba,
+    joint_pos=jp,
+    joint_vel=jv,
+    body_pos_w=bp,
+    body_quat_w=bq,
+    body_lin_vel_w=bl,
+    body_ang_vel_w=ba,
   )
   print(
     f"written {out}\n  frames={n_frames} body={n_body} "
@@ -121,4 +205,6 @@ def main(out_dir: str) -> None:
 
 
 if __name__ == "__main__":
-  main(sys.argv[1] if len(sys.argv) > 1 else "src/mjlab/mocap/npz/pikachu_walk_27dof_npz")
+  main(
+    sys.argv[1] if len(sys.argv) > 1 else "src/mjlab/mocap/npz/pikachu_walk_27dof_npz"
+  )

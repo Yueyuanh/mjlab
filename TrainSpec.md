@@ -241,6 +241,8 @@ uv run train Mjlab-Velocity-Flat-Pikachu-Quad \
   --env.scene.num_envs 4096
 
 
+uv run play Mjlab-Tracking-Flat-Pikachu-27dof-Quad-Walk --motion-file src/mjlab/mocap/npz/quad_27dof_quad.npz --checkpoint-file logs/rsl_rl/pikachu_27dof_quad_walk/2026-09-10_20-28-04_quad_tracking/model_4999.pt --viewer viser
+
 
 
 
@@ -308,3 +310,4 @@ $ uv run list-envs
 | 24 | Mjlab-Velocity-Rough-Unitree-G1                    |
 | 25 | Mjlab-Velocity-Rough-Unitree-Go1                   |
 +----+----------------------------------------------------+
+

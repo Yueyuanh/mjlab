@@ -46,6 +46,7 @@ def record_to_csv(
   device: str = "cpu",
   physics_dt: float = 0.005,
   write_root: bool = False,
+  pd_gain_multiplier: float = 1.0,
   verbose: bool = True,
 ) -> RecordingResult:
   """录制一段 PD 打点动作到 CSV。
@@ -62,12 +63,16 @@ def record_to_csv(
     write_root: 是否把 root 运动学写入（钉在插值轨迹上）。False 为默认
       动态模式，root 由浮动基座动力学、接触和关节 PD 自由演化；True 为
       兼容旧数据的 guided 模式。
+    pd_gain_multiplier: 执行器 Kp/Kd 统一放大倍率。默认 1.0；动作响应偏软
+      时可调大（如 1.5~3）让 PD 跟得更硬。只影响本录制。
     verbose: 是否打印录制统计。
 
   Returns:
     RecordingResult：帧数 / 实际帧率 / 时长 / 输出路径。
   """
-  env = MocapEnv(device=device, physics_dt=physics_dt)
+  env = MocapEnv(
+    device=device, physics_dt=physics_dt, pd_gain_multiplier=pd_gain_multiplier
+  )
   cfg = InterpConfig(fps=fps, easing=easing)
   initial_root_pos, initial_root_quat_xyzw, _ = env.get_state()
   traj = build_trajectory(

@@ -22,6 +22,9 @@ from typing import Literal
 import tyro
 
 import mjlab
+from mjlab.asset_zoo.robots.pikachu_xml.pikachu_27dof_constants import (
+  get_pikachu_27dof_mocap_robot_cfg,
+)
 from mjlab.mocap.preview import preview_keyframes
 
 
@@ -36,6 +39,8 @@ def main(
   physics_dt: float = 0.005,
   write_root: bool = False,
   show_com: bool = True,
+  robot: Literal["flat14", "27dof"] = "flat14",
+  pd_gain_multiplier: float = 1.0,
 ) -> None:
   """预览 Pikachu 关键帧动作（交互式 viewer 调试）。
 
@@ -53,7 +58,13 @@ def main(
     write_root: pd 模式是否把 root 运动学写入（钉在插值轨迹上）。
       默认 False，与录制一致：root 由浮动基座动力学自由演化。
     show_com: 是否叠加显示整机质心 COM 及其地面投影。默认 True。
+    robot: 用哪个机器人预览：``"flat14"``（默认，14dof）或 ``"27dof"``。
+      27dof 时未在关键帧里指定的关节（头/耳/尾/臂/腿）默认取 0 弧度，
+      无需把所有 27 个都写进 ``joint_pos``。
+    pd_gain_multiplier: 执行器 Kp/Kd 统一放大倍率。默认 1.0；pd 模式觉得
+      跟随太软可调大（如 1.5~3）让动作更"硬"。只影响这次预览。
   """
+  robot_cfg = get_pikachu_27dof_mocap_robot_cfg() if robot == "27dof" else None
   preview_keyframes(
     keyframes,
     fps=fps,
@@ -65,6 +76,8 @@ def main(
     physics_dt=physics_dt,
     write_root=write_root,
     show_com=show_com,
+    robot_cfg=robot_cfg,
+    pd_gain_multiplier=pd_gain_multiplier,
   )
 
 

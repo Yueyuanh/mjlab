@@ -128,10 +128,12 @@ class NativeMujocoViewer(BaseViewer):
     plot_cfg: PlotCfg | None = None,
     enable_perturbations: bool = True,
     verbosity: VerbosityLevel = VerbosityLevel.SILENT,
+    com_visualizer: bool = False,
   ):
     super().__init__(env, policy, frame_rate, verbosity)
     self.user_key_callback = key_callback
     self.enable_perturbations = enable_perturbations
+    self._show_com = com_visualizer
 
     self.mjm: Optional[mujoco.MjModel] = None
     self.mjd: Optional[mujoco.MjData] = None
@@ -294,6 +296,17 @@ class NativeMujocoViewer(BaseViewer):
 
   def _update_debug_visualizers(self, viewer: mujoco.viewer.Handle) -> None:
     viewer.user_scn.ngeom = 0
+    if self._show_com:
+      assert self.mjm is not None
+      # 延迟 import：mjlab.mocap 的 __init__ 会级联 import tasks → envs，在
+      # envs 初始化期间顶层层 import 会回环（viewer→mocap→tasks→envs）。
+      from mjlab.mocap.stability import com_and_inertia_from_sim, draw_stability
+
+      com_vis = MujocoNativeDebugVisualizer(
+        viewer.user_scn, self.mjm, self.env_idx, self._show_all_envs
+      )
+      data = com_and_inertia_from_sim(self.env.unwrapped.sim, self.env_idx)
+      draw_stability(com_vis, data)
     if self._show_debug_vis and hasattr(self.env.unwrapped, "update_visualizers"):
       assert self.mjm is not None
       visualizer = MujocoNativeDebugVisualizer(

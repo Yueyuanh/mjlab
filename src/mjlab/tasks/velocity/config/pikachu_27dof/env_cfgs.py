@@ -137,9 +137,9 @@ def pikachu_27dof_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   ]
 
   # -- 域随机化 --------------------------------------------------------
-  cfg.events["foot_friction"].params["asset_cfg"].geom_names = (
-    PIKACHU_27DOF_FOOT_GEOM_NAMES
-  )
+  cfg.events["foot_friction"].params[
+    "asset_cfg"
+  ].geom_names = PIKACHU_27DOF_FOOT_GEOM_NAMES
   cfg.events["base_com"].params["asset_cfg"].body_names = (TORSO_BODY,)
   cfg.events["reset_robot_joints"].params["asset_cfg"].joint_names = (".*",)
 
@@ -169,8 +169,11 @@ def pikachu_27dof_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     pose_std[name] = {"stand": 0.05, "walk": 0.5, "run": 0.6}
   for name in upper:
     pose_std[name] = {"stand": 2.0, "walk": 2.0, "run": 2.0}
-  for regime, key in (("std_standing", "stand"), ("std_walking", "walk"),
-                      ("std_running", "run")):
+  for regime, key in (
+    ("std_standing", "stand"),
+    ("std_walking", "walk"),
+    ("std_running", "run"),
+  ):
     cfg.rewards["pose"].params[regime] = {
       name: vals[key] for name, vals in pose_std.items()
     }

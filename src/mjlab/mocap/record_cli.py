@@ -45,6 +45,7 @@ def main(
   device: str = "cpu",
   physics_dt: float = 0.005,
   write_root: bool = False,
+  pd_gain_multiplier: float = 1.0,
   metrics_log: str | None = None,
   metrics_source: str | None = None,
 ) -> None:
@@ -62,6 +63,8 @@ def main(
     physics_dt: 物理仿真步长（秒）。
     write_root: 是否把 root 运动学写入（钉在插值轨迹上）。默认 False，
       root 由浮动基座动力学 + 关节 PD 自由演化（JSON 只需配置关节角）。
+    pd_gain_multiplier: 执行器 Kp/Kd 统一放大倍率（>0）。默认 1.0；动作跟
+      随偏软时可调大（如 1.5~3），与预览参数一致地录制。
     metrics_log: 若给出，额外录一份对齐 RL tracking 的电机输出 metrics
       日志到该目录（如 ``src/mjlab/mocap/logs``），供 plot_logs dashboard
       对比「RL policy vs 单点位插值控制」的电机输出。
@@ -83,6 +86,7 @@ def main(
     device=device,
     physics_dt=physics_dt,
     write_root=write_root,
+    pd_gain_multiplier=pd_gain_multiplier,
     verbose=True,
   )
 
@@ -97,6 +101,7 @@ def main(
       device=device,
       physics_dt=physics_dt,
       write_root=write_root,
+      pd_gain_multiplier=pd_gain_multiplier,
       verbose=True,
     )
 

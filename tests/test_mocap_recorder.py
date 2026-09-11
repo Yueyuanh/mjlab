@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from mjlab.mocap.keyframes import PoseKeyframe
+from mjlab.mocap.keyframes import InterpConfig, PoseKeyframe, build_trajectory
 from mjlab.mocap.recorder import load_keyframes_json, record_to_csv
 
 JOINT_NAMES = (
@@ -34,8 +34,13 @@ class FakeMocapEnv:
 
   instances: list["FakeMocapEnv"] = []
 
-  def __init__(self, device: str = "cpu", physics_dt: float = 0.005):
-    del device, physics_dt
+  def __init__(
+    self,
+    device: str = "cpu",
+    physics_dt: float = 0.005,
+    pd_gain_multiplier: float = 1.0,
+  ):
+    del device, physics_dt, pd_gain_multiplier
     self.joint_names = JOINT_NAMES
     self.soft_joint_pos_limits = np.tile(np.array([-10.0, 10.0]), (len(JOINT_NAMES), 1))
     self.reset_calls: list[dict[str, np.ndarray | None]] = []
@@ -108,6 +113,56 @@ class FakeMocapEnv:
   ) -> tuple[bool, np.ndarray]:
     del joint_names
     return True, np.ones_like(np.asarray(dof_pos, dtype=float))
+
+
+def test_build_trajectory_defaults_unlisted_joints_to_zero():
+  # 只在关键帧里指定个别关节，未提及的（如 27dof 的 head_pitch_joint）
+  # 应兜底为 0 弧度，而不是 KeyError。
+  kf = [
+    PoseKeyframe(duration=0.1, joint_pos={"left_hip_pitch_joint": -0.3}),
+    PoseKeyframe(duration=0.1, joint_pos={"left_hip_pitch_joint": -0.4}),
+  ]
+  traj = build_trajectory(kf, JOINT_NAMES)
+
+  assert traj.dof_pos.shape[1] == len(JOINT_NAMES)
+  idx_pitch = JOINT_NAMES.index("left_hip_pitch_joint")
+  np.testing.assert_allclose(traj.dof_pos[-1, idx_pitch], -0.4)
+  for j, name in enumerate(JOINT_NAMES):
+    if name != "left_hip_pitch_joint":
+      np.testing.assert_allclose(traj.dof_pos[-1, j], 0.0, atol=1e-9)
+
+
+def test_build_trajectory_loop_closes_track_continuously():
+  # 非周期动作：loop=True 应在末尾补一段回退段，且末帧精确等于首帧，
+  # 使循环折回时不跳变。
+  full = _joint_map()
+  kf = [
+    PoseKeyframe(
+      duration=0.1,
+      root_pos=(0.0, 0.0, 0.20),
+      root_quat=(0.0, 0.0, 0.0, 1.0),
+      joint_pos={**full, "left_hip_pitch_joint": 0.0},
+    ),
+    PoseKeyframe(
+      duration=0.1,
+      root_pos=(1.0, 0.0, 0.20),
+      root_quat=(0.0, 0.0, 0.0, 1.0),
+      joint_pos={**full, "left_hip_pitch_joint": 0.5},
+    ),
+  ]
+  cfg = InterpConfig(fps=20.0, easing="linear")
+  linear = build_trajectory(kf, JOINT_NAMES, cfg=cfg, loop=False)
+  looped = build_trajectory(kf, JOINT_NAMES, cfg=cfg, loop=True)
+
+  assert looped.num_frames > linear.num_frames
+  np.testing.assert_allclose(looped.dof_pos[-1], looped.dof_pos[0])
+  np.testing.assert_allclose(looped.root_pos[-1], looped.root_pos[0])
+  np.testing.assert_allclose(looped.root_quat_xyzw[-1], looped.root_quat_xyzw[0])
+  # 首帧 → 末帧单调走到 1，回退段再退到 0。
+  xs = looped.root_pos[:, 0]
+  assert xs[0] == 0.0
+  assert xs[linear.num_frames - 1] == 1.0
+  assert xs[-1] == 0.0
 
 
 def test_load_keyframes_json_allows_joint_only_keyframes(tmp_path):

@@ -213,6 +213,49 @@ class ViserDebugOverlays:
 
 
 @dataclass
+class ViserCoMOverlays:
+  """实时叠加整机质心/惯量/足底接触支撑多边形（play ``--com``）。
+
+  每帧调用 :func:`mjlab.mocap.stability.com_and_inertia_from_sim` 从当前环境算
+  CoM/惯量/着地足盒，再经 :func:`draw_stability` 画到 ``scene`` 的 debug 队列，
+  与 ``ViserDebugOverlays`` 复用同一套 ``_sync_simple_primitives`` 生命周期
+  （每帧重建当前队列中的图元，不会累积残留）。
+  """
+
+  server: viser.ViserServer
+  env: _EnvProtocol
+  scene: _SceneProtocol
+  enabled: bool = False
+
+  def setup_gui(self) -> None:
+    """在 Visualization tab 加一个开启开关。"""
+    cb = self.server.gui.add_checkbox(
+      "CoM / 惯量 / 支撑多边形", initial_value=self.enabled
+    )
+
+    @cb.on_update
+    def _on_update(_ev) -> None:
+      self.enabled = cb.value
+
+  def on_env_switch(self) -> None:
+    """切换环境时清掉上一棵机体的叠加图元。"""
+    if self.enabled:
+      self.scene.clear_debug_all()
+
+  def queue(self) -> None:
+    """把当前环境稳定量追加进 scene 的 debug 图元队列（供每帧 sync）。"""
+    if not (self.enabled and self.scene.debug_visualization_enabled):
+      return
+    sim = self.env.unwrapped.sim
+    # 延迟 import：mjlab.mocap 的 __init__ 会级联 import tasks → envs，在
+    # envs 初始化期间顶层 import 会回环，这里只在运行时（env 已就绪）拉取。
+    from mjlab.mocap.stability import com_and_inertia_from_sim, draw_stability
+
+    data = com_and_inertia_from_sim(sim, self.scene.env_idx)
+    draw_stability(self.scene, data)
+
+
+@dataclass
 class ViserContactOverlays:
   """Manage contact-visualization orchestration from the viewer layer.
 

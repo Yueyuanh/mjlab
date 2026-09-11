@@ -48,6 +48,9 @@ class PlayConfig:
   video_width: int | None = None
   camera: int | str | None = None
   viewer: Literal["auto", "native", "viser", "arm-swing"] = "auto"
+  com: bool = False
+  """开启实时稳定性叠加层：整机质心 CoM、绕其惯量主轴椭球、足底接触支撑
+  多边形（viser 的 Visualization tab 里也有开关）。"""
   no_terminations: bool = False
   """Disable all termination conditions (useful for viewing motions with dummy agents)."""
   sampling_mode: Literal["adaptive", "uniform", "start"] | None = None
@@ -313,7 +316,7 @@ def run_play(task_id: str, cfg: PlayConfig):
     return f"{task_id}__{Path(checkpoint_name).stem}"
 
   if resolved_viewer == "native":
-    NativeMujocoViewer(env, policy).run()
+    NativeMujocoViewer(env, policy, com_visualizer=cfg.com).run()
   elif resolved_viewer == "viser":
     ViserPlayViewer(
       env,
@@ -321,6 +324,7 @@ def run_play(task_id: str, cfg: PlayConfig):
       checkpoint_manager=ckpt_manager,
       metrics_output_dir=metrics_output_dir,
       metrics_source_name=metrics_source_name,
+      com_visualizer=cfg.com,
     ).run()
   elif resolved_viewer == "arm-swing":
     ArmSwingViewer(

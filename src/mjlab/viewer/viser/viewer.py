@@ -29,6 +29,7 @@ from mjlab.viewer.base import (
 )
 from mjlab.viewer.viser.overlays import (
   ViserCameraOverlays,
+  ViserCoMOverlays,
   ViserContactOverlays,
   ViserDebugOverlays,
   ViserTermOverlays,
@@ -75,15 +76,18 @@ class ViserPlayViewer(BaseViewer):
     checkpoint_manager: CheckpointManager | None = None,
     metrics_output_dir: Path | None = None,
     metrics_source_name: Callable[[], str] | None = None,
+    com_visualizer: bool = False,
   ) -> None:
     super().__init__(env, policy, frame_rate, verbosity)
     self._ckpt_mgr = checkpoint_manager
     self._metrics_output_dir = metrics_output_dir
     self._metrics_source_name = metrics_source_name
+    self._com_visualizer = com_visualizer
     self._term_overlays: ViserTermOverlays | None = None
     self._camera_overlays: ViserCameraOverlays | None = None
     self._debug_overlays: ViserDebugOverlays | None = None
     self._contact_overlays: ViserContactOverlays | None = None
+    self._com_overlays: ViserCoMOverlays | None = None
     self._sim_lock = Lock()
     self._camera_update_last_ms: float = 0.0
     self._debug_queue_last_ms: float = 0.0
@@ -204,9 +208,13 @@ class ViserPlayViewer(BaseViewer):
 
     self._prev_env_idx = self._scene.env_idx
 
+    self._com_overlays = ViserCoMOverlays(
+      self._server, self.env, self._scene, enabled=self._com_visualizer
+    )
     # Visualization tab (overlay controls: contacts, forces, inertia, etc.).
     with tabs.add_tab("Visualization", icon=viser.Icon.EYE):
       self._scene.create_overlay_gui()
+      self._com_overlays.setup_gui()
 
     self._term_overlays = ViserTermOverlays(
       self._server,
@@ -379,6 +387,8 @@ class ViserPlayViewer(BaseViewer):
         self._debug_overlays.on_env_switch()
       if self._contact_overlays:
         self._contact_overlays.on_env_switch()
+      if self._com_overlays:
+        self._com_overlays.on_env_switch()
 
     if self._term_overlays:
       self._term_overlays.update(self._is_paused, step_idx=self._step_count)
@@ -441,6 +451,9 @@ class ViserPlayViewer(BaseViewer):
     if self._debug_overlays:
       with self._sim_lock:
         self._debug_overlays.queue()
+    if self._com_overlays:
+      with self._sim_lock:
+        self._com_overlays.queue()
     self._debug_queue_last_ms = (time.perf_counter() - t0) * 1000.0
 
   def _submit_scene_update_if_needed(

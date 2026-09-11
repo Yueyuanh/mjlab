@@ -81,6 +81,11 @@ class MotionCommand(CommandTerm):
     self.motion = MotionLoader(
       self.cfg.motion_file, self.body_indexes, device=self.device
     )
+    # Clamp the episode start frame to a valid range so it can't fly past the
+    # reference length or under negative.
+    self._start_frame = int(
+      min(max(self.cfg.start_frame, 0), self.motion.time_step_total - 1)
+    )
     self._joint_ids: torch.Tensor | None = None
     if self.cfg.joint_names:
       self._joint_ids = torch.tensor(
@@ -341,12 +346,19 @@ class MotionCommand(CommandTerm):
 
   def _resample_command(self, env_ids: torch.Tensor):
     if self.cfg.sampling_mode == "start":
-      self.time_steps[env_ids] = 0
+      self.time_steps[env_ids] = self._start_frame
     elif self.cfg.sampling_mode == "uniform":
       self._uniform_sampling(env_ids)
     else:
       assert self.cfg.sampling_mode == "adaptive"
       self._adaptive_sampling(env_ids)
+    # Enforce the start frame as a lower bound so no episode (start, uniform,
+    # or adaptive) bootstraps into the early settle/clipped frame region.
+    self.time_steps[env_ids] = torch.clamp(
+      self.time_steps[env_ids],
+      self._start_frame,
+      self.motion.time_step_total - 1,
+    )
 
     root_pos = self.body_pos_w[env_ids, 0].clone()
     root_ori = self.body_quat_w[env_ids, 0].clone()
@@ -653,6 +665,16 @@ class MotionCommandCfg(CommandTermCfg):
   adaptive_uniform_ratio: float = 0.1
   adaptive_alpha: float = 0.001
   sampling_mode: Literal["adaptive", "uniform", "start"] = "adaptive"
+  start_frame: int = 0
+  """First valid reference time step an episode may start from. Reference
+  motions are usually recorded from a standing start whose opening frames can
+  have limbs mid-settle or clipped against the ground; skipping them (e.g. 4)
+  avoids re-seeding the robot into a state that gets contact-kicked on reset.
+
+  Applied as the lower bound on all three sampling modes: ``start`` begins
+  each episode at this frame; ``uniform``/``adaptive`` only ever sample time
+  steps >= this value (bootstrapping frames before it are never trained on).
+  Clamped to ``[0, time_step_total - 1]`` at build time."""
 
   @dataclass
   class VizCfg:
