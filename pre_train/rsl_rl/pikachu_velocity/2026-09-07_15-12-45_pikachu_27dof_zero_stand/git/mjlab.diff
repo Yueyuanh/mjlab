@@ -1,0 +1,30 @@
+--- git commit ---
+e94a7f1d2f903e0fa90a17374ffebc81cacafad2
+
+
+--- git status ---
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   TrainSpec.md
+
+no changes added to commit (use "git add" and/or "git commit -a") 
+
+
+--- git diff ---
+diff --git a/TrainSpec.md b/TrainSpec.md
+index 7a33be5..52aa396 100644
+--- a/TrainSpec.md
++++ b/TrainSpec.md
+@@ -251,6 +251,8 @@ uv run train Mjlab-Velocity-Flat-Pikachu-Quad \
+ rsync -avz --progress yons@192.168.0.117:/home/yons/pikachu/mjlab/logs/ /home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/4090-logs
+ 
+ 
++rsync -avz --progress /home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs finnox-4090@10.20.15.181:/home/finnox-4090/RL/Pikachu/mjlab/
++
+ 
+ 
+ 

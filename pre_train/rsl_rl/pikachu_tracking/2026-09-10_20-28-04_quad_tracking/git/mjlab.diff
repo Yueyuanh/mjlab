@@ -1,0 +1,1536 @@
+--- git commit ---
+e94a7f1d2f903e0fa90a17374ffebc81cacafad2
+
+
+--- git status ---
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   TrainSpec.md
+	modified:   scripts/make_27dof_walk_reference.py
+	modified:   src/mjlab/asset_zoo/robots/pikachu/pikachu_constants_v22.py
+	modified:   src/mjlab/asset_zoo/robots/pikachu_xml/mjcf/pikachu_27dof_train.xml
+	modified:   src/mjlab/asset_zoo/robots/pikachu_xml/pikachu_27dof_constants.py
+	modified:   src/mjlab/envs/mdp/actions/random_flail.py
+	modified:   src/mjlab/mocap/keyframes.py
+	modified:   src/mjlab/mocap/metrics_logger.py
+	modified:   src/mjlab/mocap/mocap_env.py
+	modified:   src/mjlab/mocap/npz/pikachu_walk_27dof_npz/pikachu_walk_0.185_27dof.npz
+	modified:   src/mjlab/mocap/preview.py
+	modified:   src/mjlab/mocap/preview_cli.py
+	modified:   src/mjlab/mocap/record_cli.py
+	modified:   src/mjlab/mocap/recorder.py
+	modified:   src/mjlab/scripts/play.py
+	modified:   src/mjlab/scripts/train.py
+	modified:   src/mjlab/tasks/tracking/config/pikachu_27dof/__init__.py
+	modified:   src/mjlab/tasks/tracking/config/pikachu_27dof/env_cfgs.py
+	modified:   src/mjlab/tasks/tracking/config/pikachu_27dof/rl_cfg.py
+	modified:   src/mjlab/tasks/tracking/mdp/commands.py
+	modified:   src/mjlab/tasks/velocity/config/pikachu_27dof/__init__.py
+	modified:   src/mjlab/tasks/velocity/config/pikachu_27dof/env_cfgs.py
+	modified:   src/mjlab/tasks/velocity/config/pikachu_27dof/rl_cfg.py
+	modified:   src/mjlab/viewer/native/viewer.py
+	modified:   src/mjlab/viewer/viser/overlays.py
+	modified:   src/mjlab/viewer/viser/viewer.py
+	modified:   tests/test_mocap_recorder.py
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	src/mjlab/asset_zoo/robots/pikachu_xml/meshes/pikachu_skin_self_rig_mesh_T3Plane-edited-3x.stl
+	src/mjlab/asset_zoo/robots/pikachu_xml/pikachu_27dof_quad_constants.py
+	src/mjlab/mocap/analyze_stability.py
+	src/mjlab/mocap/configs/27dof/
+	src/mjlab/mocap/npz/pikachu_walk_27dof_npz/pikachu_quad.npz
+	src/mjlab/mocap/npz/pikachu_walk_27dof_npz/quad_27dof_quad.npz
+	src/mjlab/mocap/npz/quad.csv
+	src/mjlab/mocap/npz/quad.npz
+	src/mjlab/mocap/npz/quad_27dof_quad.npz
+	src/mjlab/mocap/stability.py
+	src/mjlab/scripts/analyze_com_zmp.py
+	src/mjlab/scripts/analyze_joint_loads.py
+	src/mjlab/scripts/make_27dof_quad_reference.py
+	src/mjlab/tasks/tracking/config/pikachu_27dof_quad/
+	src/mjlab/tasks/velocity/config/pikachu_27dof_quad/
+	tests/test_27dof_quad_constants.py
+	tests/test_joint_loads.py
+	tests/test_stability.py
+
+no changes added to commit (use "git add" and/or "git commit -a") 
+
+
+--- git diff ---
+diff --git a/TrainSpec.md b/TrainSpec.md
+index 7a33be5..fa39e8d 100644
+--- a/TrainSpec.md
++++ b/TrainSpec.md
+@@ -307,4 +307,5 @@ $ uv run list-envs
+ | 23 | Mjlab-Velocity-Rough-Pikachu                       |
+ | 24 | Mjlab-Velocity-Rough-Unitree-G1                    |
+ | 25 | Mjlab-Velocity-Rough-Unitree-Go1                   |
+-+----+----------------------------------------------------+
+\ No newline at end of file
+++----+----------------------------------------------------+
++
+diff --git a/scripts/make_27dof_walk_reference.py b/scripts/make_27dof_walk_reference.py
+index 33fca14..56e22cc 100644
+--- a/scripts/make_27dof_walk_reference.py
++++ b/scripts/make_27dof_walk_reference.py
+@@ -8,6 +8,7 @@ RandomFlail 干扰)填 0(限位中位、正位)。
+ 
+ 用法: uv run python <此脚本> <输出目录>
+ """
++
+ import sys
+ 
+ import numpy as np
+@@ -17,47 +18,119 @@ SRC_DIR = "src/mjlab/mocap/npz/pikachu_walk_base_npz"
+ 
+ # 27dof 机器人 body 顺序(索引 = 布局列)。来自 pakachu_27dof_train.xml。
+ BODY_27 = [
+-  "base_link", "head_pitch_link", "head_yaw_link", "head_roll_link",
+-  "left_ear_pitch_link", "left_ear_roll_link", "right_ear_pitch_link",
+-  "right_ear_roll_link", "tail_pitch_link", "tail_yaw_link",
+-  "left_hip_pitch_link", "left_hip_roll_link", "left_hip_yaw_link",
+-  "left_knee_link", "left_ankle_link", "right_hip_pitch_link",
+-  "right_hip_roll_link", "right_hip_yaw_link", "right_knee_link",
+-  "right_ankle_link", "left_arm_pitch_link", "left_arm_roll_link",
+-  "left_arm_yaw_link", "left_elbow_link", "right_arm_pitch_link",
+-  "right_arm_roll_link", "right_arm_yaw_link", "right_elbow_link",
++  "base_link",
++  "head_pitch_link",
++  "head_yaw_link",
++  "head_roll_link",
++  "left_ear_pitch_link",
++  "left_ear_roll_link",
++  "right_ear_pitch_link",
++  "right_ear_roll_link",
++  "tail_pitch_link",
++  "tail_yaw_link",
++  "left_hip_pitch_link",
++  "left_hip_roll_link",
++  "left_hip_yaw_link",
++  "left_knee_link",
++  "left_ankle_link",
++  "right_hip_pitch_link",
++  "right_hip_roll_link",
++  "right_hip_yaw_link",
++  "right_knee_link",
++  "right_ankle_link",
++  "left_arm_pitch_link",
++  "left_arm_roll_link",
++  "left_arm_yaw_link",
++  "left_elbow_link",
++  "right_arm_pitch_link",
++  "right_arm_roll_link",
++  "right_arm_yaw_link",
++  "right_elbow_link",
+ ]
+ 
+ # 27dof 关节顺序(索引 = dof 列)。
+ JOINT_27 = [
+-  "head_pitch_joint", "head_yaw_joint", "head_roll_joint",
+-  "left_ear_pitch_joint", "left_ear_roll_joint", "right_ear_pitch_joint",
+-  "right_ear_roll_joint", "tail_pitch_joint", "tail_yaw_joint",
+-  "left_hip_pitch_joint", "left_hip_roll_joint", "left_hip_yaw_joint",
+-  "left_knee_joint", "left_ankle_joint", "right_hip_pitch_joint",
+-  "right_hip_roll_joint", "right_hip_yaw_joint", "right_knee_joint",
+-  "right_ankle_joint", "left_arm_pitch_joint", "left_arm_roll_joint",
+-  "left_arm_yaw_joint", "left_elbow_joint", "right_arm_pitch_joint",
+-  "right_arm_roll_joint", "right_arm_yaw_joint", "right_elbow_joint",
++  "head_pitch_joint",
++  "head_yaw_joint",
++  "head_roll_joint",
++  "left_ear_pitch_joint",
++  "left_ear_roll_joint",
++  "right_ear_pitch_joint",
++  "right_ear_roll_joint",
++  "tail_pitch_joint",
++  "tail_yaw_joint",
++  "left_hip_pitch_joint",
++  "left_hip_roll_joint",
++  "left_hip_yaw_joint",
++  "left_knee_joint",
++  "left_ankle_joint",
++  "right_hip_pitch_joint",
++  "right_hip_roll_joint",
++  "right_hip_yaw_joint",
++  "right_knee_joint",
++  "right_ankle_joint",
++  "left_arm_pitch_joint",
++  "left_arm_roll_joint",
++  "left_arm_yaw_joint",
++  "left_elbow_joint",
++  "right_arm_pitch_joint",
++  "right_arm_roll_joint",
++  "right_arm_yaw_joint",
++  "right_elbow_joint",
+ ]
+ 
+ # 13dof 源 body 顺序(flat_14dof_lite):base + 双腿5 + 双臂3。
+ BODY_SRC = [
+   "base_link",
+-  "left_hip_pitch_link", "left_hip_roll_link", "left_hip_yaw_link",
+-  "left_knee_link", "left_ankle_link",
+-  "right_hip_pitch_link", "right_hip_roll_link", "right_hip_yaw_link",
+-  "right_knee_link", "right_ankle_link",
+-  "left_arm_pitch_link", "left_arm_roll_link", "left_arm_yaw_link",
+-  "right_arm_pitch_link", "right_arm_roll_link", "right_arm_yaw_link",
++  "left_hip_pitch_link",
++  "left_hip_roll_link",
++  "left_hip_yaw_link",
++  "left_knee_link",
++  "left_ankle_link",
++  "right_hip_pitch_link",
++  "right_hip_roll_link",
++  "right_hip_yaw_link",
++  "right_knee_link",
++  "right_ankle_link",
++  "left_arm_pitch_link",
++  "left_arm_roll_link",
++  "left_arm_yaw_link",
++  "right_arm_pitch_link",
++  "right_arm_roll_link",
++  "right_arm_yaw_link",
+ ]
+ 
+ # 腿 10(顺序与 LEG_JOINT_NAMES 一致)。
+ LEG_JOINTS = [
+-  "left_hip_pitch_joint", "left_hip_roll_joint", "left_hip_yaw_joint",
+-  "left_knee_joint", "left_ankle_joint",
+-  "right_hip_pitch_joint", "right_hip_roll_joint", "right_hip_yaw_joint",
+-  "right_knee_joint", "right_ankle_joint",
++  "left_hip_pitch_joint",
++  "left_hip_roll_joint",
++  "left_hip_yaw_joint",
++  "left_knee_joint",
++  "left_ankle_joint",
++  "right_hip_pitch_joint",
++  "right_hip_roll_joint",
++  "right_hip_yaw_joint",
++  "right_knee_joint",
++  "right_ankle_joint",
++]
++
++# 27dof 与 14dof(walk-base 源)旋转轴相反的腿部关节列索引,需取负才能让
++# 27dof 机器人复现与源相同的肢体位形。
++#
++# 原因:14dof 机器人腿关节左右镜像对称(left 用 [0,±1,0]…,right 用反号),
++# 是"正确"的;而 27dof 机器人 left_hip_pitch/yaw/knee/ankle 被定义成与
++# 右腿同向,等于把左腿轴做反了,right_hip_roll 亦然。若不取负,walk 参考
++# 套到 27dof 上右腿转向正确、左腿整套转向相反(见 axis 对比)。
++#   14dof → 27dof 轴翻转的列:
++#   left_hip_pitch [0,1,0]→[0,-1,0], left_hip_yaw [0,0,-1]→[0,0,1],
++#   left_knee [0,-1,0]→[0,1,0], left_ankle [0,1,0]→[0,-1,0],
++#   right_hip_roll [1,0,0]→[-1,0,0]。
++FLIP_COLS = [
++  LEG_JOINTS.index("left_hip_pitch_joint"),
++  LEG_JOINTS.index("left_hip_yaw_joint"),
++  LEG_JOINTS.index("left_knee_joint"),
++  LEG_JOINTS.index("left_ankle_joint"),
++  LEG_JOINTS.index("right_hip_roll_joint"),
+ ]
+ 
+ # 从 27dof body 中复用 walk 参考的 body:base + legs。
+@@ -67,8 +140,12 @@ _src_of = {b: i for i, b in enumerate(BODY_SRC)}
+ # LEG body(7):base + 双腿 hip_pitch/knee/ankle(与 walk_base env_cfg 一致)。
+ LEG_BODIES = (
+   "base_link",
+-  "left_hip_pitch_link", "left_knee_link", "left_ankle_link",
+-  "right_hip_pitch_link", "right_knee_link", "right_ankle_link",
++  "left_hip_pitch_link",
++  "left_knee_link",
++  "left_ankle_link",
++  "right_hip_pitch_link",
++  "right_knee_link",
++  "right_ankle_link",
+ )
+ BODY_MAP = {_27_of[b]: _src_of[b] for b in LEG_BODIES}  # 27dof col -> src col
+ JOINT_MAP = {JOINT_27.index(j): LEG_JOINTS.index(j) for j in LEG_JOINTS}
+@@ -76,11 +153,11 @@ JOINT_MAP = {JOINT_27.index(j): LEG_JOINTS.index(j) for j in LEG_JOINTS}
+ 
+ def main(out_dir: str) -> None:
+   import os
++
+   os.makedirs(out_dir, exist_ok=True)
+   d = np.load(f"{SRC_DIR}/{SRC}")
+   n_frames = d["joint_pos"].shape[0]
+   n_body = len(BODY_27)
+-  n_joint = len(JOINT_27)
+ 
+   bp = np.zeros((n_frames, n_body, 3), dtype=np.float32)
+   bq = np.zeros((n_frames, n_body, 4), dtype=np.float32)
+@@ -105,13 +182,20 @@ def main(out_dir: str) -> None:
+   # joint_ids 一一对应）。上肢关节由 RandomFlail 独立干扰，不进参考。
+   jp = d["joint_pos"].astype(np.float32)
+   jv = d["joint_vel"].astype(np.float32)
++  # 轴翻转的关节列取负,把 27dof 左腿(及右 roll)转到与 14dof 一致的方向。
++  jp[:, FLIP_COLS] *= -1.0
++  jv[:, FLIP_COLS] *= -1.0
+ 
+   out = f"{out_dir}/pikachu_walk_0.185_27dof.npz"
+   np.savez(
+     out,
+     fps=d["fps"],
+-    joint_pos=jp, joint_vel=jv,
+-    body_pos_w=bp, body_quat_w=bq, body_lin_vel_w=bl, body_ang_vel_w=ba,
++    joint_pos=jp,
++    joint_vel=jv,
++    body_pos_w=bp,
++    body_quat_w=bq,
++    body_lin_vel_w=bl,
++    body_ang_vel_w=ba,
+   )
+   print(
+     f"written {out}\n  frames={n_frames} body={n_body} "
+@@ -121,4 +205,6 @@ def main(out_dir: str) -> None:
+ 
+ 
+ if __name__ == "__main__":
+-  main(sys.argv[1] if len(sys.argv) > 1 else "src/mjlab/mocap/npz/pikachu_walk_27dof_npz")
+\ No newline at end of file
++  main(
++    sys.argv[1] if len(sys.argv) > 1 else "src/mjlab/mocap/npz/pikachu_walk_27dof_npz"
++  )
+diff --git a/src/mjlab/asset_zoo/robots/pikachu/pikachu_constants_v22.py b/src/mjlab/asset_zoo/robots/pikachu/pikachu_constants_v22.py
+index 36fad17..763d31a 100644
+--- a/src/mjlab/asset_zoo/robots/pikachu/pikachu_constants_v22.py
++++ b/src/mjlab/asset_zoo/robots/pikachu/pikachu_constants_v22.py
+@@ -191,7 +191,7 @@ QUAD_SL22_KEYFRAME = EntityCfg.InitialStateCfg(
+   pos=(0, 0, 0.112),
+   # rot=(0.593497, 0.0, 0.804837,0),# 117
+   # rot=(0.7071, 0, 0.7071, 0), #90
+-  rot=(0.6756, 0, 0.7373, 0), #95
++  rot=(0.6756, 0, 0.7373, 0),  # 95
+   joint_pos={
+     # 腿：后支撑（四足时腿在 base 后方弯曲），左右取反
+     "left_hip_pitch_joint": -2.4,
+@@ -230,7 +230,7 @@ QUAD_SL22_BODY_AXIS: tuple[float, float, float] = (0.0, 0.0, 1.0)
+ #     塌成趴地(实测静置背轴角 ≈75°、base_z≈0.04、base 触地),**不是有效四足姿态**。
+ #     必须先调好四足趴姿(手脚四点支撑、躯干不塌),再用 viewer 让紫箭头(目标)对准
+ #     实际目标背轴后再回填,不要直接照抄 keyframe 的 90°。
+-QUAD_SL22_TILT_DEG: float = 90.0+5.0
++QUAD_SL22_TILT_DEG: float = 90.0 + 5.0
+ 
+ # 四足前腿 = 手的支撑几何：手掌(arm_yaw_link)撑地。
+ QUAD_SL22_HAND_GEOM_NAMES = PIKACHU_SL22_HAND_GEOM_NAMES
+diff --git a/src/mjlab/asset_zoo/robots/pikachu_xml/mjcf/pikachu_27dof_train.xml b/src/mjlab/asset_zoo/robots/pikachu_xml/mjcf/pikachu_27dof_train.xml
+index 41b3e85..4b53429 100644
+--- a/src/mjlab/asset_zoo/robots/pikachu_xml/mjcf/pikachu_27dof_train.xml
++++ b/src/mjlab/asset_zoo/robots/pikachu_xml/mjcf/pikachu_27dof_train.xml
+@@ -10,9 +10,9 @@
+     <worldbody>
+         <body name="base_link" pos="0 0 0">
+             <freejoint name="floating_base"/>
+-            <inertial pos="0 0 0.1095" quat="0.707107 0.707107 0 0" mass="10.1616" diaginertia="0.0861915 0.0794502 0.0744854" />
++            <inertial pos="0 0 0.1095" quat="0.707107 0.707107 0 0" mass="4.1616" diaginertia="0.0861915 0.0794502 0.0744854" />
+             <geom size="0.1 0.116 0.1095" pos="0 0 0.1095" type="box" contype="0" conaffinity="0" group="1" rgba="0.55 0.6 0.75 1" />
+-            <geom size="0.1 0.116 0.1095" pos="0 0 0.1095" type="box" rgba="0.55 0.6 0.75 1" />
++            <geom size="0.1 0.116 0.1095" pos="0 0 0.1095" name="base_link_collision" type="box" rgba="0.55 0.6 0.75 1" />
+             <site name="imu" pos="0 0 0" quat="0.593497 0 -0.804837 0" size="0.01" />
+             <body name="head_pitch_link" pos="0 0 0.219">
+                 <inertial pos="0 0 0" mass="6.4e-05" diaginertia="1.70667e-10 1.70667e-10 1.70667e-10" />
+@@ -23,10 +23,10 @@
+                     <joint name="head_yaw_joint" pos="0 0 0" axis="0 0 1" limited="true" range="-0.8 0.8" />
+                     <geom size="0.002 0.002 0.002" type="box" />
+                     <body name="head_roll_link" pos="0 0 0">
+-                        <inertial pos="0 0 0.115" quat="0.707107 0.707107 0 0" mass="11.96" diaginertia="0.120098 0.107241 0.0925903" />
++                        <inertial pos="0 0 0.115" quat="0.707107 0.707107 0 0" mass="0.96" diaginertia="0.120098 0.107241 0.0925903" />
+                         <joint name="head_roll_joint" pos="0 0 0" axis="1 0 0" limited="true" range="-0.0 0.01" />
+                         <geom size="0.1 0.13 0.115" pos="0 0 0.115" type="box" contype="0" conaffinity="0" group="1" rgba="0.98 0.85 0.3 1" />
+-                        <geom size="0.1 0.13 0.115" pos="0 0 0.115" type="box" rgba="0.98 0.85 0.3 1" />
++                        <geom size="0.1 0.13 0.115" pos="0 0 0.115" name="head_roll_link_collision" type="box" rgba="0.98 0.85 0.3 1" />
+                         <body name="left_ear_pitch_link" pos="0 0.116 0.23">
+                             <inertial pos="0 0 0" mass="6.4e-05" diaginertia="1.70667e-10 1.70667e-10 1.70667e-10" />
+                             <joint name="left_ear_pitch_joint" pos="0 0 0" axis="0 1 0" limited="true" range="-0.6 0.8" />
+@@ -35,7 +35,7 @@
+                                 <inertial pos="0 0 0.0425" mass="0.04284" diaginertia="2.85921e-05 2.69499e-05 3.95556e-06" />
+                                 <joint name="left_ear_roll_joint" pos="0 0 0" axis="1 0 0" limited="true" range="-0.6 0.8" />
+                                 <geom size="0.009 0.014 0.0425" pos="0 0 0.0425" type="box" contype="0" conaffinity="0" group="1" rgba="0.95 0.78 0.25 1" />
+-                                <geom size="0.009 0.014 0.0425" pos="0 0 0.0425" type="box" rgba="0.95 0.78 0.25 1" />
++                                <geom size="0.009 0.014 0.0425" pos="0 0 0.0425" name="left_ear_roll_link_collision" type="box" rgba="0.95 0.78 0.25 1" />
+                             </body>
+                         </body>
+                         <body name="right_ear_pitch_link" pos="0 -0.116 0.23">
+@@ -46,7 +46,7 @@
+                                 <inertial pos="0 0 0.0425" mass="0.04284" diaginertia="2.85921e-05 2.69499e-05 3.95556e-06" />
+                                 <joint name="right_ear_roll_joint" pos="0 0 0" axis="1 0 0" limited="true" range="-0.6 0.8" />
+                                 <geom size="0.009 0.014 0.0425" pos="0 0 0.0425" type="box" contype="0" conaffinity="0" group="1" rgba="0.95 0.78 0.25 1" />
+-                                <geom size="0.009 0.014 0.0425" pos="0 0 0.0425" type="box" rgba="0.95 0.78 0.25 1" />
++                                <geom size="0.009 0.014 0.0425" pos="0 0 0.0425" name="right_ear_roll_link_collision" type="box" rgba="0.95 0.78 0.25 1" />
+                             </body>
+                         </body>
+                     </body>
+@@ -54,35 +54,35 @@
+             </body>
+             <body name="tail_pitch_link" pos="-0.0955 0 -0.003">
+                 <inertial pos="0 0 0" mass="6.4e-05" diaginertia="1.70667e-10 1.70667e-10 1.70667e-10" />
+-                <joint name="tail_pitch_joint" pos="0 0 0" axis="0 1 0" limited="true" range="-1.2 1.2" />
++                <joint name="tail_pitch_joint" pos="0 0 0" axis="0 1 0" limited="true" range="-0.8 0.8" />
+                 <geom size="0.002 0.002 0.002" type="box" />
+                 <body name="tail_yaw_link" pos="0 0 0">
+                     <inertial pos="-0.0475 0 0" quat="0 0.707107 0 0.707107" mass="0.095" diaginertia="9.12396e-05 7.46146e-05 2.29583e-05" />
+                     <joint name="tail_yaw_joint" pos="0 0 0" axis="0 0 1" limited="true" range="-1.2 1.2" />
+                     <geom pos="-0.07 0 0" quat="0.707388 0 0 0.706825" type="mesh" contype="0" conaffinity="0" group="0" rgba="0.55 0.38 0.18 1" mesh="pikachu_skin_self_rig_mesh_T3Plane-edited" />
+-                    <!-- <geom size="0.0475 0.025 0.01" pos="-0.0475 0 0" type="box" rgba="0.55 0.38 0.18 1" /> -->
++                    <geom name="tail_yaw_link_collision" size="0.0475 0.025 0.01" pos="-0.0475 0 0" type="box" rgba="0.55 0.38 0.18 1" />
+                 </body>
+             </body>
+             <body name="left_hip_pitch_link" pos="0 0.0645 0">
+                 <inertial pos="0 0.01775 0" quat="0 0.707107 0 0.707107" mass="0.0355" diaginertia="8.46157e-06 6.58229e-06 5.5772e-06" />
+                 <joint name="left_hip_pitch_joint" pos="0 0 0" axis="0 -1 0" limited="true" range="0 2.44" />
+                 <geom size="0.02 0.01775 0.0125" pos="0 0.01775 0" type="box" contype="0" conaffinity="0" group="1" rgba="0.9 0.35 0.8 1" />
+-                <geom size="0.02 0.01775 0.0125" pos="0 0.01775 0" type="box" rgba="0.9 0.35 0.8 1" />
++                <geom size="0.02 0.01775 0.0125" pos="0 0.01775 0" name="left_hip_pitch_link_collision" type="box" rgba="0.9 0.35 0.8 1" />
+                 <body name="left_hip_roll_link" pos="0 0.0355 0">
+                     <inertial pos="0 0 -0.02075" quat="0.707107 0 0 0.707107" mass="0.0415" diaginertia="1.14894e-05 8.11757e-06 7.69479e-06" />
+                     <joint name="left_hip_roll_joint" pos="0 0 0" axis="1 0 0" limited="true" range="-0.09 0.26" />
+                     <geom size="0.02 0.0125 0.02075" pos="0 0 -0.02075" type="box" contype="0" conaffinity="0" group="1" rgba="1 0.6 0.2 1" />
+-                    <geom size="0.02 0.0125 0.02075" pos="0 0 -0.02075" type="box" rgba="1 0.6 0.2 1" />
++                    <geom size="0.02 0.0125 0.02075" pos="0 0 -0.02075" name="left_hip_roll_link_collision" type="box" rgba="1 0.6 0.2 1" />
+                     <body name="left_hip_yaw_link" pos="0 0 -0.0415">
+                         <inertial pos="0 0 -0.02075" quat="0.707107 0 0 0.707107" mass="0.0415" diaginertia="1.14894e-05 8.11757e-06 7.69479e-06" />
+                         <joint name="left_hip_yaw_joint" pos="0 0 0" axis="0 0 1" limited="true" range="-0.09 0.26" />
+                         <geom size="0.02 0.0125 0.02075" pos="0 0 -0.02075" type="box" contype="0" conaffinity="0" group="1" rgba="0.35 0.55 1 1" />
+-                        <geom size="0.02 0.0125 0.02075" pos="0 0 -0.02075" type="box" rgba="0.35 0.55 1 1" />
++                        <geom size="0.02 0.0125 0.02075" pos="0 0 -0.02075" name="left_hip_yaw_link_collision" type="box" rgba="0.35 0.55 1 1" />
+                         <body name="left_knee_link" pos="0 0 -0.0415">
+                             <inertial pos="0 0 -0.043" quat="0.707107 0 0 0.707107" mass="0.086" diaginertia="6.44713e-05 5.74838e-05 1.59458e-05" />
+                             <joint name="left_knee_joint" pos="0 0 0" axis="0 1 0" limited="true" range="0 1.57" />
+                             <geom size="0.02 0.0125 0.043" pos="0 0 -0.043" type="box" contype="0" conaffinity="0" group="1" rgba="0.3 0.8 0.35 1" />
+-                            <geom size="0.02 0.0125 0.043" pos="0 0 -0.043" type="box" rgba="0.3 0.8 0.35 1" />
++                            <geom size="0.02 0.0125 0.043" pos="0 0 -0.043" name="left_knee_link_collision" type="box" rgba="0.3 0.8 0.35 1" />
+                             <body name="left_ankle_link" pos="0 0 -0.086">
+                                 <inertial pos="0.0155 0 -0.01" quat="0 0.707107 0 0.707107" mass="0.093" diaginertia="8.64048e-05 7.01298e-05 2.2475e-05" />
+                                 <joint name="left_ankle_joint" pos="0 0 0" axis="0 -1 0" limited="true" range="-0.52 1.05" />
+@@ -97,22 +97,22 @@
+                 <inertial pos="0 -0.01775 0" quat="0 0.707107 0 0.707107" mass="0.0355" diaginertia="8.46157e-06 6.58229e-06 5.5772e-06" />
+                 <joint name="right_hip_pitch_joint" pos="0 0 0" axis="0 -1 0" limited="true" range="0 2.44" />
+                 <geom size="0.02 0.01775 0.0125" pos="0 -0.01775 0" type="box" contype="0" conaffinity="0" group="1" rgba="0.9 0.35 0.8 1" />
+-                <geom size="0.02 0.01775 0.0125" pos="0 -0.01775 0" type="box" rgba="0.9 0.35 0.8 1" />
++                <geom size="0.02 0.01775 0.0125" pos="0 -0.01775 0" name="right_hip_pitch_link_collision" type="box" rgba="0.9 0.35 0.8 1" />
+                 <body name="right_hip_roll_link" pos="0 -0.0355 0">
+                     <inertial pos="0 0 -0.02075" quat="0.707107 0 0 0.707107" mass="0.0415" diaginertia="1.14894e-05 8.11757e-06 7.69479e-06" />
+                     <joint name="right_hip_roll_joint" pos="0 0 0" axis="-1 0 0" limited="true" range="-0.09 0.26" />
+                     <geom size="0.02 0.0125 0.02075" pos="0 0 -0.02075" type="box" contype="0" conaffinity="0" group="1" rgba="1 0.6 0.2 1" />
+-                    <geom size="0.02 0.0125 0.02075" pos="0 0 -0.02075" type="box" rgba="1 0.6 0.2 1" />
++                    <geom size="0.02 0.0125 0.02075" pos="0 0 -0.02075" name="right_hip_roll_link_collision" type="box" rgba="1 0.6 0.2 1" />
+                     <body name="right_hip_yaw_link" pos="0 0 -0.0415">
+                         <inertial pos="0 0 -0.02075" quat="0.707107 0 0 0.707107" mass="0.0415" diaginertia="1.14894e-05 8.11757e-06 7.69479e-06" />
+                         <joint name="right_hip_yaw_joint" pos="0 0 0" axis="0 0 -1" limited="true" range="-0.09 0.26" />
+                         <geom size="0.02 0.0125 0.02075" pos="0 0 -0.02075" type="box" contype="0" conaffinity="0" group="1" rgba="0.35 0.55 1 1" />
+-                        <geom size="0.02 0.0125 0.02075" pos="0 0 -0.02075" type="box" rgba="0.35 0.55 1 1" />
++                        <geom size="0.02 0.0125 0.02075" pos="0 0 -0.02075" name="right_hip_yaw_link_collision" type="box" rgba="0.35 0.55 1 1" />
+                         <body name="right_knee_link" pos="0 0 -0.0415">
+                             <inertial pos="0 0 -0.043" quat="0.707107 0 0 0.707107" mass="0.086" diaginertia="6.44713e-05 5.74838e-05 1.59458e-05" />
+                             <joint name="right_knee_joint" pos="0 0 0" axis="0 1 0" limited="true" range="0 1.57" />
+                             <geom size="0.02 0.0125 0.043" pos="0 0 -0.043" type="box" contype="0" conaffinity="0" group="1" rgba="0.3 0.8 0.35 1" />
+-                            <geom size="0.02 0.0125 0.043" pos="0 0 -0.043" type="box" rgba="0.3 0.8 0.35 1" />
++                            <geom size="0.02 0.0125 0.043" pos="0 0 -0.043" name="right_knee_link_collision" type="box" rgba="0.3 0.8 0.35 1" />
+                             <body name="right_ankle_link" pos="0 0 -0.086">
+                                 <inertial pos="0.0155 0 -0.01" quat="0 0.707107 0 0.707107" mass="0.093" diaginertia="8.64048e-05 7.01298e-05 2.2475e-05" />
+                                 <joint name="right_ankle_joint" pos="0 0 0" axis="0 -1 0" limited="true" range="-0.52 1.05" />
+@@ -125,48 +125,48 @@
+             </body>
+             <body name="left_arm_pitch_link" pos="0.083 0.116 0.166">
+                 <inertial pos="0 0 0" mass="6.4e-05" diaginertia="1.70667e-10 1.70667e-10 1.70667e-10" />
+-                <joint name="left_arm_pitch_joint" pos="0 0 0" axis="0 -1 0" limited="true" range="-1.57 1.57" />
++                <joint name="left_arm_pitch_joint" pos="0 0 0" axis="0 -1 0" limited="true" range="-3.14 3.14" />
+                 <geom size="0.002 0.002 0.002" type="box" contype="0" conaffinity="0" group="1" rgba="0.75 0.35 1 1" />
+                 <geom size="0.002 0.002 0.002" type="box" rgba="0.75 0.35 1 1" />
+                 <body name="left_arm_roll_link" pos="0 0 0" quat="0.707107 0.707107 0 0">
+                     <inertial pos="0 0 -0.025" mass="0.045" diaginertia="1.275e-05 1.275e-05 6.75e-06" />
+                     <joint name="left_arm_roll_joint" pos="0 0 0" axis="1 0 0" limited="true" range="-1.57 1.57" />
+                     <geom size="0.015 0.015 0.025" pos="0 0 -0.025" type="box" contype="0" conaffinity="0" group="1" rgba="1 0.9 0.25 1" />
+-                    <geom size="0.015 0.015 0.025" pos="0 0 -0.025" type="box" rgba="1 0.9 0.25 1" />
++                    <geom size="0.015 0.015 0.025" pos="0 0 -0.025" name="left_arm_roll_link_collision" type="box" rgba="1 0.9 0.25 1" />
+                     <body name="left_arm_yaw_link" pos="0 0 -0.05">
+                         <inertial pos="0 0 -0.025" mass="0.045" diaginertia="1.275e-05 1.275e-05 6.75e-06" />
+                         <joint name="left_arm_yaw_joint" pos="0 0 0" axis="0 0 1" limited="true" range="-1.57 1.57" />
+                         <geom size="0.015 0.015 0.025" pos="0 0 -0.025" type="box" contype="0" conaffinity="0" group="1" rgba="0.3 0.85 0.8 1" />
+-                        <geom size="0.015 0.015 0.025" pos="0 0 -0.025" type="box" rgba="0.3 0.85 0.8 1" />
++                        <geom size="0.015 0.015 0.025" pos="0 0 -0.025" name="left_arm_yaw_link_collision" type="box" rgba="0.3 0.85 0.8 1" />
+                         <body name="left_elbow_link" pos="0 0 -0.05">
+                             <inertial pos="0 0 -0.033" mass="0.0594" diaginertia="2.60172e-05 2.60172e-05 8.91e-06" />
+                             <joint name="left_elbow_joint" pos="0 0 0" axis="0 -1 0" limited="true" range="-1.57 1.57" />
+                             <geom size="0.015 0.015 0.033" pos="0 0 -0.033" type="box" contype="0" conaffinity="0" group="1" rgba="1 0.45 0.55 1" />
+-                            <geom size="0.015 0.015 0.033" pos="0 0 -0.033" type="box" rgba="1 0.45 0.55 1" />
++                            <geom size="0.015 0.015 0.033" pos="0 0 -0.033" name="left_elbow_link_collision" type="box" rgba="1 0.45 0.55 1" />
+                         </body>
+                     </body>
+                 </body>
+             </body>
+             <body name="right_arm_pitch_link" pos="0.083 -0.116 0.166">
+                 <inertial pos="0 0 0" mass="6.4e-05" diaginertia="1.70667e-10 1.70667e-10 1.70667e-10" />
+-                <joint name="right_arm_pitch_joint" pos="0 0 0" axis="0 -1 0" limited="true" range="-1.57 1.57" />
++                <joint name="right_arm_pitch_joint" pos="0 0 0" axis="0 -1 0" limited="true" range="-3.14 3.14" />
+                 <geom size="0.002 0.002 0.002" type="box" contype="0" conaffinity="0" group="1" rgba="0.75 0.35 1 1" />
+                 <geom size="0.002 0.002 0.002" type="box" rgba="0.75 0.35 1 1" />
+                 <body name="right_arm_roll_link" pos="0 0 0" quat="0.707107 -0.707107 0 0">
+                     <inertial pos="0 0 -0.025" mass="0.045" diaginertia="1.275e-05 1.275e-05 6.75e-06" />
+                     <joint name="right_arm_roll_joint" pos="0 0 0" axis="-1 0 0" limited="true" range="-1.57 1.57" />
+                     <geom size="0.015 0.015 0.025" pos="0 0 -0.025" type="box" contype="0" conaffinity="0" group="1" rgba="1 0.9 0.25 1" />
+-                    <geom size="0.015 0.015 0.025" pos="0 0 -0.025" type="box" rgba="1 0.9 0.25 1" />
++                    <geom size="0.015 0.015 0.025" pos="0 0 -0.025" name="right_arm_roll_link_collision" type="box" rgba="1 0.9 0.25 1" />
+                     <body name="right_arm_yaw_link" pos="0 0 -0.05">
+                         <inertial pos="0 0 -0.025" mass="0.045" diaginertia="1.275e-05 1.275e-05 6.75e-06" />
+                         <joint name="right_arm_yaw_joint" pos="0 0 0" axis="0 0 -1" limited="true" range="-1.57 1.57" />
+                         <geom size="0.015 0.015 0.025" pos="0 0 -0.025" type="box" contype="0" conaffinity="0" group="1" rgba="0.3 0.85 0.8 1" />
+-                        <geom size="0.015 0.015 0.025" pos="0 0 -0.025" type="box" rgba="0.3 0.85 0.8 1" />
++                        <geom size="0.015 0.015 0.025" pos="0 0 -0.025" name="right_arm_yaw_link_collision" type="box" rgba="0.3 0.85 0.8 1" />
+                         <body name="right_elbow_link" pos="0 0 -0.05">
+                             <inertial pos="0 0 -0.033" mass="0.0594" diaginertia="2.60172e-05 2.60172e-05 8.91e-06" />
+                             <joint name="right_elbow_joint" pos="0 0 0" axis="0 1 0" limited="true" range="-1.57 1.57" />
+                             <geom size="0.015 0.015 0.033" pos="0 0 -0.033" type="box" contype="0" conaffinity="0" group="1" rgba="1 0.45 0.55 1" />
+-                            <geom size="0.015 0.015 0.033" pos="0 0 -0.033" type="box" rgba="1 0.45 0.55 1" />
++                            <geom size="0.015 0.015 0.033" pos="0 0 -0.033" name="right_elbow_link_collision" type="box" rgba="1 0.45 0.55 1" />
+                         </body>
+                     </body>
+                 </body>
+diff --git a/src/mjlab/asset_zoo/robots/pikachu_xml/pikachu_27dof_constants.py b/src/mjlab/asset_zoo/robots/pikachu_xml/pikachu_27dof_constants.py
+index b6cf3ee..94dfdda 100644
+--- a/src/mjlab/asset_zoo/robots/pikachu_xml/pikachu_27dof_constants.py
++++ b/src/mjlab/asset_zoo/robots/pikachu_xml/pikachu_27dof_constants.py
+@@ -171,7 +171,7 @@ PIKACHU_27DOF_ARTICULATION = EntityArticulationInfoCfg(
+ # 关键帧：腿微蹲起步（值与旧 KNEES_BENT 一致，left/right 轴反相），上肢零位。
+ ##
+ KNEES_BENT_27DOF_KEYFRAME = EntityCfg.InitialStateCfg(
+-  pos=(0, 0, 0.165),  # 站立 geniz 
++  pos=(0, 0, 0.165),  # 站立 geniz
+   joint_pos={
+     # 腿：明显下蹲，踝反向补偿保持脚底水平，左右轴反相（同旧 KNEES_BENT）。
+     "left_hip_pitch_joint": -0.0,
+@@ -225,6 +225,33 @@ FEET_ONLY_COLLISION = CollisionCfg(
+   friction=(0.6,),
+ )
+ 
++##
++# 全身碰撞（mocap / 关键帧预览用）。
++#
++# 训练体 XML 已给全部实心 box 碰撞代理补了 ``*_collision`` 名字（见
++# ``pikachu_27dof_train.xml``），本配置匹配 ``.*_collision`` 即启用全身
++# 接触。语义镜像 14dof 的 ``FULL_COLLISION_WITHOUT_SELF``：
++#   - contype=0 → 机器人自身 geom 之间不自碰撞；
++#   - conaffinity=1 / 脚底 condim=3 + friction → 各肢体/躯干都能与地面
++#     真实接触（下蹲、跌倒、滚翻时不会穿地）。
++# 未命名的皮肤 mesh、group=1 标记点、0.002 枢轴微盒不匹配，保持禁用。
++# 仅供关键帧**预览/录制**（视觉完整性），训练体仍用上面的 FEET_ONLY。
++##
++PIKACHU_27DOF_FULL_COLLISION = CollisionCfg(
++  geom_names_expr=(".*_collision",),
++  contype=0,
++  conaffinity=1,
++  condim={
++    PIKACHU_27DOF_FOOT_GEOM_NAMES: 3,
++    ".*_collision": 1,
++  },
++  priority={
++    PIKACHU_27DOF_FOOT_GEOM_NAMES: 1,
++    ".*": 0,
++  },
++  friction={PIKACHU_27DOF_FOOT_GEOM_NAMES: (0.6,)},
++)
++
+ ##
+ # 腿动作缩放（velocity 策略动作只驱动腿；与旧双足一致）。
+ ##
+@@ -238,7 +265,11 @@ LEG_ACTION_SCALE: dict[str, float] = {
+ 
+ 
+ def get_pikachu_27dof_robot_cfg() -> EntityCfg:
+-  """获取 27-dof 双足机器人配置（微蹲起步，只脚底碰撞，全关节执行器）。"""
++  """获取 27-dof 双足机器人配置（微蹲起步，只脚底碰撞，全关节执行器）。
++
++  用于**训练**：只保留脚底-地面接触，其余身体几何一律禁用，避免上肢随机
++  摆动干扰时自碰撞/夹持。
++  """
+   return EntityCfg(
+     init_state=KNEES_BENT_27DOF_KEYFRAME,
+     collisions=(FEET_ONLY_COLLISION,),
+@@ -247,6 +278,22 @@ def get_pikachu_27dof_robot_cfg() -> EntityCfg:
+   )
+ 
+ 
++def get_pikachu_27dof_mocap_robot_cfg() -> EntityCfg:
++  """获取 mocap / 关键帧预览用的 27-dof 配置：**全身碰撞**。
++
++  与训练体共用同一 XML/执行器/起步姿态，仅把碰撞换成全身
++  ``PIKACHU_27DOF_FULL_COLLISION``，让预览/录制时躯干、手臂、头、耳、尾
++  都能真实接触地面（下蹲、跌倒、滚翻不穿地），而不影响训练的
++  ``get_pikachu_27dof_robot_cfg``（仍是脚底碰撞）。
++  """
++  return EntityCfg(
++    init_state=KNEES_BENT_27DOF_KEYFRAME,
++    collisions=(PIKACHU_27DOF_FULL_COLLISION,),
++    spec_fn=get_spec,
++    articulation=PIKACHU_27DOF_ARTICULATION,
++  )
++
++
+ __all__ = [
+   "ALL_JOINT_NAMES",
+   "ARM_JOINT_NAMES",
+@@ -259,9 +306,11 @@ __all__ = [
+   "LEG_JOINT_NAMES",
+   "PIKACHU_27DOF_ARTICULATION",
+   "PIKACHU_27DOF_FOOT_GEOM_NAMES",
++  "PIKACHU_27DOF_FULL_COLLISION",
+   "PIKACHU_27DOF_XML",
+   "PICK_START_KEYFRAME",
+   "TAIL_JOINT_NAMES",
++  "get_pikachu_27dof_mocap_robot_cfg",
+   "get_pikachu_27dof_robot_cfg",
+   "get_spec",
+-]
+\ No newline at end of file
++]
+diff --git a/src/mjlab/envs/mdp/actions/random_flail.py b/src/mjlab/envs/mdp/actions/random_flail.py
+index 3e9de30..ca1de7f 100644
+--- a/src/mjlab/envs/mdp/actions/random_flail.py
++++ b/src/mjlab/envs/mdp/actions/random_flail.py
+@@ -80,9 +80,7 @@ class RandomFlailAction(ActionTerm):
+ 
+   def __init__(self, cfg: RandomFlailActionCfg, env: ManagerBasedRlEnv):
+     super().__init__(cfg=cfg, env=env)
+-    joint_ids, _ = self._entity.find_joints(
+-      self.cfg.joint_names, preserve_order=True
+-    )
++    joint_ids, _ = self._entity.find_joints(self.cfg.joint_names, preserve_order=True)
+     self._ids = torch.tensor(joint_ids, device=self.device, dtype=torch.long)
+     self._raw_actions = torch.empty(
+       self.num_envs, 0, device=self.device, dtype=torch.float32
+@@ -94,9 +92,7 @@ class RandomFlailAction(ActionTerm):
+     self._half_width = 0.5 * (self._hi - self._lo)
+     self._center = self._entity.data.default_joint_pos[:, self._ids].clone()
+ 
+-    self._offset = torch.zeros(
+-      self.num_envs, len(cfg.joint_names), device=self.device
+-    )
++    self._offset = torch.zeros(self.num_envs, len(cfg.joint_names), device=self.device)
+     self._timer = torch.zeros(self.num_envs, device=self.device)
+     # Prime per-env random pose/timer so the very first substep moves limbs.
+     self.reset()
+@@ -142,9 +138,7 @@ class RandomFlailAction(ActionTerm):
+     target = self._center + self._offset * scale * factor
+     target = torch.clamp(target, self._lo, self._hi)
+     encoder_bias = self._entity.data.encoder_bias[:, self._ids]
+-    self._entity.set_joint_position_target(
+-      target - encoder_bias, joint_ids=self._ids
+-    )
++    self._entity.set_joint_position_target(target - encoder_bias, joint_ids=self._ids)
+ 
+   def _curriculum_factor(self) -> float:
+     """Return 0..1 ramp factor from the training curriculum (or 0 when off)."""
+@@ -154,4 +148,4 @@ class RandomFlailAction(ActionTerm):
+     off_steps, ramp_steps = self.cfg.curriculum_steps
+     if steps <= off_steps:
+       return 0.0
+-    return min(1.0, (steps - off_steps) / ramp_steps)
+\ No newline at end of file
++    return min(1.0, (steps - off_steps) / ramp_steps)
+diff --git a/src/mjlab/mocap/keyframes.py b/src/mjlab/mocap/keyframes.py
+index 85b63fe..e89686f 100644
+--- a/src/mjlab/mocap/keyframes.py
++++ b/src/mjlab/mocap/keyframes.py
+@@ -165,7 +165,12 @@ def _carry_forward(
+     if initial_root_quat_xyzw is not None
+     else np.array([0.0, 0.0, 0.0, 1.0])
+   )
+-  carry_joint: dict[str, float] = dict(initial_joint_pos or {})
++  # 每个关节都先给 0 兜底，再从 initial_joint_pos / 关键帧逐层覆盖。
++  # 否则某个关节从未在任何处被指定（如 27dof 的 head_pitch_joint）时，
++  # 下方 `d[name]` 会 KeyError。
++  carry_joint: dict[str, float] = {name: 0.0 for name in joint_names}
++  if initial_joint_pos:
++    carry_joint.update(initial_joint_pos)
+ 
+   full_pos: list[np.ndarray] = []
+   full_quat: list[np.ndarray] = []
+@@ -187,6 +192,58 @@ def _carry_forward(
+   return full_pos, full_quat, dof_full
+ 
+ 
++def _append_loop_closure(
++  traj: Trajectory,
++  keyframe_times: list[float],
++  cfg: InterpConfig,
++) -> Trajectory:
++  """为循环播放补一段末帧→首帧的过渡段，消除折回时的姿态跳变。
++
++  有限关键帧插值出的轨迹首末通常不一致；循环时若直接折回第 0 帧会在
++  边界处瞬跳（尤其 pd 模式 PD 目标突变会猛拉一下）。这里按一段平均关键帧
++  时长，沿原 easing 从末帧回退插值到首帧，使轨迹首尾闭合——末帧恰好等于
++  首帧，折回即无缝。若首末帧姿态本已一致（周期动作），无需回退，原样返回。
++  """
++  d0, d1 = traj.dof_pos[-1], traj.dof_pos[0]
++  r0, r1 = traj.root_pos[-1], traj.root_pos[0]
++  qa, qb = traj.root_quat_xyzw[-1], traj.root_quat_xyzw[0]
++  if (
++    np.allclose(d0, d1, atol=1e-3)
++    and np.allclose(r0, r1, atol=1e-3)
++    and np.allclose(qa, qb, atol=1e-3)
++  ):
++    return traj
++
++  seg_gaps = np.diff(np.asarray(keyframe_times, dtype=float))
++  mean_seg = float(np.mean(seg_gaps)) if seg_gaps.size else 1.0 / cfg.fps
++  n_seg = max(1, round(mean_seg * cfg.fps))
++
++  dt = 1.0 / cfg.fps
++  t_end = float(traj.t[-1])
++  q0w = _quat_wxyz_from_xyzw(qa)
++  q1w = _quat_wxyz_from_xyzw(qb)
++
++  add_t: list[float] = []
++  add_pos: list[np.ndarray] = []
++  add_quat: list[np.ndarray] = []
++  add_dof: list[np.ndarray] = []
++  for k in range(1, n_seg + 1):  # k=n_seg 时 blend=1 → 恰好等于首帧
++    blend = k / n_seg
++    eased = _ease(blend, cfg.easing)
++    add_t.append(t_end + dt * k)
++    add_pos.append((1.0 - eased) * r0 + eased * r1)
++    add_dof.append((1.0 - eased) * d0 + eased * d1)
++    q = _quat_slerp(q0w, q1w, blend)
++    add_quat.append(_quat_xyzw_from_wxyz(q))
++
++  return Trajectory(
++    t=np.concatenate([traj.t, np.asarray(add_t)]),
++    root_pos=np.concatenate([traj.root_pos, np.stack(add_pos)]),
++    root_quat_xyzw=np.concatenate([traj.root_quat_xyzw, np.stack(add_quat)]),
++    dof_pos=np.concatenate([traj.dof_pos, np.stack(add_dof)]),
++  )
++
++
+ def build_trajectory(
+   keyframes: list[PoseKeyframe],
+   joint_names: tuple[str, ...],
+@@ -194,6 +251,7 @@ def build_trajectory(
+   initial_joint_pos: dict[str, float] | None = None,
+   initial_root_pos: np.ndarray | None = None,
+   initial_root_quat_xyzw: np.ndarray | None = None,
++  loop: bool = False,
+ ) -> Trajectory:
+   """把关键帧列表插值为稠密轨迹。
+ 
+@@ -205,9 +263,12 @@ def build_trajectory(
+     initial_joint_pos: 第一个关键帧缺省关节的兜底值。
+     initial_root_pos / initial_root_quat_xyzw: 第一个关键帧缺省 root
+       的兜底值（四元数 xyzw 序）。
++    loop: 是否为循环预览补一条末帧→首帧的回退段（使轨迹首尾闭合、
++      消除循环折回时的姿态跳变）。False 时轨迹保持"从首到末"的有限段。
+ 
+   Returns:
+     Trajectory：位置/关节线性插值，四元数按配置 slerp 的稠密轨迹。
++    ``loop=True`` 时末尾多出回退段，末帧精确等于首帧。
+ 
+   Raises:
+     ValueError: 关键帧列表为空、关节名缺失、time/duration 混用等。
+@@ -267,9 +328,12 @@ def build_trajectory(
+       q = q / np.linalg.norm(q)
+     root_quat_out.append(_quat_xyzw_from_wxyz(q))
+ 
+-  return Trajectory(
++  traj = Trajectory(
+     t=np.asarray(frame_times, dtype=float),
+     root_pos=np.stack(root_pos_out),
+     root_quat_xyzw=np.stack(root_quat_out),
+     dof_pos=np.stack(dof_out),
+   )
++  if loop:
++    traj = _append_loop_closure(traj, times, cfg)
++  return traj
+diff --git a/src/mjlab/mocap/metrics_logger.py b/src/mjlab/mocap/metrics_logger.py
+index 8bf9d88..f7cbcee 100644
+--- a/src/mjlab/mocap/metrics_logger.py
++++ b/src/mjlab/mocap/metrics_logger.py
+@@ -111,6 +111,7 @@ def record_metrics_to_csv(
+   device: str = "cpu",
+   physics_dt: float = 0.005,
+   write_root: bool = False,
++  pd_gain_multiplier: float = 1.0,
+   verbose: bool = True,
+ ) -> Path:
+   """录制一段 mocap PD 动作的 metrics 日志到 ``out_dir/metrics_<source>_<stamp>.csv``。
+@@ -129,12 +130,16 @@ def record_metrics_to_csv(
+     device: 仿真设备。
+     physics_dt: 物理仿真步长（秒）。
+     write_root: 是否把 root 运动学写入。
++    pd_gain_multiplier: 执行器 Kp/Kd 统一放大倍率（默认 1.0）。语义与
++      ``record_to_csv`` 一致。
+     verbose: 是否打印统计。
+ 
+   Returns:
+     写入的 metrics CSV 路径。
+   """
+-  env = MocapEnv(device=device, physics_dt=physics_dt)
++  env = MocapEnv(
++    device=device, physics_dt=physics_dt, pd_gain_multiplier=pd_gain_multiplier
++  )
+   cfg = InterpConfig(fps=fps, easing=easing)
+   initial_root_pos, initial_root_quat_xyzw, _ = env.get_state()
+   traj = build_trajectory(
+diff --git a/src/mjlab/mocap/mocap_env.py b/src/mjlab/mocap/mocap_env.py
+index 95f25ef..57f79f4 100644
+--- a/src/mjlab/mocap/mocap_env.py
++++ b/src/mjlab/mocap/mocap_env.py
+@@ -23,17 +23,53 @@
+ 
+ from __future__ import annotations
+ 
++import dataclasses
++
+ import mujoco
+ import numpy as np
+ import torch
+ 
+ from mjlab.asset_zoo.robots import get_pikachu_robot_cfg
+-from mjlab.entity import Entity
++from mjlab.entity import Entity, EntityCfg
+ from mjlab.scene import Scene, SceneCfg
+ from mjlab.sim.sim import MujocoCfg, Simulation, SimulationCfg
+ from mjlab.terrains import TerrainEntityCfg
+ 
+ 
++def scale_pd_gains(robot_cfg: EntityCfg, multiplier: float) -> EntityCfg:
++  """返回把各执行器 Kp/Kd 统一乘以 ``multiplier`` 的配置副本。
++
++  仅用于 mocap 预览/录制时调硬 PD 跟随（预算外部不修改原配置，也不碰
++  训练共享的执行器定义）。对含 ``stiffness``/``damping`` 的执行器 cfg 用
++  ``dataclasses.replace`` 生成新实例，其余执行器原样保留。``multiplier==1.0``
++  时原样返回入参。
++
++  Args:
++    robot_cfg: 机器人实体配置（含 articulation 执行器）。
++    multiplier: PD 增益倍率（>0）。1.0 表示不缩放。
++
++  Raises:
++    ValueError: 配置缺 articulation，无从缩放。
++  """
++  if multiplier == 1.0:
++    return robot_cfg
++  art = robot_cfg.articulation
++  if art is None:
++    raise ValueError("robot_cfg 缺少 articulation，无法缩放 PD 增益")
++
++  def _scaled(act: object) -> object:
++    if hasattr(act, "stiffness") and hasattr(act, "damping"):
++      return dataclasses.replace(
++        act,
++        stiffness=act.stiffness * multiplier,
++        damping=act.damping * multiplier,
++      )
++    return act
++
++  new_art = dataclasses.replace(art, actuators=tuple(_scaled(a) for a in art.actuators))
++  return dataclasses.replace(robot_cfg, articulation=new_art)
++
++
+ class MocapEnv:
+   """单环境 Pikachu 仿真，用于 PD 打点 + 插值录制。
+ 
+@@ -41,16 +77,31 @@ class MocapEnv:
+     device: 仿真设备（``"cpu"`` 或 ``"cuda:0"``）。默认 ``"cpu"``，
+       无需 GPU 也能录制。
+     physics_dt: 物理仿真步长（秒）。默认 0.005，与 tracking env 一致。
++    robot_cfg: 机器人实体配置，默认 14dof（``get_pikachu_robot_cfg()``）；
++      传 ``get_pikachu_27dof_mocap_robot_cfg()`` 可预览/录制 27dof 机器人。
++    pd_gain_multiplier: 把执行器 Kp/Kd 统一放大的倍率（映射缩小预览/录制
++      用的 PD 硬度）。默认 1.0 不缩放；觉得跟随太软可调大到 1.5~3。
++      只影响本 mocap 环境，训练共享常数不受影响。
+   """
+ 
+-  def __init__(self, device: str = "cpu", physics_dt: float = 0.005):
++  def __init__(
++    self,
++    device: str = "cpu",
++    physics_dt: float = 0.005,
++    robot_cfg: EntityCfg | None = None,
++    pd_gain_multiplier: float = 1.0,
++  ):
+     self.device = device
+     self.physics_dt = physics_dt
+ 
++    if robot_cfg is None:
++      robot_cfg = get_pikachu_robot_cfg()
++    if pd_gain_multiplier != 1.0:
++      robot_cfg = scale_pd_gains(robot_cfg, pd_gain_multiplier)
+     scene_cfg = SceneCfg(
+       num_envs=1,
+       terrain=TerrainEntityCfg(terrain_type="plane"),
+-      entities={"robot": get_pikachu_robot_cfg()},
++      entities={"robot": robot_cfg},
+     )
+     self._scene = Scene(scene_cfg, device=device)
+     model = self._scene.compile()
+@@ -63,7 +114,7 @@ class MocapEnv:
+     self.joint_names: tuple[str, ...] = self.robot.joint_names
+     self.actuator_names: tuple[str, ...] = self.robot.actuator_names
+ 
+-    # 软限位（0.9 × 硬限位），形状 (14, 2)，joint_names 序。
++    # 软限位（0.9 × 硬限位），形状 (D, 2)，D = 关节数，joint_names 序。
+     self.soft_joint_pos_limits: np.ndarray = (
+       self.robot.data.soft_joint_pos_limits[0].cpu().numpy()
+     )
+@@ -124,11 +175,11 @@ class MocapEnv:
+     """把关节目标（joint_names 序）重排为 ctrl（actuator_names 序）。
+ 
+     Args:
+-      joint_target: 关节名→角度（弧度）的 dict，或 ``(14,)`` 数组
+-        （joint_names 序）。
++      joint_target: 关节名→角度（弧度）的 dict，或 ``(D,)`` 数组
++        （joint_names 序，D = 关节数）。
+ 
+     Returns:
+-      ``(1, 14)`` 张量，槽位顺序 = actuator_names（= ctrl 槽位）。
++      ``(1, D)`` 张量，槽位顺序 = actuator_names（= ctrl 槽位）。
+     """
+     if isinstance(joint_target, dict):
+       # dict 必须提供全部关节（缺省会 KeyError，比静默填 0 更安全）。
+@@ -155,7 +206,7 @@ class MocapEnv:
+     用于在录制开始前把机器人摆到第一个关键帧的姿态。
+ 
+     Args:
+-      joint_pos: ``(14,)`` 数组（joint_names 序）或关节名→角度 dict。
++      joint_pos: ``(D,)`` 数组（joint_names 序）或关节名→角度 dict。
+         None 表示保持当前关节角。
+       root_pos: ``(3,)`` 世界系位置。None 表示保持当前位置。
+       root_quat_xyzw: ``(4,)`` 世界系四元数（**xyzw 序**）。
+@@ -211,7 +262,7 @@ class MocapEnv:
+       ``(root_pos, root_quat_xyzw, dof_pos)``：
+         - ``root_pos`` ``(3,)`` 世界系位置（米）
+         - ``root_quat_xyzw`` ``(4,)`` 世界系四元数，**xyzw 序**
+-        - ``dof_pos`` ``(14,)`` 关节角（弧度），**joint_names 序**
++        - ``dof_pos`` ``(D,)`` 关节角（弧度），**joint_names 序**
+       前 7 个值与后 14 个值拼接即为 CSV 的每一行（21 列）。
+     """
+     pose = self.robot.data.root_link_pose_w[0].cpu().numpy()
+@@ -229,12 +280,12 @@ class MocapEnv:
+     """检查一组关节角是否落在软限位内。
+ 
+     Args:
+-      dof_pos: ``(14,)`` 或 ``(N, 14)`` 关节角（joint_names 序）。
++      dof_pos: ``(D,)`` 或 ``(N, D)`` 关节角（joint_names 序，D = 关节数）。
+       joint_names: 仅用于报错信息里的标识（例如"关键帧"）。
+ 
+     Returns:
+       ``(ok, margins)``：``ok`` 是否全部在限位内；``margins`` 为每个关节
+-      距最近限位的距离（``(14,)`` 或 ``(N, 14)``，负值表示越界）。
++      距最近限位的距离（``(D,)`` 或 ``(N, D)``，负值表示越界）。
+     """
+     arr = np.asarray(dof_pos, dtype=float)
+     lo = self.soft_joint_pos_limits[:, 0]
+diff --git a/src/mjlab/mocap/npz/pikachu_walk_27dof_npz/pikachu_walk_0.185_27dof.npz b/src/mjlab/mocap/npz/pikachu_walk_27dof_npz/pikachu_walk_0.185_27dof.npz
+index 248a569..55f4911 100644
+Binary files a/src/mjlab/mocap/npz/pikachu_walk_27dof_npz/pikachu_walk_0.185_27dof.npz and b/src/mjlab/mocap/npz/pikachu_walk_27dof_npz/pikachu_walk_0.185_27dof.npz differ
+diff --git a/src/mjlab/mocap/preview.py b/src/mjlab/mocap/preview.py
+index e819871..525f8df 100644
+--- a/src/mjlab/mocap/preview.py
++++ b/src/mjlab/mocap/preview.py
+@@ -22,6 +22,7 @@ import mujoco
+ import mujoco.viewer
+ import numpy as np
+ 
++from mjlab.entity import EntityCfg
+ from mjlab.mocap.keyframes import build_trajectory
+ from mjlab.mocap.mocap_env import MocapEnv
+ from mjlab.mocap.recorder import load_keyframes_json
+@@ -125,6 +126,8 @@ def preview_keyframes(
+   physics_dt: float = 0.005,
+   write_root: bool = False,
+   show_com: bool = True,
++  robot_cfg: EntityCfg | None = None,
++  pd_gain_multiplier: float = 1.0,
+ ) -> None:
+   """在交互 viewer 中预览一组关键帧动作。
+ 
+@@ -143,17 +146,27 @@ def preview_keyframes(
+     show_com: 是否叠加显示整机质心 COM 及其地面投影（黄竖线 + 绿点 +
+       红点）。默认 True，用于观察机器人是否稳定（COM 投影是否落在支撑
+       多边形内）。
++    robot_cfg: 机器人实体配置。None 用默认 14dof；传
++      ``get_pikachu_27dof_mocap_robot_cfg()`` 可预览 27dof 机器人（此时
++      关键帧 JSON 需含全部 27 个关节的 ``joint_pos``）。
++    pd_gain_multiplier: 执行器 Kp/Kd 统一放大倍率（>0）。默认 1.0。
++      调到 >1 让 PD 跟随更"硬"，适合动作响应偏软时预览。只影响本预览。
+ 
+   Raises:
+     RuntimeError: 当前环境无法打开原生 MuJoCo viewer（需要本地图形界面）。
+   """
+-  env = MocapEnv(device=device, physics_dt=physics_dt)
++  env = MocapEnv(
++    device=device,
++    physics_dt=physics_dt,
++    robot_cfg=robot_cfg,
++    pd_gain_multiplier=pd_gain_multiplier,
++  )
+   kf_list, cfg = load_keyframes_json(keyframes)
+   if fps != 30.0:
+     cfg.fps = fps
+   if easing != "linear":
+     cfg.easing = easing
+-  traj = build_trajectory(kf_list, env.joint_names, cfg=cfg)
++  traj = build_trajectory(kf_list, env.joint_names, cfg=cfg, loop=loop)
+ 
+   # 起始姿态：运动学写入第一帧，viewer 打开即可见。
+   env.reset(
+diff --git a/src/mjlab/mocap/preview_cli.py b/src/mjlab/mocap/preview_cli.py
+index 55810e2..909907c 100644
+--- a/src/mjlab/mocap/preview_cli.py
++++ b/src/mjlab/mocap/preview_cli.py
+@@ -22,6 +22,9 @@ from typing import Literal
+ import tyro
+ 
+ import mjlab
++from mjlab.asset_zoo.robots.pikachu_xml.pikachu_27dof_constants import (
++  get_pikachu_27dof_mocap_robot_cfg,
++)
+ from mjlab.mocap.preview import preview_keyframes
+ 
+ 
+@@ -36,6 +39,8 @@ def main(
+   physics_dt: float = 0.005,
+   write_root: bool = False,
+   show_com: bool = True,
++  robot: Literal["flat14", "27dof"] = "flat14",
++  pd_gain_multiplier: float = 1.0,
+ ) -> None:
+   """预览 Pikachu 关键帧动作（交互式 viewer 调试）。
+ 
+@@ -53,7 +58,13 @@ def main(
+     write_root: pd 模式是否把 root 运动学写入（钉在插值轨迹上）。
+       默认 False，与录制一致：root 由浮动基座动力学自由演化。
+     show_com: 是否叠加显示整机质心 COM 及其地面投影。默认 True。
++    robot: 用哪个机器人预览：``"flat14"``（默认，14dof）或 ``"27dof"``。
++      27dof 时未在关键帧里指定的关节（头/耳/尾/臂/腿）默认取 0 弧度，
++      无需把所有 27 个都写进 ``joint_pos``。
++    pd_gain_multiplier: 执行器 Kp/Kd 统一放大倍率。默认 1.0；pd 模式觉得
++      跟随太软可调大（如 1.5~3）让动作更"硬"。只影响这次预览。
+   """
++  robot_cfg = get_pikachu_27dof_mocap_robot_cfg() if robot == "27dof" else None
+   preview_keyframes(
+     keyframes,
+     fps=fps,
+@@ -65,6 +76,8 @@ def main(
+     physics_dt=physics_dt,
+     write_root=write_root,
+     show_com=show_com,
++    robot_cfg=robot_cfg,
++    pd_gain_multiplier=pd_gain_multiplier,
+   )
+ 
+ 
+diff --git a/src/mjlab/mocap/record_cli.py b/src/mjlab/mocap/record_cli.py
+index adafde9..702fd73 100644
+--- a/src/mjlab/mocap/record_cli.py
++++ b/src/mjlab/mocap/record_cli.py
+@@ -45,6 +45,7 @@ def main(
+   device: str = "cpu",
+   physics_dt: float = 0.005,
+   write_root: bool = False,
++  pd_gain_multiplier: float = 1.0,
+   metrics_log: str | None = None,
+   metrics_source: str | None = None,
+ ) -> None:
+@@ -62,6 +63,8 @@ def main(
+     physics_dt: 物理仿真步长（秒）。
+     write_root: 是否把 root 运动学写入（钉在插值轨迹上）。默认 False，
+       root 由浮动基座动力学 + 关节 PD 自由演化（JSON 只需配置关节角）。
++    pd_gain_multiplier: 执行器 Kp/Kd 统一放大倍率（>0）。默认 1.0；动作跟
++      随偏软时可调大（如 1.5~3），与预览参数一致地录制。
+     metrics_log: 若给出，额外录一份对齐 RL tracking 的电机输出 metrics
+       日志到该目录（如 ``src/mjlab/mocap/logs``），供 plot_logs dashboard
+       对比「RL policy vs 单点位插值控制」的电机输出。
+@@ -83,6 +86,7 @@ def main(
+     device=device,
+     physics_dt=physics_dt,
+     write_root=write_root,
++    pd_gain_multiplier=pd_gain_multiplier,
+     verbose=True,
+   )
+ 
+@@ -97,6 +101,7 @@ def main(
+       device=device,
+       physics_dt=physics_dt,
+       write_root=write_root,
++      pd_gain_multiplier=pd_gain_multiplier,
+       verbose=True,
+     )
+ 
+diff --git a/src/mjlab/mocap/recorder.py b/src/mjlab/mocap/recorder.py
+index 4fd59b5..89648ee 100644
+--- a/src/mjlab/mocap/recorder.py
++++ b/src/mjlab/mocap/recorder.py
+@@ -46,6 +46,7 @@ def record_to_csv(
+   device: str = "cpu",
+   physics_dt: float = 0.005,
+   write_root: bool = False,
++  pd_gain_multiplier: float = 1.0,
+   verbose: bool = True,
+ ) -> RecordingResult:
+   """录制一段 PD 打点动作到 CSV。
+@@ -62,12 +63,16 @@ def record_to_csv(
+     write_root: 是否把 root 运动学写入（钉在插值轨迹上）。False 为默认
+       动态模式，root 由浮动基座动力学、接触和关节 PD 自由演化；True 为
+       兼容旧数据的 guided 模式。
++    pd_gain_multiplier: 执行器 Kp/Kd 统一放大倍率。默认 1.0；动作响应偏软
++      时可调大（如 1.5~3）让 PD 跟得更硬。只影响本录制。
+     verbose: 是否打印录制统计。
+ 
+   Returns:
+     RecordingResult：帧数 / 实际帧率 / 时长 / 输出路径。
+   """
+-  env = MocapEnv(device=device, physics_dt=physics_dt)
++  env = MocapEnv(
++    device=device, physics_dt=physics_dt, pd_gain_multiplier=pd_gain_multiplier
++  )
+   cfg = InterpConfig(fps=fps, easing=easing)
+   initial_root_pos, initial_root_quat_xyzw, _ = env.get_state()
+   traj = build_trajectory(
+diff --git a/src/mjlab/scripts/play.py b/src/mjlab/scripts/play.py
+index cb2e721..83a1cb7 100644
+--- a/src/mjlab/scripts/play.py
++++ b/src/mjlab/scripts/play.py
+@@ -48,6 +48,9 @@ class PlayConfig:
+   video_width: int | None = None
+   camera: int | str | None = None
+   viewer: Literal["auto", "native", "viser", "arm-swing"] = "auto"
++  com: bool = False
++  """开启实时稳定性叠加层：整机质心 CoM、绕其惯量主轴椭球、足底接触支撑
++  多边形（viser 的 Visualization tab 里也有开关）。"""
+   no_terminations: bool = False
+   """Disable all termination conditions (useful for viewing motions with dummy agents)."""
+   sampling_mode: Literal["adaptive", "uniform", "start"] | None = None
+@@ -313,7 +316,7 @@ def run_play(task_id: str, cfg: PlayConfig):
+     return f"{task_id}__{Path(checkpoint_name).stem}"
+ 
+   if resolved_viewer == "native":
+-    NativeMujocoViewer(env, policy).run()
++    NativeMujocoViewer(env, policy, com_visualizer=cfg.com).run()
+   elif resolved_viewer == "viser":
+     ViserPlayViewer(
+       env,
+@@ -321,6 +324,7 @@ def run_play(task_id: str, cfg: PlayConfig):
+       checkpoint_manager=ckpt_manager,
+       metrics_output_dir=metrics_output_dir,
+       metrics_source_name=metrics_source_name,
++      com_visualizer=cfg.com,
+     ).run()
+   elif resolved_viewer == "arm-swing":
+     ArmSwingViewer(
+diff --git a/src/mjlab/scripts/train.py b/src/mjlab/scripts/train.py
+index 37cce9b..56b86bd 100644
+--- a/src/mjlab/scripts/train.py
++++ b/src/mjlab/scripts/train.py
+@@ -158,9 +158,7 @@ def run_train(task_id: str, cfg: TrainConfig, log_dir: Path) -> None:
+       video_length=cfg.video_length,
+       disable_logger=True,
+     )
+-    print(
+-      f"[INFO] Recording videos during training every {video_interval} steps."
+-    )
++    print(f"[INFO] Recording videos during training every {video_interval} steps.")
+ 
+   env = RslRlVecEnvWrapper(env, clip_actions=cfg.agent.clip_actions)
+ 
+diff --git a/src/mjlab/tasks/tracking/config/pikachu_27dof/__init__.py b/src/mjlab/tasks/tracking/config/pikachu_27dof/__init__.py
+index 7554f86..f4f3b13 100644
+--- a/src/mjlab/tasks/tracking/config/pikachu_27dof/__init__.py
++++ b/src/mjlab/tasks/tracking/config/pikachu_27dof/__init__.py
+@@ -22,4 +22,4 @@ register_mjlab_task(
+     wandb_tags=("tracking", "27dof", "walk", "forward"),
+   ),
+   runner_cls=MotionTrackingOnPolicyRunner,
+-)
+\ No newline at end of file
++)
+diff --git a/src/mjlab/tasks/tracking/config/pikachu_27dof/env_cfgs.py b/src/mjlab/tasks/tracking/config/pikachu_27dof/env_cfgs.py
+index e2627b2..e48d4ac 100644
+--- a/src/mjlab/tasks/tracking/config/pikachu_27dof/env_cfgs.py
++++ b/src/mjlab/tasks/tracking/config/pikachu_27dof/env_cfgs.py
+@@ -119,9 +119,9 @@ def pikachu_27dof_walk_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+   motion_cmd.joint_names = LEG_JOINT_NAMES
+ 
+   # -- 事件 / 奖励 / 终止 ------------------------------------------------------
+-  cfg.events["foot_friction"].params["asset_cfg"].geom_names = (
+-    PIKACHU_27DOF_FOOT_GEOM_NAMES
+-  )
++  cfg.events["foot_friction"].params[
++    "asset_cfg"
++  ].geom_names = PIKACHU_27DOF_FOOT_GEOM_NAMES
+   cfg.events["base_com"].params["asset_cfg"].body_names = (ANCHOR_BODY_NAME,)
+ 
+   # joint limit 只限腿（上肢被 random_flail 有意推近限位）。
+@@ -146,4 +146,4 @@ def pikachu_27dof_walk_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+     motion_cmd.velocity_range = {}
+     motion_cmd.sampling_mode = "start"
+ 
+-  return cfg
+\ No newline at end of file
++  return cfg
+diff --git a/src/mjlab/tasks/tracking/config/pikachu_27dof/rl_cfg.py b/src/mjlab/tasks/tracking/config/pikachu_27dof/rl_cfg.py
+index b107c0d..9f42e9c 100644
+--- a/src/mjlab/tasks/tracking/config/pikachu_27dof/rl_cfg.py
++++ b/src/mjlab/tasks/tracking/config/pikachu_27dof/rl_cfg.py
+@@ -54,4 +54,4 @@ def pikachu_27dof_walk_ppo_runner_cfg(
+     save_interval=500,
+     num_steps_per_env=24,
+     max_iterations=30_000,
+-  )
+\ No newline at end of file
++  )
+diff --git a/src/mjlab/tasks/tracking/mdp/commands.py b/src/mjlab/tasks/tracking/mdp/commands.py
+index 5dc2122..7680583 100644
+--- a/src/mjlab/tasks/tracking/mdp/commands.py
++++ b/src/mjlab/tasks/tracking/mdp/commands.py
+@@ -81,6 +81,11 @@ class MotionCommand(CommandTerm):
+     self.motion = MotionLoader(
+       self.cfg.motion_file, self.body_indexes, device=self.device
+     )
++    # Clamp the episode start frame to a valid range so it can't fly past the
++    # reference length or under negative.
++    self._start_frame = int(
++      min(max(self.cfg.start_frame, 0), self.motion.time_step_total - 1)
++    )
+     self._joint_ids: torch.Tensor | None = None
+     if self.cfg.joint_names:
+       self._joint_ids = torch.tensor(
+@@ -341,12 +346,19 @@ class MotionCommand(CommandTerm):
+ 
+   def _resample_command(self, env_ids: torch.Tensor):
+     if self.cfg.sampling_mode == "start":
+-      self.time_steps[env_ids] = 0
++      self.time_steps[env_ids] = self._start_frame
+     elif self.cfg.sampling_mode == "uniform":
+       self._uniform_sampling(env_ids)
+     else:
+       assert self.cfg.sampling_mode == "adaptive"
+       self._adaptive_sampling(env_ids)
++    # Enforce the start frame as a lower bound so no episode (start, uniform,
++    # or adaptive) bootstraps into the early settle/clipped frame region.
++    self.time_steps[env_ids] = torch.clamp(
++      self.time_steps[env_ids],
++      self._start_frame,
++      self.motion.time_step_total - 1,
++    )
+ 
+     root_pos = self.body_pos_w[env_ids, 0].clone()
+     root_ori = self.body_quat_w[env_ids, 0].clone()
+@@ -653,6 +665,16 @@ class MotionCommandCfg(CommandTermCfg):
+   adaptive_uniform_ratio: float = 0.1
+   adaptive_alpha: float = 0.001
+   sampling_mode: Literal["adaptive", "uniform", "start"] = "adaptive"
++  start_frame: int = 0
++  """First valid reference time step an episode may start from. Reference
++  motions are usually recorded from a standing start whose opening frames can
++  have limbs mid-settle or clipped against the ground; skipping them (e.g. 4)
++  avoids re-seeding the robot into a state that gets contact-kicked on reset.
++
++  Applied as the lower bound on all three sampling modes: ``start`` begins
++  each episode at this frame; ``uniform``/``adaptive`` only ever sample time
++  steps >= this value (bootstrapping frames before it are never trained on).
++  Clamped to ``[0, time_step_total - 1]`` at build time."""
+ 
+   @dataclass
+   class VizCfg:
+diff --git a/src/mjlab/tasks/velocity/config/pikachu_27dof/__init__.py b/src/mjlab/tasks/velocity/config/pikachu_27dof/__init__.py
+index 61fe033..5a9d1df 100644
+--- a/src/mjlab/tasks/velocity/config/pikachu_27dof/__init__.py
++++ b/src/mjlab/tasks/velocity/config/pikachu_27dof/__init__.py
+@@ -20,4 +20,4 @@ register_mjlab_task(
+     wandb_tags=("velocity", "27dof", "flat"),
+   ),
+   runner_cls=VelocityOnPolicyRunner,
+-)
+\ No newline at end of file
++)
+diff --git a/src/mjlab/tasks/velocity/config/pikachu_27dof/env_cfgs.py b/src/mjlab/tasks/velocity/config/pikachu_27dof/env_cfgs.py
+index c8b6fcd..fe89070 100644
+--- a/src/mjlab/tasks/velocity/config/pikachu_27dof/env_cfgs.py
++++ b/src/mjlab/tasks/velocity/config/pikachu_27dof/env_cfgs.py
+@@ -137,9 +137,9 @@ def pikachu_27dof_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+   ]
+ 
+   # -- 域随机化 --------------------------------------------------------
+-  cfg.events["foot_friction"].params["asset_cfg"].geom_names = (
+-    PIKACHU_27DOF_FOOT_GEOM_NAMES
+-  )
++  cfg.events["foot_friction"].params[
++    "asset_cfg"
++  ].geom_names = PIKACHU_27DOF_FOOT_GEOM_NAMES
+   cfg.events["base_com"].params["asset_cfg"].body_names = (TORSO_BODY,)
+   cfg.events["reset_robot_joints"].params["asset_cfg"].joint_names = (".*",)
+ 
+@@ -169,8 +169,11 @@ def pikachu_27dof_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+     pose_std[name] = {"stand": 0.05, "walk": 0.5, "run": 0.6}
+   for name in upper:
+     pose_std[name] = {"stand": 2.0, "walk": 2.0, "run": 2.0}
+-  for regime, key in (("std_standing", "stand"), ("std_walking", "walk"),
+-                      ("std_running", "run")):
++  for regime, key in (
++    ("std_standing", "stand"),
++    ("std_walking", "walk"),
++    ("std_running", "run"),
++  ):
+     cfg.rewards["pose"].params[regime] = {
+       name: vals[key] for name, vals in pose_std.items()
+     }
+@@ -251,4 +254,4 @@ def pikachu_27dof_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+     twist_cmd.ranges.lin_vel_y = (-0.5, 0.5)
+     twist_cmd.ranges.ang_vel_z = (-0.5, 0.5)
+ 
+-  return cfg
+\ No newline at end of file
++  return cfg
+diff --git a/src/mjlab/tasks/velocity/config/pikachu_27dof/rl_cfg.py b/src/mjlab/tasks/velocity/config/pikachu_27dof/rl_cfg.py
+index c7e0c36..f22dd5b 100644
+--- a/src/mjlab/tasks/velocity/config/pikachu_27dof/rl_cfg.py
++++ b/src/mjlab/tasks/velocity/config/pikachu_27dof/rl_cfg.py
+@@ -28,4 +28,4 @@ def pikachu_27dof_ppo_runner_cfg(
+   return replace(
+     pikachu_ppo_runner_cfg(wandb_project=wandb_project, wandb_tags=wandb_tags),
+     experiment_name="pikachu_27dof_velocity",
+-  )
+\ No newline at end of file
++  )
+diff --git a/src/mjlab/viewer/native/viewer.py b/src/mjlab/viewer/native/viewer.py
+index 57743cb..0b59466 100644
+--- a/src/mjlab/viewer/native/viewer.py
++++ b/src/mjlab/viewer/native/viewer.py
+@@ -128,10 +128,12 @@ class NativeMujocoViewer(BaseViewer):
+     plot_cfg: PlotCfg | None = None,
+     enable_perturbations: bool = True,
+     verbosity: VerbosityLevel = VerbosityLevel.SILENT,
++    com_visualizer: bool = False,
+   ):
+     super().__init__(env, policy, frame_rate, verbosity)
+     self.user_key_callback = key_callback
+     self.enable_perturbations = enable_perturbations
++    self._show_com = com_visualizer
+ 
+     self.mjm: Optional[mujoco.MjModel] = None
+     self.mjd: Optional[mujoco.MjData] = None
+@@ -294,6 +296,17 @@ class NativeMujocoViewer(BaseViewer):
+ 
+   def _update_debug_visualizers(self, viewer: mujoco.viewer.Handle) -> None:
+     viewer.user_scn.ngeom = 0
++    if self._show_com:
++      assert self.mjm is not None
++      # 延迟 import：mjlab.mocap 的 __init__ 会级联 import tasks → envs，在
++      # envs 初始化期间顶层层 import 会回环（viewer→mocap→tasks→envs）。
++      from mjlab.mocap.stability import com_and_inertia_from_sim, draw_stability
++
++      com_vis = MujocoNativeDebugVisualizer(
++        viewer.user_scn, self.mjm, self.env_idx, self._show_all_envs
++      )
++      data = com_and_inertia_from_sim(self.env.unwrapped.sim, self.env_idx)
++      draw_stability(com_vis, data)
+     if self._show_debug_vis and hasattr(self.env.unwrapped, "update_visualizers"):
+       assert self.mjm is not None
+       visualizer = MujocoNativeDebugVisualizer(
+diff --git a/src/mjlab/viewer/viser/overlays.py b/src/mjlab/viewer/viser/overlays.py
+index aebab04..ce513b9 100644
+--- a/src/mjlab/viewer/viser/overlays.py
++++ b/src/mjlab/viewer/viser/overlays.py
+@@ -212,6 +212,49 @@ class ViserDebugOverlays:
+       self.env.unwrapped.update_visualizers(self.scene)
+ 
+ 
++@dataclass
++class ViserCoMOverlays:
++  """实时叠加整机质心/惯量/足底接触支撑多边形（play ``--com``）。
++
++  每帧调用 :func:`mjlab.mocap.stability.com_and_inertia_from_sim` 从当前环境算
++  CoM/惯量/着地足盒，再经 :func:`draw_stability` 画到 ``scene`` 的 debug 队列，
++  与 ``ViserDebugOverlays`` 复用同一套 ``_sync_simple_primitives`` 生命周期
++  （每帧重建当前队列中的图元，不会累积残留）。
++  """
++
++  server: viser.ViserServer
++  env: _EnvProtocol
++  scene: _SceneProtocol
++  enabled: bool = False
++
++  def setup_gui(self) -> None:
++    """在 Visualization tab 加一个开启开关。"""
++    cb = self.server.gui.add_checkbox(
++      "CoM / 惯量 / 支撑多边形", initial_value=self.enabled
++    )
++
++    @cb.on_update
++    def _on_update(_ev) -> None:
++      self.enabled = cb.value
++
++  def on_env_switch(self) -> None:
++    """切换环境时清掉上一棵机体的叠加图元。"""
++    if self.enabled:
++      self.scene.clear_debug_all()
++
++  def queue(self) -> None:
++    """把当前环境稳定量追加进 scene 的 debug 图元队列（供每帧 sync）。"""
++    if not (self.enabled and self.scene.debug_visualization_enabled):
++      return
++    sim = self.env.unwrapped.sim
++    # 延迟 import：mjlab.mocap 的 __init__ 会级联 import tasks → envs，在
++    # envs 初始化期间顶层 import 会回环，这里只在运行时（env 已就绪）拉取。
++    from mjlab.mocap.stability import com_and_inertia_from_sim, draw_stability
++
++    data = com_and_inertia_from_sim(sim, self.scene.env_idx)
++    draw_stability(self.scene, data)
++
++
+ @dataclass
+ class ViserContactOverlays:
+   """Manage contact-visualization orchestration from the viewer layer.
+diff --git a/src/mjlab/viewer/viser/viewer.py b/src/mjlab/viewer/viser/viewer.py
+index 5c002b6..da2e8d6 100644
+--- a/src/mjlab/viewer/viser/viewer.py
++++ b/src/mjlab/viewer/viser/viewer.py
+@@ -29,6 +29,7 @@ from mjlab.viewer.base import (
+ )
+ from mjlab.viewer.viser.overlays import (
+   ViserCameraOverlays,
++  ViserCoMOverlays,
+   ViserContactOverlays,
+   ViserDebugOverlays,
+   ViserTermOverlays,
+@@ -75,15 +76,18 @@ class ViserPlayViewer(BaseViewer):
+     checkpoint_manager: CheckpointManager | None = None,
+     metrics_output_dir: Path | None = None,
+     metrics_source_name: Callable[[], str] | None = None,
++    com_visualizer: bool = False,
+   ) -> None:
+     super().__init__(env, policy, frame_rate, verbosity)
+     self._ckpt_mgr = checkpoint_manager
+     self._metrics_output_dir = metrics_output_dir
+     self._metrics_source_name = metrics_source_name
++    self._com_visualizer = com_visualizer
+     self._term_overlays: ViserTermOverlays | None = None
+     self._camera_overlays: ViserCameraOverlays | None = None
+     self._debug_overlays: ViserDebugOverlays | None = None
+     self._contact_overlays: ViserContactOverlays | None = None
++    self._com_overlays: ViserCoMOverlays | None = None
+     self._sim_lock = Lock()
+     self._camera_update_last_ms: float = 0.0
+     self._debug_queue_last_ms: float = 0.0
+@@ -204,9 +208,13 @@ class ViserPlayViewer(BaseViewer):
+ 
+     self._prev_env_idx = self._scene.env_idx
+ 
++    self._com_overlays = ViserCoMOverlays(
++      self._server, self.env, self._scene, enabled=self._com_visualizer
++    )
+     # Visualization tab (overlay controls: contacts, forces, inertia, etc.).
+     with tabs.add_tab("Visualization", icon=viser.Icon.EYE):
+       self._scene.create_overlay_gui()
++      self._com_overlays.setup_gui()
+ 
+     self._term_overlays = ViserTermOverlays(
+       self._server,
+@@ -379,6 +387,8 @@ class ViserPlayViewer(BaseViewer):
+         self._debug_overlays.on_env_switch()
+       if self._contact_overlays:
+         self._contact_overlays.on_env_switch()
++      if self._com_overlays:
++        self._com_overlays.on_env_switch()
+ 
+     if self._term_overlays:
+       self._term_overlays.update(self._is_paused, step_idx=self._step_count)
+@@ -441,6 +451,9 @@ class ViserPlayViewer(BaseViewer):
+     if self._debug_overlays:
+       with self._sim_lock:
+         self._debug_overlays.queue()
++    if self._com_overlays:
++      with self._sim_lock:
++        self._com_overlays.queue()
+     self._debug_queue_last_ms = (time.perf_counter() - t0) * 1000.0
+ 
+   def _submit_scene_update_if_needed(
+diff --git a/tests/test_mocap_recorder.py b/tests/test_mocap_recorder.py
+index 3b60249..cff18aa 100644
+--- a/tests/test_mocap_recorder.py
++++ b/tests/test_mocap_recorder.py
+@@ -4,7 +4,7 @@ from __future__ import annotations
+ 
+ import numpy as np
+ 
+-from mjlab.mocap.keyframes import PoseKeyframe
++from mjlab.mocap.keyframes import InterpConfig, PoseKeyframe, build_trajectory
+ from mjlab.mocap.recorder import load_keyframes_json, record_to_csv
+ 
+ JOINT_NAMES = (
+@@ -34,8 +34,13 @@ class FakeMocapEnv:
+ 
+   instances: list["FakeMocapEnv"] = []
+ 
+-  def __init__(self, device: str = "cpu", physics_dt: float = 0.005):
+-    del device, physics_dt
++  def __init__(
++    self,
++    device: str = "cpu",
++    physics_dt: float = 0.005,
++    pd_gain_multiplier: float = 1.0,
++  ):
++    del device, physics_dt, pd_gain_multiplier
+     self.joint_names = JOINT_NAMES
+     self.soft_joint_pos_limits = np.tile(np.array([-10.0, 10.0]), (len(JOINT_NAMES), 1))
+     self.reset_calls: list[dict[str, np.ndarray | None]] = []
+@@ -110,6 +115,56 @@ class FakeMocapEnv:
+     return True, np.ones_like(np.asarray(dof_pos, dtype=float))
+ 
+ 
++def test_build_trajectory_defaults_unlisted_joints_to_zero():
++  # 只在关键帧里指定个别关节，未提及的（如 27dof 的 head_pitch_joint）
++  # 应兜底为 0 弧度，而不是 KeyError。
++  kf = [
++    PoseKeyframe(duration=0.1, joint_pos={"left_hip_pitch_joint": -0.3}),
++    PoseKeyframe(duration=0.1, joint_pos={"left_hip_pitch_joint": -0.4}),
++  ]
++  traj = build_trajectory(kf, JOINT_NAMES)
++
++  assert traj.dof_pos.shape[1] == len(JOINT_NAMES)
++  idx_pitch = JOINT_NAMES.index("left_hip_pitch_joint")
++  np.testing.assert_allclose(traj.dof_pos[-1, idx_pitch], -0.4)
++  for j, name in enumerate(JOINT_NAMES):
++    if name != "left_hip_pitch_joint":
++      np.testing.assert_allclose(traj.dof_pos[-1, j], 0.0, atol=1e-9)
++
++
++def test_build_trajectory_loop_closes_track_continuously():
++  # 非周期动作：loop=True 应在末尾补一段回退段，且末帧精确等于首帧，
++  # 使循环折回时不跳变。
++  full = _joint_map()
++  kf = [
++    PoseKeyframe(
++      duration=0.1,
++      root_pos=(0.0, 0.0, 0.20),
++      root_quat=(0.0, 0.0, 0.0, 1.0),
++      joint_pos={**full, "left_hip_pitch_joint": 0.0},
++    ),
++    PoseKeyframe(
++      duration=0.1,
++      root_pos=(1.0, 0.0, 0.20),
++      root_quat=(0.0, 0.0, 0.0, 1.0),
++      joint_pos={**full, "left_hip_pitch_joint": 0.5},
++    ),
++  ]
++  cfg = InterpConfig(fps=20.0, easing="linear")
++  linear = build_trajectory(kf, JOINT_NAMES, cfg=cfg, loop=False)
++  looped = build_trajectory(kf, JOINT_NAMES, cfg=cfg, loop=True)
++
++  assert looped.num_frames > linear.num_frames
++  np.testing.assert_allclose(looped.dof_pos[-1], looped.dof_pos[0])
++  np.testing.assert_allclose(looped.root_pos[-1], looped.root_pos[0])
++  np.testing.assert_allclose(looped.root_quat_xyzw[-1], looped.root_quat_xyzw[0])
++  # 首帧 → 末帧单调走到 1，回退段再退到 0。
++  xs = looped.root_pos[:, 0]
++  assert xs[0] == 0.0
++  assert xs[linear.num_frames - 1] == 1.0
++  assert xs[-1] == 0.0
++
++
+ def test_load_keyframes_json_allows_joint_only_keyframes(tmp_path):
+   config = tmp_path / "joint_only.json"
+   config.write_text(
