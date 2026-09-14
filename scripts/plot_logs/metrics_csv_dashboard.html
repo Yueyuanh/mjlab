@@ -166,6 +166,65 @@
   .empty { padding:70px 20px; text-align:center; color:var(--faint); }
   footer { text-align:center; color:var(--faint); font-size:11px; padding:12px 20px 36px; }
 
+  /* ---- 系统功率分析面板 ---- */
+  .power-sec-title { font:11px var(--mono); color:var(--accent2); padding:8px 2px 4px; letter-spacing:.05em; }
+  .power-details { margin-top:12px; border:1px solid var(--line); border-radius:9px; background:#fafbfd; padding:10px 12px; }
+  .power-details summary { cursor:pointer; font-size:12.5px; font-weight:650; color:var(--ink); padding:2px 0; }
+  .power-details[open] summary { margin-bottom:6px; }
+  .power-details-desc { color:var(--muted); font-size:11.5px; line-height:1.55; margin:0 0 10px; }
+  .power-details code { font-family:var(--mono); color:var(--accent2); }
+  .tn-ctrl { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:12px; color:var(--muted); padding-top:8px; }
+  .tn-ctrl .btn { font-size:12px; padding:4px 11px; }
+  .tn-ctrl .btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  /* 侧栏：电机参考图挂件 */
+  .ref-gallery { margin-top:14px; border:1px solid var(--line); border-radius:8px; background:#fff; overflow:hidden; }
+  .ref-g-head { display:flex; justify-content:space-between; align-items:center; gap:6px; padding:8px 10px;
+                font-size:12px; font-weight:650; color:var(--ink); border-bottom:1px solid var(--line); }
+  .ref-item { padding:8px 10px; border-bottom:1px solid var(--line); cursor:zoom-in;
+              display:flex; flex-direction:column; gap:6px; }
+  .ref-item:last-child { border-bottom:none; }
+  .ref-item img { width:100%; border:1px solid var(--line); border-radius:4px; display:block; background:#fff; }
+  .ref-item span { font-size:11px; color:var(--muted); text-align:center; }
+  .ref-item:hover { background:#f1f5f9; }
+  /* 放大浮窗：非模态、可拖动整框；不影响背后主界面操作 */
+  .ref-float { position:fixed; top:0; left:0; z-index:2000; pointer-events:none; }
+  .ref-float[hidden] { display:none !important; }
+  .ref-gallery [hidden], #ref-gallery-body[hidden] { display:none !important; }
+  .ref-float-box { position:absolute; left:50%; top:24px; transform:translateX(-50%);
+                   width:min(90vw,880px); max-height:92vh; box-sizing:border-box;
+                   background:#fff; border-radius:10px; box-shadow:0 18px 60px rgba(15,23,42,.35);
+                   padding:10px 10px 8px; pointer-events:auto; cursor:grab;
+                   display:flex; flex-direction:column; gap:8px; }
+  .ref-float-box:active { cursor:grabbing; }
+  .ref-float-head { display:flex; justify-content:space-between; align-items:center; gap:16px;
+                    font-size:14px; font-weight:650; color:var(--ink); cursor:grab; }
+  .ref-float-head button { cursor:pointer; }
+  .ref-float-hint { font-size:11px; color:var(--muted); text-align:center; }
+  /* 浮窗内的缩放容器：滚轮缩放图片；拖动由整框负责(不改变图片 transform 的平移) */
+  .ref-zoom { flex:1; min-height:0; overflow:hidden; position:relative; cursor:grab;
+              display:flex; align-items:center; justify-content:center;
+              border:1px solid var(--line); border-radius:6px; background:#fff; }
+  .ref-zoom:active { cursor:grabbing; }
+  .ref-zoom img { display:block; max-width:100%; max-height:100%; object-fit:contain;
+                  user-select:none; -webkit-user-drag:none; transform-origin:50% 50% 0; will-change:transform; }
+  .tip { border-bottom:1px dotted var(--muted); cursor:help; font:inherit; color:inherit; text-decoration:none;
+         border-bottom-style:dotted; border-bottom-width:1px; }
+  table th .tip, .power-sec-title .tip, .panel-head p .tip { border-bottom-color:currentColor; }
+  .motor-params { display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; margin-bottom:10px; }
+  .motor-param { border:1px solid var(--line2); border-radius:8px; padding:8px 10px; background:#fff; }
+  .motor-param > span { display:block; font:11px var(--mono); color:var(--muted); margin-bottom:5px; }
+  .motor-param label { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--muted); margin:3px 0; }
+  .motor-param input {
+    width:88px; padding:4px 6px; border:1px solid var(--line2); border-radius:6px;
+    font:12px var(--mono); color:var(--ink); background:#fff;
+  }
+  .motor-param input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(232,89,12,.12); }
+  .empty-row { color:var(--faint); text-align:center; }
+  #power-total-chart { height:220px; border:1px solid var(--line); border-radius:8px; background:#fff; }
+  #power-box-chart { height:260px; border:1px solid var(--line); border-radius:8px; background:#fff; margin-top:12px; }
+  #power-pie-chart { height:480px; border:1px solid var(--line); border-radius:8px; background:#fff; margin-top:12px; }
+  #power-pie-total-chart { height:420px; border:1px solid var(--line); border-radius:8px; background:#fff; margin-top:12px; }
+
   /* ---- 打印/PDF 视图 ---- */
   #print-root { display:none; }
   @media print {
@@ -245,6 +304,19 @@
       <button class="btn" onclick="selectTerms('right')">仅右侧</button>
     </div>
     <div id="term-list"><div class="empty">加载 CSV 后显示字段</div></div>
+    <div class="ref-gallery" id="ref-gallery">
+      <div class="ref-g-head">电机参考图（DM T-N）
+        <button class="btn small" onclick="toggleRefGallery()" id="ref-g-toggle" title="收起/展开整块参考图到原位">收起</button>
+      </div>
+      <div id="ref-gallery-body">
+        <div class="ref-item" onclick="showRefFloat('DM-J3507-2EC-T-N.png','DM-J3507-2EC')" title="点击放大；放大后可拖拽平移、滚轮缩放">
+          <img src="DM-J3507-2EC-T-N.png" alt="DM-J3507 T-N" loading="lazy"><span>DM-J3507-2EC</span>
+        </div>
+        <div class="ref-item" onclick="showRefFloat('DM-J4310-2EC-T-N.png','DM-J4310-2EC')" title="点击放大；放大后可拖拽平移、滚轮缩放">
+          <img src="DM-J4310-2EC-T-N.png" alt="DM-J4310 T-N" loading="lazy"><span>DM-J4310-2EC</span>
+        </div>
+      </div>
+    </div>
   </aside>
 
   <main>
@@ -264,11 +336,31 @@
       </div>
     </div>
 
-    <div class="panel">
+    <div class="panel" id="ov-panel">
       <div class="panel-head">
         <div><h2 id="overview-title">分类总览</h2><p>同类型所选信号叠加；左侧为实线，右侧为虚线。支持框选、滚轮缩放和悬停读取。</p></div>
       </div>
       <div id="overview"><div class="empty">加载 CSV 后显示曲线</div></div>
+    </div>
+
+    <div class="panel" id="tn-panel" hidden>
+      <div class="panel-head">
+        <div><h2>关节 T-N 散点图</h2><p>横轴=<span class="tip" title="关节角速度 ω，rpm 与 rad/s 换算：rpm = ω·60/(2π)">转速 ω</span>，纵轴=扭矩 τ，每个采样点一个散点 <code title="由同一时刻的 joint_torque_nm 与 joint_velocity_rad_s 组成散点 (ω, τ)。散点集中处即该关节电机实际运行点，与规格书的 T-N 特性对照可判断是否越限/是否合理">(<code>ω</code>,<code>τ</code>)</code>。散点相对电机 T-N 特性线(<span class="tip" title="扭矩-转速特性：扭矩越大可用转速越低，越限区即 T-N 线外">运行点区</span>)判断运行是否合理。</p></div>
+        <div class="tn-ctrl">
+          转速单位：
+          <button class="btn small" id="tn-unit-rad" onclick="tnSetUnit('rad/s')">rad/s</button>
+          <button class="btn small" id="tn-unit-rpm" onclick="tnSetUnit('rpm')">rpm</button>
+          <span id="tn-unit-now" class="tip" title="rpm = ω·60/(2π)。仅影响横轴刻度与读数，散点不变">当前：rad/s</span>
+          <button class="btn small" id="tn-xy-swap" onclick="tnSwapXY()" title="对调横/纵轴。有的厂家 T-N 表横轴是扭矩、纵轴是转速，用于对齐导入参考图的方向；对调后散点数据不变，仅换坐标">互换 XY</button>
+          <span class="tip" title="把电机规格书 T-N 图作为各散点卡底图：优先用与当前结合内置 DM-J3507/DM-J4310，也可导入自定义图。半透明叠加，配合互换 XY 对齐方向（底图坐标需人工对照，仅示运行点外形）">参考图：</span>
+          <button class="btn small" id="tn-ref-none" onclick="tnRefMode('none')" title="不叠加参考图">关</button>
+          <button class="btn small" id="tn-ref-dm3507" onclick="tnRefMode('dm3507')" title="用本目录内 DM-J3507-2EC-T-N.png 作底图">DM-J3507</button>
+          <button class="btn small" id="tn-ref-dm4310" onclick="tnRefMode('dm4310')" title="用本目录内 DM-J4310-2EC-T-N.png 作底图">DM-J4310</button>
+          <button class="btn small" onclick="document.getElementById('tn-ref-file').click()" title="上传本地规格书 T-N 图作底图">导入自定义</button>
+          <input id="tn-ref-file" type="file" accept="image/*" hidden onchange="tnRefPick(event)">
+        </div>
+      </div>
+      <div id="tn-chart"><div class="empty">加载 CSV 后显示 T-N 散点图</div></div>
     </div>
 
     <div class="panel" id="inertia-panel" hidden>
@@ -297,6 +389,64 @@
       </div>
       <div class="box-wrap" id="box-chart"><div class="empty">加载 CSV 后显示分布</div></div>
       <div class="table-wrap" id="stats"><div class="empty">暂无统计数据</div></div>
+    </div>
+
+    <div class="panel" id="power-panel" hidden>
+      <div class="panel-head">
+        <div><h2>整机功耗分析</h2><p>下方为瞬时总机械功率 <code title="P_m = Σ(关节扭矩 τ × 关节角速度 ω)，逐采样点累加。正功=电机对外做功，负功=被反向拖动的再生">P_m = Σ τ·ω</code> 曲线。各关节功率曲线、箱线图与区间统计由当前「关节功率」标签的标准视图提供。走路是<span class="tip" title="推行/蹬地做正功、制动/落地被反拖做负功，正负交替">交变负载</span>：正负功在平均里<span class="tip" title="ΣP/N 的算术平均会因正负抵消而接近 0，不能代表真实功耗">对消</span>，故以 <span class="tip" title="RMS = √(mean(P²))，对正负交替负载保留幅值，不会抵消，代表有效功率">RMS</span> 与 <span class="tip" title="∫P·dt，时间积分。这里区分推进功(∫正功)与再生(∫负功)，净能量也会被正负抵消">能量 ∫P·dt</span> 为准。</p></div>
+      </div>
+
+      <div id="power-total-chart"><div class="empty">加载 CSV 后显示总机械功率曲线</div></div>
+
+      <div id="power-box-chart"><div class="empty">加载 CSV 后显示整机功率分布（箱线图）</div></div>
+
+      <div id="power-pie-chart"><div class="empty">加载 CSV 后显示各关节功率占比扇形图（左右分开）</div></div>
+      <div id="power-pie-total-chart"><div class="empty">加载 CSV 后显示总体功率占比（7 组合并）</div></div>
+
+      <div class="table-wrap" style="margin-top:12px;max-height:none;overflow:visible">
+        <div class="power-sec-title">各关节功率占比（机械，RMS）
+          <button class="btn small" onclick="powerSelectAll(true)">全选</button>
+          <button class="btn small" onclick="powerSelectAll(false)">清空</button>
+          <button class="btn small" onclick="exportPowerCsv()" title="把当前勾选关节的功率统计（RMS/峰值/功率占比）导出为带题头的 CSV，UTF-8 含 BOM，Excel 可直接打开">导出 CSV</button>
+        </div>
+        <table>
+          <thead><tr>
+            <th title="勾选该关节，它才计入下方合计总功率与各关节功率占比；未勾选的不参与">选</th>
+            <th>关节</th>
+            <th title="该关节 RMS 占「勾选关节 RMS 之和」的百分比。不显示带符号均值 —— 交变负载下会正负抵消≈0，不代表真实功耗">功率占比</th>
+            <th title="RMS = √(mean((τ·ω)²))，对正负交替的机械负载保留幅值、不抵消，代表有效功率">RMS (W)</th>
+            <th title="区间内 |τ·ω| 的瞬时最大绝对值">峰值 (W)</th>
+          </tr></thead>
+          <tbody id="power-breakdown-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- 路 B：电气功率（默认折叠） -->
+      <details class="power-details">
+        <summary>路 B · 电气 / 电池功耗 P_e = τ·ω + R·I²（需电机参数，默认折叠）</summary>
+        <p class="power-details-desc">机械功率不含电机损耗。要估计真电池抽电需转矩常数 Kt 与绕组电阻 R：
+        电流 I = |τ| / Kt，电气功率 = τ·ω + R·I²（前项为机械、后项为铜损）。下表按型号分组填参数后即时重算。</p>
+        <div class="motor-params">
+          <div class="motor-param"><span>J4310（髋 pitch / 膝）</span>
+            <label title="Kt：电机转矩常数(N·m/A)，用于由扭矩反推电流 I = |τ|/Kt">Kt (N·m/A) <input id="motor-kt-J4310" type="number" min="0" step="0.001" placeholder="待填"></label>
+            <label title="R：绕组内阻(Ω)，铜损 = R·I²">R (Ω) <input id="motor-r-J4310" type="number" min="0" step="0.001" placeholder="待填"></label>
+          </div>
+          <div class="motor-param"><span>J3507（回滚/髋 roll+yaw/踝/臂）</span>
+            <label title="Kt：电机转矩常数(N·m/A)，用于由扭矩反推电流 I = |τ|/Kt">Kt (N·m/A) <input id="motor-kt-J3507" type="number" min="0" step="0.001" placeholder="待填"></label>
+            <label title="R：绕组内阻(Ω)，铜损 = R·I²">R (Ω) <input id="motor-r-J3507" type="number" min="0" step="0.001" placeholder="待填"></label>
+          </div>
+          <button class="btn small" onclick="resetMotorParams()">清空电机参数</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>关节</th><th>型号</th>
+              <th title="RMS I：电流 I=|τ|/Kt 的均方根(RMS)，衡量有效电流，走的发热">RMS I (A)</th>
+              <th title="RMS P_e：电气功耗 τ·ω + R·I²（机械+铜损）的 RMS，对交变负载保幅值">RMS P_e (W)</th>
+              <th title="峰值 |P_e|：区间内电气功耗绝对值的最大瞬时值">峰值 P_e (W)</th></tr></thead>
+            <tbody id="elec-power-tbody"><tr><td colspan="5" class="empty-row">填写 Kt/R 后在此显示电气功率；未填则该关节显示 —</td></tr></tbody>
+          </table>
+        </div>
+      </details>
     </div>
   </main>
 </div>
@@ -355,9 +505,10 @@ const JOINT_GROUPS = {
   joint_velocity_ratio:{prefix:'joint_velocity_ratio/', label:'关节速度占用', unit:'ratio'},
   joint_accel:{prefix:'joint_accel_rad_s2/', label:'关节加速度', unit:'rad/s²'},
   joint_inertia_torque:{prefix:'joint_inertia_torque_nm/', label:'惯量扭矩需求', unit:'N·m'},
+  joint_power:{prefix:'joint_power_w/', label:'关节功率', unit:'W'},
 };
 const PAIRS = ['hip_pitch','hip_roll','hip_yaw','knee','ankle','arm_pitch','arm_roll'];
-const CATEGORY_ORDER = ['joint_position','joint_target','joint_velocity','joint_torque','joint_torque_ratio','joint_velocity_ratio','joint_accel','joint_inertia_torque','base','foot','command','reward','contact','other'];
+const CATEGORY_ORDER = ['joint_position','joint_target','joint_velocity','joint_torque','joint_torque_ratio','joint_velocity_ratio','joint_accel','joint_inertia_torque','joint_power','joint_tn','base','foot','command','reward','contact','other'];
 // 电机规格（Pikachu DM 电机）——单一来源 pikachu_constants.py：
 //   hip_pitch/knee = J4310（vel 30 rad/s，effort 10 N·m）
 //   其余 = J3507（vel 10 rad/s，effort 15 N·m）
@@ -377,6 +528,7 @@ const JOINT_INERTIA_DEFAULTS = {
 const METRIC_COLORS = ['#2563eb','#0891b2','#7c3aed','#059669','#4f46e5','#0284c7','#0d9488',
                        '#dc2626','#ea580c','#db2777','#c026d3','#e11d48','#d97706','#b91c1c'];
 const MAX_RENDER_POINTS = 6000;
+const MAX_TN_POINTS = 3000;              // 每个 T-N 散点卡最多点数(超限按 stride 抽稀)
 
 let DATA = null;
 let FILE_NAME = '';
@@ -384,6 +536,11 @@ let TERM_META = {};
 let CATEGORIES = {};
 let ACTIVE = '';
 let SELECTED = new Set();
+let TN_UNIT = 'rad/s';                    // T-N 散点图转速单位：rad/s | rpm（rpm = ω·60/(2π)）
+let TN_SWAP = false;                      // T-N 轴序：false=转速在 x，true=扭矩(N·m)在 x
+let TN_REF = 'none';                      // 参考图叠加模式：none | dm3507 | dm4310 | custom
+let TN_REF_IMG = '';                      // 自定义参考图 dataURL（tn-ref-file 读入）
+let TN_CHARTS = [];                       // T-N 散点图实例
 let OVERVIEW = null;
 let BOX = null;
 let PAIR_CHARTS = [];
@@ -392,6 +549,42 @@ let RATIO_BACKUP = {};     // joint -> {left:[...], right:[...]} 原始 ratio �
 let INERTIA = Object.assign({}, JOINT_INERTIA_DEFAULTS);   // joint -> 系统绕轴总转动惯量 J_total(kg·m²)
 let RANGE = [0,100];
 let DISCOVERED_FILES = [];
+// 系统功率分析：POWER = {joints:[{joint,side,name}], total:[...瞬时总机械功率 W]}。
+// 由 left/right 每条关节的 torque × velocity 逐点累加；作为衍生数据不进入分类。
+let POWER = null;
+let POWER_CHART = null;
+let POWER_BOX = null;
+let POWER_SEL = null;   // 各关节功率占比表的勾选集：Set('<side>_<joint>_joint')
+let POWER_PIE = null;   // 各关节功率占比扇形图（左右两个饼）实例
+let POWER_PIE_TOTAL = null;   // 总体功率占比饼图（7 组合并，左右相加）实例
+// 电机电气参数（路 B）：motorType -> {kt, r}，未填则不计算电气功率。型号归属 ACTUATOR_SPEC。
+const MOTOR_TYPE = {
+  J4310:['hip_pitch','knee'],
+  J3507:['hip_roll','hip_yaw','ankle','arm_pitch','arm_roll'],
+};
+function motorTypeFor(joint){ for(const [t,js] of Object.entries(MOTOR_TYPE)) if(js.includes(joint)) return t; return null; }
+function readMotorParams(){
+  const p={};
+  for(const t of ['J4310','J3507']){
+    const kt=parseFloat(document.getElementById('motor-kt-'+t)?.value||''),
+          r =parseFloat(document.getElementById('motor-r-'+t)?.value||'');
+    p[t]=(Number.isFinite(kt)&&kt>0&&Number.isFinite(r)&&r>0)?{kt,r}:null;
+  }
+  return p;
+}
+function wireMotorInputs(){
+  for(const t of ['J4310','J3507']) for(const k of ['kt','r']){
+    const el=document.getElementById(`motor-${k}-${t}`);
+    if(el) el.oninput=()=>renderPowerPanel();
+  }
+}
+function resetMotorParams(){
+  for(const t of ['J4310','J3507']) for(const k of ['kt','r']){
+    const el=document.getElementById(`motor-${k}-${t}`);
+    if(el) el.value='';
+  }
+  renderPowerPanel(); setStatus('已清空电机参数（Kt/R），电气功率转为不可计算');
+}
 // 关节目标分类：开关开启后，为每个已选 target 叠加绘制同关节实际位置(joint_position_rad)，
 // 颜色随左右(蓝/红)与设定值一致、虚线；设定值保持实线。
 let ACTUAL_POSITION_ON = false;
@@ -465,7 +658,7 @@ function classifyTerm(name){
 
 function categoryLabel(key){
   if(JOINT_GROUPS[key]) return JOINT_GROUPS[key].label;
-  const labels={base:'机体状态',foot:'足部状态',command:'指令',reward:'奖励',contact:'接触',other:'其他'};
+  const labels={base:'机体状态',foot:'足部状态',command:'指令',reward:'奖励',contact:'接触',other:'其他',joint_tn:'关节 T-N'};
   return labels[key]||key;
 }
 
@@ -483,6 +676,18 @@ function buildTaxonomy(){
       const ja=PAIRS.indexOf(ma.joint), jb=PAIRS.indexOf(mb.joint);
       return sa-sb || (ja<0?99:ja)-(jb<0?99:jb) || a.localeCompare(b);
     });
+  }
+  // 视图分类：T-N 散点图不对应任何原始列。把每个关节的「左/右」作为可勾选术语，
+  // 让侧栏曲线选择框显示左/右数据；散点卡只绘制被勾选的侧别(左右独立生效)。
+  if(DATA){
+    CATEGORIES.joint_tn=[];
+    for(const joint of PAIRS){
+      for(const side of ['left','right']){
+        const tnName=side+'_'+joint;
+        CATEGORIES.joint_tn.push(tnName);
+        TERM_META[tnName]={side,category:'joint_tn',joint,metric:''};
+      }
+    }
   }
 }
 
@@ -518,7 +723,39 @@ function computeDerived(){
   }
 }
 
-// 按当前 INERTIA[joint] 重算某关节左右两侧的惯性扭矩需求序列；J 未知则删除派生列。
+// 计算系统功率衍生数据：POWER.joints = 每条末梢关节，POWER.total = 瞬时总机械功率(Σ τ·ω)。
+// 与分类正交，不新增 DATA.values 列，避免污染 taxonomy 与统计表。
+function computePowerSeries(){
+  POWER={joints:[],total:[]};
+  if(!DATA)return;
+  const n=DATA.time.length; POWER.total=new Array(n).fill(0);
+  const PREFIX='joint_power_w/';
+  // 每条关节的功率列写入 DATA.values,使第二次 buildTaxonomy 归入 joint_power 分类。
+  const powerCols=[];
+  for(const side of ['left','right']){
+    for(const joint of PAIRS){
+      const tn=`joint_torque_nm/${side}_${joint}_joint`, vn=`joint_velocity_rad_s/${side}_${joint}_joint`;
+      const tau=DATA.values[tn], vel=DATA.values[vn];
+      if(!tau||!vel){continue;}
+      const p=new Array(n);
+      for(let i=0;i<n;i++){
+        const τ=Number(tau[i]), ω=Number(vel[i]);
+        if(Number.isFinite(τ)&&Number.isFinite(ω)){p[i]=τ*ω;POWER.total[i]+=τ*ω;}
+        else p[i]=NaN;
+      }
+      const name=`${PREFIX}${side}_${joint}_joint`;
+      DATA.values[name]=p;
+      POWER.joints.push({side,joint,name,type:motorTypeFor(joint)});
+      powerCols.push(name);
+    }
+  }
+  // 整机合计：作为 `joint_power_w/total` 列，归入同一分类(无 side)，排最末。
+  DATA.values[`${PREFIX}total`] = POWER.total;
+  POWER.prefix=PREFIX;
+  POWER.powerCols=powerCols;
+}
+
+// 每关节功率统计由标准分类视图(箱线图/统计表)覆盖；整机曲线直接对 POWER.total 采样。
 function recomputeInertiaSeries(joint){
   if(!DATA)return;
   const J=INERTIA[joint];
@@ -543,8 +780,12 @@ async function loadCsvText(text,name){
     DATA=parseCsv(text); FILE_NAME=name;
     buildTaxonomy();      // 先分类原始列,供 computeDerived 定位各关节
     computeDerived();     // 由关节速度差分出加速度,再按 J 算出惯性扭矩需求
+    computePowerSeries(); // 逐点累加各关节 τ×ω,得瞬时总机械功率(独立于分类)
+    POWER_SEL=new Set(POWER.joints.map(powerTag)); // 功率占比表默认全选
     buildTaxonomy();      // 重新分类,纳入新生成的派生列
+    wireMotorInputs();    // 给路 B 电机参数输入绑定重算
     SELECTED=new Set(Object.keys(DATA.values)); ACTIVE=orderedCategories()[0]; RANGE=[0,100]; ACTUAL_POSITION_ON=false;
+    for(const n of (CATEGORIES.joint_tn||[])) SELECTED.add(n);   // T-N 视图默认全勾(左右全显)
     document.getElementById('m-file').textContent=name;
     document.getElementById('m-network').textContent=DATA.columns.network?.find(Boolean)||'unknown';
     document.getElementById('m-samples').textContent=DATA.time.length.toLocaleString();
@@ -631,7 +872,8 @@ drop.addEventListener('drop',e=>{const f=e.dataTransfer.files?.[0];if(f)loadFile
 function renderTabs(){
   const nav=document.getElementById('tabs'); nav.innerHTML='';
   for(const key of orderedCategories()){
-    const b=document.createElement('button'); b.textContent=categoryLabel(key)+' · '+CATEGORIES[key].length;
+    const cnt=key==='joint_tn'?'':' · '+CATEGORIES[key].length;   // T-N 为视图分类,无原始字段计数
+    const b=document.createElement('button'); b.textContent=categoryLabel(key)+cnt;
     b.className=key===ACTIVE?'active':''; b.onclick=()=>{ACTIVE=key;renderTabs();renderTermList();renderAll();syncActualBtn();};
     nav.appendChild(b);
   }
@@ -685,6 +927,7 @@ function seriesColor(name,index){
 
 function shortName(name){
   const m=TERM_META[name];
+  if(m&&m.joint==='total') return '整机合计';
   return m.side?m.side[0].toUpperCase()+' '+m.joint:name;
 }
 
@@ -889,7 +1132,7 @@ function boxOption(rows,unit){
       formatter:p=>{
         if(p.seriesType==='boxplot'){
           const b=p.data.value;
-          return `<b>${p.name}</b><br/>Min ${fmt(b[0])}<br/>Q1 ${fmt(b[1])}<br/>中位 ${fmt(b[2])}<br/>Q3 ${fmt(b[3])}<br/>Max ${fmt(b[4])}`;
+          return `<b>${p.name}</b> · 箱线图（须=1.5×四分位距，剔除离群）<br/>下限 ${fmt(b[0])}<br/>Q1（25 分位）${fmt(b[1])}<br/>中位 ${fmt(b[2])}<br/>Q3（75 分位）${fmt(b[3])}<br/>上限 ${fmt(b[4])}`;
         }
         return `<b>${p.name}</b><br/>均值 ${p.value?fmt(p.value[1]):'—'}`;
       }},
@@ -900,6 +1143,249 @@ function boxOption(rows,unit){
   };
 }
 
+// 整机功率箱线图（单类别「整机合计」）。瞬时尖峰会把 y 轴撑开、把四分位箱体压成一条缝，
+// 故把 y 轴钳到箱体须(1.5·IQR)附近聚焦核心分布；极端峰值请直接看上方的总功率曲线，
+// 离群数量在 tooltip 里一并给出，不单独画散点以免撑大纵轴。
+function renderPowerBox(el,st,total,start,end){
+  const c=echarts.init(el,null,{renderer:'canvas'});
+  // 交变负载下带符号均值上下对消、≈0，不代表真实功耗；据此给 RMS、净/推进/再生能量。
+  const time=DATA.time;
+  let sum2=0,enet=0,epos=0,eneg=0,n=0;
+  for(let i=start;i<end;i++){
+    const v=Number(total[i]); if(!Number.isFinite(v))continue;
+    sum2+=v*v; n++;
+    if(i>start){
+      const dt=time[i]-time[i-1]; if(!(dt>0))continue;
+      const tr=0.5*(v+Number(total[i-1]))*dt;
+      enet+=tr;
+      if(v>0)epos+=tr; else eneg+=-tr;
+    }
+  }
+  const rms=Math.sqrt(sum2/n), enetS=enet, eMult=fmt(Math.abs(enetS));
+  c.setOption({
+    animation:false,backgroundColor:'#fff',
+    grid:{left:56,right:22,top:16,bottom:22},
+    tooltip:{trigger:'item',backgroundColor:'rgba(255,255,255,.97)',
+      formatter:p=>`<b>整机合计</b>${st.outliers.length?`（离群 ${st.outliers.length} 个，见上方曲线）`:''}<br/>`+
+        `RMS ${fmt(rms)} W<br/>箱体: Min ${fmt(st.box[0])} · Q1 ${fmt(st.box[1])} · 中位 ${fmt(st.box[2])} · Q3 ${fmt(st.box[3])} · Max ${fmt(st.box[4])} W<br/>`+
+        `脉动均值(带符号) ${fmt(st.mean)} W —— 正负对消，不代表真实能耗<br/>`+
+        `净能量 ∫P·dt ${eMult} J（同样对消，提示性）<br/>`+
+        `推进功 ∫P₊·dt ${fmt(epos)} J · 再生 ∫P₋·dt ${fmt(eneg)} J`},
+    xAxis:{type:'category',data:['整机合计'],axisLabel:{fontSize:12}},
+    yAxis:{type:'value',name:'P_m (W)',nameLocation:'middle',nameGap:24,scale:true,
+      minInterval:0.1,splitNumber:5,axisLabel:{show:true,fontSize:11,color:'#334155',hideOverlap:false}},
+    series:[
+      {type:'boxplot',data:[{value:st.box,itemStyle:{color:'#8fa3b5'}}],boxWidth:48,itemStyle:{borderWidth:1.4}},
+      {type:'scatter',data:[{value:[0,st.mean],itemStyle:{color:'#e8590c'}}],symbol:'diamond',symbolSize:8},
+    ],
+  });
+  return c;
+}
+function powerTag(j){return `${j.side}_${j.joint}_joint`;}
+function powerSelectAll(on){
+  if(!POWER)return;
+  POWER_SEL=new Set(on?POWER.joints.map(powerTag):[]);
+  renderPowerPanel();
+  setStatus(on?'已全选所有关节参与功率合计':'已清空勾选，功率合计与占比为 0');
+}
+// 各关节功率占比扇形图：按勾选子集，左侧/右侧各一个环形饼。数据用 RMS（正负不抵消）。
+function renderPowerPie(){
+  const el=document.getElementById('power-pie-chart');
+  if(!el||!POWER||!DATA)return;
+  if(!POWER_SEL)POWER_SEL=new Set(POWER.joints.map(powerTag));
+  const [start,end]=rangeIndices();
+  // 每个勾选关节的自身 RMS(幅值口径,不做正负抵消)
+  const bySide={left:[],right:[]};
+  for(const j of POWER.joints){
+    const tag=powerTag(j);
+    if(!POWER_SEL.has(tag))continue;
+    const tau=DATA.values[`joint_torque_nm/${tag}`], vel=DATA.values[`joint_velocity_rad_s/${tag}`];
+    if(!tau||!vel)continue;
+    let sum2=0,n=0;
+    for(let i=start;i<end;i++){
+      const t=Number(tau[i]),v=Number(vel[i]);
+      if(Number.isFinite(t)&&Number.isFinite(v)){const p=t*v;sum2+=p*p;n++;}
+    }
+    const rms=n?Math.sqrt(sum2/n):0;
+    if(rms>0)bySide[j.side].push({name:(j.side[0].toUpperCase())+' '+j.joint,value:rms});
+  }
+  if(POWER_PIE){POWER_PIE.dispose();POWER_PIE=null;}
+  el.innerHTML='';
+  if(!window.echarts){el.innerHTML='<div class="empty">ECharts 未加载</div>';return;}
+  if(!bySide.left.length&&!bySide.right.length){el.innerHTML='<div class="empty">勾选关节后显示各关节功率占比</div>';return;}
+  const mkSeries=(side,center,colorIdx)=>{
+    const data=bySide[side], selfSum=data.reduce((s,d)=>s+d.value,0);
+    return data.length?{name:side,type:'pie',radius:['32%','60%'],center,minAngle:1,
+      avoidLabelOverlap:true,
+      label:{formatter:p=>`${p.percent.toFixed(1)}% ${p.name.split(' ')[1]}`,fontSize:12.5,lineHeight:15,overflow:'break',width:100,color:'#334155'},
+      emphasis:{label:{fontWeight:700,fontSize:15}},
+      labelLine:{smooth:.3,length:6,length2:6},
+      data:data.map((d,i)=>({name:d.name,value:d.value,itemStyle:{color:METRIC_COLORS[colorIdx+(i%7)]}})),
+    }:null;
+  };
+  const titles=[]; if(bySide.left.length)titles.push({text:'Left（'+bySide.left.length+'）',left:'8%',top:'2%',textStyle:{fontSize:14,fontWeight:600}});
+  if(bySide.right.length)titles.push({text:'Right（'+bySide.right.length+'）',left:'68%',top:'2%',textStyle:{fontSize:14,fontWeight:600}});
+  // 左右各占半幅并排排列
+  const series=[mkSeries('left',['28%','52%'],0),mkSeries('right',['72%','52%'],7)].filter(Boolean);
+  POWER_PIE=echarts.init(el,null,{renderer:'canvas'});
+  POWER_PIE.setOption({
+    animation:false,backgroundColor:'#fff',title:titles,
+    labelLayout:{hideOverlap:false},   // 不因空间不足隐藏占比小扇区的标签/指针
+    tooltip:{trigger:'item',
+      formatter:p=>{const selfSum=bySide[p.seriesName].reduce((s,d)=>s+d.value,0);
+        return `<b>${p.name}</b><br/>RMS ${fmt(p.value)} W<br/>占${p.seriesName==='left'?'左':'右'}侧 ${((p.value/selfSum)*100).toFixed(1)}%`;}},
+    legend:{show:false},series,
+  });
+}
+// 总体功率占比饼图：7 个功能组，组占比 = 左+右 RMS 相加；只统计勾选关节。
+function renderPowerPieTotal(){
+  const el=document.getElementById('power-pie-total-chart');
+  if(!el||!POWER||!DATA)return;
+  if(!POWER_SEL)POWER_SEL=new Set(POWER.joints.map(powerTag));
+  const [start,end]=rangeIndices();
+  const groupSum={};
+  for(const j of POWER.joints){
+    const tag=powerTag(j);
+    if(!POWER_SEL.has(tag))continue;
+    const tau=DATA.values[`joint_torque_nm/${tag}`], vel=DATA.values[`joint_velocity_rad_s/${tag}`];
+    if(!tau||!vel)continue;
+    let sum2=0,n=0;
+    for(let i=start;i<end;i++){
+      const t=Number(tau[i]),v=Number(vel[i]);
+      if(Number.isFinite(t)&&Number.isFinite(v)){const p=t*v;sum2+=p*p;n++;}
+    }
+    const rms=n?Math.sqrt(sum2/n):0;
+    if(rms>0)groupSum[j.joint]=(groupSum[j.joint]||0)+rms;
+  }
+  if(POWER_PIE_TOTAL){POWER_PIE_TOTAL.dispose();POWER_PIE_TOTAL=null;}
+  el.innerHTML='';
+  if(!window.echarts){el.innerHTML='<div class="empty">ECharts 未加载</div>';return;}
+  const groups=Object.keys(groupSum);
+  if(!groups.length){el.innerHTML='<div class="empty">勾选关节后显示总体功率占比</div>';return;}
+  const data=groups.map((g,i)=>({name:g,value:groupSum[g],itemStyle:{color:METRIC_COLORS[i%7]}}));
+  POWER_PIE_TOTAL=echarts.init(el,null,{renderer:'canvas'});
+  POWER_PIE_TOTAL.setOption({
+    animation:false,backgroundColor:'#fff',
+    title:{text:'总体功率占比（机械 · RMS）：组 = 左+右合计（随勾选）',left:'center',top:'2%',textStyle:{fontSize:13,fontWeight:600}},
+    tooltip:{trigger:'item',
+      formatter:p=>`<b>${p.name}</b><br/>左右 RMS 合计 ${fmt(p.value)} W<br/>占总体 ${p.percent.toFixed(1)}%`},
+    legend:{orient:'vertical',right:10,top:'center',textStyle:{fontSize:11}},
+    series:[{name:'总体',type:'pie',radius:['28%','60%'],center:['40%','54%'],
+      avoidLabelOverlap:true,
+      label:{formatter:p=>`${p.percent.toFixed(1)}% ${p.name}`,fontSize:12,color:'#334155',lineHeight:15,overflow:'break',width:110},
+      labelLine:{smooth:.3,length:10,length2:8},
+      emphasis:{label:{fontWeight:700,fontSize:14}},
+      data}],
+  });
+}
+// 各关节功率占比表：只对「勾选」关节算合计与占比；不显示带符号均值(会被正负抵消)。
+function renderPowerBreakdown(){
+  const tbody=document.getElementById('power-breakdown-tbody');
+  if(!tbody||!POWER||!DATA)return;
+  if(!POWER_SEL)POWER_SEL=new Set(POWER.joints.map(powerTag)); // 默认全选
+  const [start,end]=rangeIndices();
+  const rows=[];
+  for(const j of POWER.joints){
+    const tag=powerTag(j);
+    const tau=DATA.values[`joint_torque_nm/${tag}`], vel=DATA.values[`joint_velocity_rad_s/${tag}`];
+    if(!tau||!vel)continue;
+    let sum2=0,peak=0,n=0;
+    for(let i=start;i<end;i++){
+      const t=Number(tau[i]),v=Number(vel[i]);
+      if(!Number.isFinite(t)||!Number.isFinite(v))continue;
+      const p=t*v; sum2+=p*p; peak=Math.max(peak,Math.abs(p)); n++;
+    }
+    if(!n)continue;
+    rows.push({j,rms:Math.sqrt(sum2/n),peak});
+  }
+  const selSum=rows.reduce((s,r)=>s+(POWER_SEL.has(powerTag(r.j))?r.rms:0),0);
+  tbody.innerHTML='';
+  for(const r of rows){
+    const tag=powerTag(r.j), on=POWER_SEL.has(tag);
+    const share=selSum>0&&on?(r.rms/selSum*100):0;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td><input type="checkbox" ${on?'checked':''} data-share="${share.toFixed(2)}"></td>`+
+      `<td title="${tag}">${r.j.side[0].toUpperCase()} ${r.j.joint}</td>`+
+      `<td class="num">${on?fmt(share)+'%':'—'}</td><td class="num">${fmt(r.rms)}</td><td class="num">${fmt(r.peak)}</td>`;
+    tr.querySelector('input').onchange=e=>{
+      const t=e.target.checked;
+      if(t)POWER_SEL.add(tag); else POWER_SEL.delete(tag);
+      renderPowerBreakdown();
+      renderPowerPie();
+      renderPowerPieTotal();
+    };
+    tbody.appendChild(tr);
+  }
+  // 勾选合计行
+  const selRows=rows.filter(r=>POWER_SEL.has(powerTag(r.j)));
+  const tr=document.createElement('tr'); tr.style.fontWeight='700'; tr.style.borderTop='2px solid var(--line2)';
+  const totRms=selRows.reduce((s,r)=>s+r.rms,0), totPeak=selRows.reduce((s,r)=>Math.max(s,r.peak),0);
+  tr.innerHTML=`<td>${selRows.length}/${rows.length}</td><td>勾选合计</td>`+
+    `<td class="num">100%</td><td class="num">${fmt(totRms)}</td><td class="num">${fmt(totPeak)}</td>`;
+  tbody.appendChild(tr);
+}
+// 一键导出「勾选关节」的功率统计为带题头的 CSV（UTF-8 BOM，Excel 可直接打开）。
+function exportPowerCsv(){
+  if(!POWER||!DATA)return;
+  if(!POWER_SEL)POWER_SEL=new Set(POWER.joints.map(powerTag));
+  const [start,end]=rangeIndices();
+  // 与 renderPowerBreakdown 同一套口径算出每个关节的 RMS/峰值
+  const rows=[];
+  for(const j of POWER.joints){
+    const tag=powerTag(j);
+    const tau=DATA.values[`joint_torque_nm/${tag}`], vel=DATA.values[`joint_velocity_rad_s/${tag}`];
+    if(!tau||!vel)continue;
+    let sum2=0,peak=0,n=0;
+    for(let i=start;i<end;i++){
+      const t=Number(tau[i]),v=Number(vel[i]);
+      if(!Number.isFinite(t)||!Number.isFinite(v))continue;
+      const p=t*v; sum2+=p*p; peak=Math.max(peak,Math.abs(p)); n++;
+    }
+    if(!n)continue;
+    rows.push({r:j,rms:Math.sqrt(sum2/n),peak,tau,vel});
+  }
+  // 左右合并：同一功能组内勾选的左右关节 RMS/峰值各取平均
+  const gMap=new Map();
+  for(const x of rows){
+    if(!POWER_SEL.has(powerTag(x.r)))continue;
+    const g=x.r.joint;
+    let e=gMap.get(g);
+    if(!e){e={g,n:0,rmsSum:0,peakSum:0};gMap.set(g,e);}
+    e.n++; e.rmsSum+=x.rms; e.peakSum+=x.peak;
+  }
+  if(!gMap.size){return;}
+  const groups=[...gMap.values()].map(e=>({g:e.g,rms:e.rmsSum/e.n,peak:e.peakSum/e.n}));
+  const selSum=groups.reduce((s,g)=>s+g.rms,0);
+  const esc=v=>{v=String(v);return /[",\n]/g.test(v)?`"${v.replace(/"/g,'""')}"`:v;};
+  const dataLine=x=>[x.g,(x.rms).toFixed(3),(x.peak).toFixed(3),((x.rms/selSum)*100).toFixed(2)].map(esc).join(',');
+  // 勾选合计 = 整机总功耗（绝对值合成）：每个采样点把勾选关节 |P|=|τ·ω| 相加 → P_abs(t)=Σ|Pᵢ|，再统计 RMS/峰值（驱动、再生都算证功率，不抵消）。
+  const selArr=rows.filter(x=>POWER_SEL.has(powerTag(x.r)));
+  let sumI=0,selPeak=0,nsamp=0;
+  for(let i=start;i<end;i++){
+    let s=0,any=false;
+    for(const x of selArr){
+      const t=Number(x.tau[i]),v=Number(x.vel[i]);
+      if(!Number.isFinite(t)||!Number.isFinite(v))continue;
+      s+=Math.abs(t*v); any=true;
+    }
+    if(!any)continue;
+    nsamp++; sumI+=s*s; selPeak=Math.max(selPeak,s);
+  }
+  const totRms=nsamp?Math.sqrt(sumI/nsamp):0, totPeak=selPeak;
+  const note=`各关节功率占比（机械，RMS）—— 左右合并、同组左右求平均（共 ${groups.length} 组）；合计行为「整机总功耗（绝对值合成）」：逐采样点把勾选关节 |P|=|τ·ω| 相加后统计（驱动+再生均算正，不抵消）。题头：关节, RMS(W), 峰值(W), 功率占比(%)`;
+  const head='关节, RMS (W), 峰值 (W), 功率占比 (%)';
+  const body=groups.map(dataLine).join('\n');
+  const rows2=[note,head,body,
+    [esc('勾选合计'),esc(totRms.toFixed(3)),esc(totPeak.toFixed(3)),'100.00'].join(',')].join('\n');
+  const csv='﻿'+rows2+'\n';
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const name='power_breakdown_'+new Date().toISOString().replace(/[:.]/g,'-').slice(0,19).replace('T','_')+'.csv';
+  if(window.navigator&&window.navigator.msSaveOrOpenBlob){window.navigator.msSaveOrOpenBlob(blob,name);return;}
+  const url=(window.URL||window.webkitURL).createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=name;document.body.appendChild(a);a.click();document.body.removeChild(a);
+  (window.URL||window.webkitURL).revokeObjectURL(url);
+}
 function specCell(name){
   const m=TERM_META[name];
   const spec=m&&specFor(m.joint);
@@ -911,7 +1397,7 @@ function renderStats(){
   const root=document.getElementById('stats'),[start,end]=rangeIndices();
   const rows=CATEGORIES[ACTIVE].filter(n=>SELECTED.has(n)).map(n=>[n,statsFor(DATA.values[n],start,end)]).filter(x=>x[1]);
   if(!rows.length){root.innerHTML='<div class="empty">当前分类没有已选数据</div>';return;}
-  root.innerHTML='<table><thead><tr><th>Metric</th><th>Vel限</th><th>Torq限</th><th>N</th><th>Min</th><th>Max</th><th>Mean</th><th>RMS</th><th>Peak |x|</th><th>P95 |x|</th></tr></thead><tbody>'+
+  root.innerHTML='<table><thead><tr><th>Metric</th><th title="电机速度上限 (rad/s)，见规格">Vel限</th><th title="电机扭矩上限 (N·m)，见规格">Torq限</th><th title="区间内有效采样点数">N</th><th title="区间内最小值">Min</th><th title="区间内最大值">Max</th><th title="Mean：算术平均 Σx/N。对功率等交变字段，正负会抵消接近 0，不代表真实能耗">Mean</th><th title="RMS = √(mean(x²))，对正负交替负载保留幅值、不抵消，代表有效水平">RMS</th><th title="Peak |x|：区间内绝对值最大（瞬时峰值）">Peak |x|</th><th title="P95 |x|：绝对值第 95 分位，剔除最极端 5% 后的典型上界">P95 |x|</th></tr></thead><tbody>'+
     rows.map(([n,s])=>`<tr><td title="${n}">${n}</td>${specCell(n)}<td>${s.n}</td><td>${fmt(s.min)}</td><td>${fmt(s.max)}</td><td>${fmt(s.mean)}</td><td>${fmt(s.rms)}</td><td>${fmt(s.peak)}</td><td>${fmt(s.p95)}</td></tr>`).join('')+
     '</tbody></table>';
 }
@@ -956,9 +1442,223 @@ function resetTorqueRatio(joint){
   setStatus(`已重置 [${joint}] 的扭矩上限为原本 ${spec?spec.effort:'—'} N·m`);
 }
 
+function renderPowerPanel(){
+  const panel=document.getElementById('power-panel');
+  if(!panel)return;
+  const hasPower=POWER&&POWER.joints.length>0;
+  // 只挂在「关节功率」标签下：每关节曲线/箱线图/统计已由标准视图覆盖，
+  // 此面板仅补充整机曲线 + 路 B 电气接口，避免在其它标签重复出现。
+  panel.hidden=!(hasPower&&ACTIVE==='joint_power');
+  if(!hasPower)return;
+  const [start,end]=rangeIndices(), time=DATA.time;
+  const chartEl=document.getElementById('power-total-chart');
+  if(POWER_CHART){POWER_CHART.dispose();POWER_CHART=null;}
+  chartEl.innerHTML='';
+  if(!window.echarts){chartEl.innerHTML='<div class="empty">ECharts 未加载</div>';return;}
+  const total=POWER.total;
+  const lines=[]; for(let i=start;i<end;i++) if(Number.isFinite(total[i])) lines.push([time[i],total[i]]);
+  POWER_CHART=echarts.init(chartEl);
+  POWER_CHART.setOption({
+    animation:false,backgroundColor:'#fff',
+    grid:{left:70,right:22,top:34,bottom:44},
+    tooltip:{trigger:'axis',axisPointer:{type:'cross'},
+      formatter:p=>p.map(x=>`${x.seriesName}<br/>t=${fmt(x.value[0])} s<br/>P=${fmt(x.value[1])} W`).join('<br/>')},
+    xAxis:{type:'value',name:'Time (s)',nameLocation:'middle',nameGap:30,scale:true},
+    yAxis:{type:'value',name:'P_m (W)',scale:true},
+    series:[{name:'总机械功率',type:'line',showSymbol:false,smooth:false,lineStyle:{width:1.4},data:lines}],
+  });
+
+  // 整机功率箱线图：当前区间 total 的 Min/Q1/中位/Q3/Max + 均值 + 离群。
+  const boxEl=document.getElementById('power-box-chart');
+  if(POWER_BOX){POWER_BOX.dispose();POWER_BOX=null;}
+  boxEl.innerHTML='';
+  const st=boxStats(total,start,end);
+  if(st) POWER_BOX=renderPowerBox(boxEl,st,total,start,end);
+
+  // 路 B 表格：电流 I=|τ|/Kt，电气功 P_e=τ·ω + R·I²（含铜损）。
+  const params=readMotorParams();
+  const et=document.getElementById('elec-power-tbody');
+  et.innerHTML='';
+  if(!Object.values(params).some(Boolean)){
+    et.innerHTML='<tr><td colspan="5" class="empty-row">填写 Kt/R 后在此显示电气功率；未填则该关节显示 —</td></tr>';
+  }else{
+    for(const j of POWER.joints){
+      const type=j.type, mp=type?params[type]:null;
+      const tag=j.side+'_'+j.joint+'_joint';
+      const vn=`joint_velocity_rad_s/${tag}`, tau=DATA.values[`joint_torque_nm/${tag}`], vel=DATA.values[vn];
+      if(!mp||!tau||!vel){
+        et.insertAdjacentHTML('beforeend',
+          `<tr><td>${j.side[0].toUpperCase()} ${j.joint}</td><td>${type||'—'}</td><td class="empty-row">—</td><td class="empty-row">—</td><td class="empty-row">—</td></tr>`);
+        continue;
+      }
+      let irmsSq=0,peSum2=0,peMax=-Infinity,n=0;
+      for(let i=start;i<end;i++){
+        const τ=Number(tau[i]),ω=Number(vel[i]);
+        if(!Number.isFinite(τ)||!Number.isFinite(ω))continue;
+        const I=Math.abs(τ)/mp.kt, Pe=τ*ω+mp.r*I*I;
+        irmsSq+=I*I; peSum2+=Pe*Pe; n++;
+        if(Math.abs(Pe)>peMax)peMax=Math.abs(Pe);
+      }
+      if(!n){et.insertAdjacentHTML('beforeend',
+        `<tr><td>${j.side[0].toUpperCase()} ${j.joint}</td><td>${type}</td><td>—</td><td>—</td><td>—</td></tr>`);continue;}
+      et.insertAdjacentHTML('beforeend',
+        `<tr><td>${j.side[0].toUpperCase()} ${j.joint}</td><td>${type}</td><td>${fmt(Math.sqrt(irmsSq/n))}</td><td>${fmt(Math.sqrt(peSum2/n))}</td><td>${fmt(peMax)}</td></tr>`);
+    }
+  }
+
+  renderPowerBreakdown(); // 各关节功率占比表(勾选决定合计与占比)
+  renderPowerPie();       // 各关节功率占比扇形图(左右分开，随勾选)
+  renderPowerPieTotal();  // 总体功率占比饼图(7 组合并，随勾选)
+}
+
+function disposeTn(){ for(const c of TN_CHARTS)c.dispose(); TN_CHARTS=[]; }
+function tnToUnit(v){ return TN_UNIT==='rpm'? v*60/(2*Math.PI) : v; }
+// 参考图来源：内置 DM 两型号（与本 HTML 同目录的相对 PNG）或自定义上传的 dataURL。
+function tnRefSrc(){ return TN_REF==='dm3507'?'DM-J3507-2EC-T-N.png':TN_REF==='dm4310'?'DM-J4310-2EC-T-N.png':TN_REF==='custom'?TN_REF_IMG:null; }
+// T-N 散点图：各功能组一张散点卡，默认横轴转速(rad/s|rpm)、纵轴扭矩；可对调以适配不同厂家 T-N 表。
+function renderTnChart(){
+  const root=document.getElementById('tn-chart');
+  const empty=t=>root.innerHTML='<div class="empty">'+t+'</div>';
+  if(!DATA){ empty('加载 CSV 后显示 T-N 散点图'); return; }
+  disposeTn(); root.innerHTML='';
+  if(!window.echarts){ empty('ECharts 未加载'); return; }
+  const grid=document.createElement('div'); grid.className='pair-grid'; root.appendChild(grid);
+  const [start,end]=rangeIndices(), n=end-start, stride=Math.max(1,Math.floor(n/MAX_TN_POINTS));
+  const uRpm=TN_UNIT==='rpm', swap=TN_SWAP, refSrc=tnRefSrc();
+  // 轴量名与刻度格式随互换联动：默认 x=转速 y=扭矩；互换后 x=扭矩 y=转速。
+  const xName=swap?'N·m':TN_UNIT, yName=swap?TN_UNIT:'N·m';
+  const fmtSpeed=uRpm?v=>String(Math.round(v)):v=>String(Math.round(v*10)/10);
+  const fmtTorq=v=>String(Math.round(v*100)/100);
+  const fmtX=swap?fmtTorq:fmtSpeed, fmtY=swap?fmtSpeed:fmtTorq;
+  for(const joint of PAIRS){
+    // 仅绘制「曲线选择」中勾选的侧别(左右独立生效)；都未勾选则该关节不画卡。
+    const sides=[]; if(SELECTED.has('left_'+joint))sides.push(['left','#2563eb']);
+    if(SELECTED.has('right_'+joint))sides.push(['right','#dc2626']);
+    if(!sides.length)continue;
+    const card=document.createElement('div'); card.className='pair-card'; grid.appendChild(card);
+    const chartEl=document.createElement('div'); chartEl.className='pair-chart'; card.appendChild(chartEl);
+    const series=[];
+    for(const [side,color] of sides){
+      const tau=DATA.values[`joint_torque_nm/${side}_${joint}_joint`], vel=DATA.values[`joint_velocity_rad_s/${side}_${joint}_joint`];
+      if(!tau||!vel)continue;
+      const pts=[];
+      for(let i=start;i<end;i+=stride){
+        const t=Number(tau[i]),v=Number(vel[i]);
+        if(!Number.isFinite(t)||!Number.isFinite(v))continue;
+        pts.push(swap?[t,tnToUnit(v)]:[tnToUnit(v),t]);   // 互换：x=扭矩,右=转速
+      }
+      series.push({name:side==='left'?'Left':'Right',type:'scatter',symbolSize:3,
+        itemStyle:{color,opacity:.75}, emphasis:{itemStyle:{opacity:1}},
+        data:pts});
+    }
+    if(!series.length)continue;
+    const chart=echarts.init(chartEl);
+    chart.setOption({
+      animation:false,backgroundColor:'#fff',
+      title:{text:joint+(swap?'（τ横/ω纵）':'（ω横/τ纵）'),left:6,top:4,textStyle:{fontSize:11,fontWeight:600}},
+      legend:{right:6,top:4,textStyle:{fontSize:9},icon:'circle'},
+      grid:{left:62,right:18,top:32,bottom:30},
+      tooltip:{trigger:'item',confine:true,backgroundColor:'#fff',borderColor:'var(--line2)',
+        textStyle:{fontSize:11,color:'var(--ink)'},
+        formatter:p=>{const x=p.value[0],y=p.value[1];
+          const sx=(swap?x.toFixed(2)+' N·m':(uRpm?x.toFixed(0):x.toFixed(2))+' '+TN_UNIT);
+          const sy=(swap?(uRpm?y.toFixed(0):y.toFixed(2))+' '+TN_UNIT:y.toFixed(2)+' N·m');
+          return `<b>${p.seriesName} ${joint}</b><br/>${swap?'τ':'ω'} ${sx}<br/>${swap?'ω':'τ'} ${sy}`;}},
+      xAxis:{type:'value',name:xName,nameLocation:'middle',nameGap:18,scale:true,
+        axisLine:{lineStyle:{color:'#475569'}},axisTick:{length:5,lineStyle:{color:'#64748b'}},
+        axisLabel:{fontSize:11,color:'#334155',formatter:fmtX},
+        splitLine:{show:true,lineStyle:{color:'#e2e8f0',type:'dashed'}},splitNumber:6,
+        minInterval:uRpm&&!swap?1:0.5},
+      yAxis:{type:'value',name:yName,nameLocation:'middle',nameGap:16,scale:true,
+        axisLine:{lineStyle:{color:'#475569'}},axisTick:{length:5,lineStyle:{color:'#64748b'}},
+        axisLabel:{fontSize:11,color:'#334155',formatter:fmtY},
+        splitLine:{show:true,lineStyle:{color:'#e2e8f0',type:'dashed'}},splitNumber:6},
+      // 参考图底图：把规格书 T-N 图(内置 DM 或自定义导入)半透明铺满绘图区，配合“互换 XY”对齐方向。
+      graphic:refSrc?{elements:[{type:'image',z:0,zlevel:0,left:62,top:32,right:18,bottom:30,
+        style:{image:refSrc,opacity:.45}}]}:undefined,
+      series,
+    });
+    TN_CHARTS.push(chart);
+  }
+}
+// T-N 面板：切换到该标签页才显示与渲染；非 TN 标签页则折叠。
+function renderTnPanel(){
+  const panel=document.getElementById('tn-panel'); if(!panel)return;
+  const on=ACTIVE==='joint_tn';
+  panel.hidden=!on;
+  const now=document.getElementById('tn-unit-now'); if(now)now.textContent='当前：'+TN_UNIT+(TN_SWAP?'（扭矩为横轴）':'');
+  for(const [u,id] of [['rad/s','tn-unit-rad'],['rpm','tn-unit-rpm']]){ const b=document.getElementById(id); if(b)b.classList.toggle('active',TN_UNIT===u); }
+  for(const [m,id] of [['none','tn-ref-none'],['dm3507','tn-ref-dm3507'],['dm4310','tn-ref-dm4310']]){ const b=document.getElementById(id); if(b)b.classList.toggle('active',TN_REF===m); }
+  const sw=document.getElementById('tn-xy-swap'); if(sw)sw.classList.toggle('active',TN_SWAP);
+  if(on)renderTnChart();
+}
+function tnSetUnit(u){ TN_UNIT=u; renderTnPanel(); }
+function tnSwapXY(){ TN_SWAP=!TN_SWAP; renderTnPanel(); }
+function tnRefMode(m){ TN_REF=m; renderTnPanel(); }
+function tnRefPick(ev){
+  const f=ev.target&&ev.target.files&&ev.target.files[0]; if(!f)return;
+  const r=new FileReader(); r.onload=()=>{ TN_REF='custom'; TN_REF_IMG=r.result; renderTnPanel(); }; r.readAsDataURL(f);
+}
+// 侧栏电机参考图：悬停放大浮窗；✕/点图关闭 —— 关闭后图回到曲线选择框下的原位(缩略图常驻)。
+let REF_GALLERY_OPEN=true;
+function toggleRefGallery(){
+  REF_GALLERY_OPEN=!REF_GALLERY_OPEN;
+  const body=document.getElementById('ref-gallery-body'); if(body)body.hidden=!REF_GALLERY_OPEN;
+  const b=document.getElementById('ref-g-toggle'); if(b)b.textContent=REF_GALLERY_OPEN?'收起':'展开';
+}
+function showRefFloat(src,name){
+  const f=document.getElementById('ref-float'); if(!f)return;
+  const im=document.getElementById('ref-float-img'); if(im)im.src=src;
+  const t=document.getElementById('ref-float-name'); if(t)t.textContent=name;
+  refReset();      // 每次打开重置平移/缩放
+  f.hidden=false;
+}
+function hideRefFloat(){ const f=document.getElementById('ref-float'); if(f)f.hidden=true; }
+
+/* 放大浮窗内滚轮缩放图片（围绕图片中心），拖动由整框负责。
+   缩放倍率 REF_SCALE，1×–16×。 */
+let REF_SCALE=1;
+function refApply(){ const im=document.getElementById('ref-float-img');
+  if(im)im.style.transform='scale('+REF_SCALE.toFixed(3)+')'; }
+function refReset(){ REF_SCALE=1; refApply(); }
+function refInit(){
+  const box=document.getElementById('ref-zoom-box'); if(!box)return;
+  // 拖动整个窗框（标题栏或图片上按住移动窗的位置）；非模态，背后主界面仍可操作。
+  const win=document.getElementById('ref-float-box');
+  if(win){
+    win.addEventListener('mousedown',e=>{
+      if(e.target.tagName==='BUTTON'||e.target.closest&&e.target.closest('button'))return;
+      e.preventDefault();
+      const r=win.getBoundingClientRect();
+      win.style.left=r.left+'px'; win.style.top=r.top+'px'; win.style.transform='none';
+      const ox=e.clientX-r.left, oy=e.clientY-r.top;
+      const mv=ev=>{ win.style.left=(ev.clientX-ox)+'px'; win.style.top=(ev.clientY-oy)+'px'; };
+      const up=()=>{ document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); };
+      document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up);
+    });
+  }
+  // 滚轮缩放图片（围绕图片中心放大）；不做图片平移（平移=拖动整框）。
+  box.addEventListener('wheel',e=>{
+    e.preventDefault();
+    REF_SCALE=Math.min(16,Math.max(1,REF_SCALE*(e.deltaY<0?1.15:1/1.15)));
+    refApply();
+  },{passive:false});
+}
+document.addEventListener('DOMContentLoaded',refInit);
+
 function renderAll(){
   if(!DATA||!window.echarts)return;
-  renderOverview();renderPairs();renderInertiaPanel();renderBox();renderStats();
+  const isTn=ACTIVE==='joint_tn';
+  renderTnPanel();
+  // T-N 为专用散点视图：隐藏所有其它面板(总览/左右对比/惯量/功率/统计对比)，
+  // 避免上次标签页的统计摘要残留到 T-N 页下方。非 T-N 时不动它们(由各自 render 决定)。
+  if(isTn){
+    for(const id of ['ov-panel','pair-section','inertia-panel','power-panel','compare-panel']){
+      const el=document.getElementById(id); if(el)el.hidden=true;
+    }
+    return;
+  }
+  renderOverview();renderPairs();renderInertiaPanel();renderBox();renderStats();renderPowerPanel();
 }
 
 function onRangeChange(){
@@ -1329,9 +2029,22 @@ function renderCompareStats(){
 
 window.addEventListener('resize',()=>{
   OVERVIEW?.resize();BOX?.resize();for(const c of PAIR_CHARTS)c.resize();
-  CMP.line?.resize();CMP.box?.resize();
+  CMP.line?.resize();CMP.box?.resize();for(const c of TN_CHARTS)c.resize();
 });
 discoverCsvs(true);
 </script>
+
+<!-- 电机参考图：点击放大浮窗（非模态、可整框拖动；✕ 关闭后回到曲线选择框下原位） -->
+<div id="ref-float" class="ref-float" hidden>
+  <div class="ref-float-box" id="ref-float-box">
+    <div class="ref-float-head"><span id="ref-float-name"></span>
+      <button class="btn small" onclick="hideRefFloat()" title="关闭放大（图片回到曲线选择框下的原位）">✕ 关闭</button>
+    </div>
+    <div class="ref-zoom" id="ref-zoom-box">
+      <img id="ref-float-img" alt="" draggable="false">
+    </div>
+    <div class="ref-float-hint">拖动标题栏或图片移动整个窗框 · 滚轮缩放图片 · 可同时操作主界面</div>
+  </div>
+</div>
 </body>
 </html>
