@@ -13,9 +13,10 @@ from pathlib import Path
 from typing import Any, Protocol
 
 import mujoco
+import numpy as np
 import viser
 
-from mjlab.sensor import CameraSensor
+from mjlab.sensor import CameraSensor, ContactSensor
 from mjlab.viewer.viser.camera_viewer import ViserCameraViewer
 from mjlab.viewer.viser.reward_bar_panel import RewardBarPanel
 from mjlab.viewer.viser.term_plotter import ViserTermPlotter
@@ -38,6 +39,7 @@ class _SceneProtocol(Protocol):
 
   def clear_debug_all(self) -> None: ...
   def clear(self) -> None: ...
+  def add_sphere(self, center: Any, radius: float, color: Any) -> None: ...
 
 
 @dataclass
@@ -246,13 +248,102 @@ class ViserCoMOverlays:
     """把当前环境稳定量追加进 scene 的 debug 图元队列（供每帧 sync）。"""
     if not (self.enabled and self.scene.debug_visualization_enabled):
       return
-    sim = self.env.unwrapped.sim
+    env = self.env.unwrapped
+    sim = env.sim
     # 延迟 import：mjlab.mocap 的 __init__ 会级联 import tasks → envs，在
     # envs 初始化期间顶层 import 会回环，这里只在运行时（env 已就绪）拉取。
     from mjlab.mocap.stability import com_and_inertia_from_sim, draw_stability
 
     data = com_and_inertia_from_sim(sim, self.scene.env_idx)
     draw_stability(self.scene, data)
+    self._queue_foot_friction(env, data)
+
+  def _queue_foot_friction(self, env: Any, data: Any) -> None:
+    """逐脚摩擦锥裕度预警（打滑信号灯）。
+
+    只用已提交 ground-truth 接触力的 ``feet_ground_contact`` ContactSensor
+    （``reduce="netforce"``，世界系每 primary 净力 ``[N,3]``）。着地脚底近似朝上，
+    故法向力 ≈ 净力 z 分量，切向 ≈ 水平合力；裕度 = ``μ·Fn − |Ft|``，μ 取足部
+    geom 摩擦系数。把每只脚画一个信号灯球悬在足盒上方：
+
+      - 绿：裕度充裕（摩擦锥利用率 < 80%）
+      - 黄：临界（80%..100%）
+      - 红：打滑（μ·Fn − |Ft| < 0，切向超锥）—— 正是足端滑移的直接诱因
+
+    若无匹配的接触传感器或足盒，本层静默跳过（不阻塞 ``--com`` 其它叠加）。
+    """
+    foot_boxes = list(getattr(data, "foot_boxes", ()) or ())
+    sensors = getattr(env.scene, "sensors", None)
+    sensor = None
+    if sensors:
+      for s in sensors.values():
+        if not isinstance(s, ContactSensor):
+          continue
+        name = getattr(s.cfg, "name", "")
+        if name == "feet_ground_contact" or ("foot" in name and "ground" in name):
+          if s.data.found is not None and s.data.force is not None:
+            sensor = s
+            break
+    if (
+      sensor is None
+      or sensor.data.force is None
+      or sensor.data.found is None
+      or not foot_boxes
+    ):
+      return
+
+    # 足部摩擦系数（第 0 分量即切向限制系数），取各足 geom 平均。
+    m = env.sim.mj_model
+    fr = [
+      m.geom_friction[g, 0]
+      for g in range(m.ngeom)
+      if "ankle_collision" in _geom_name(m, g)
+    ]
+    mu = float(sum(fr) / len(fr)) if fr else 0.6
+
+    idx = self.scene.env_idx
+    force_data = sensor.data.force  # 已在 guard 里排除 None
+    assert force_data is not None
+    force = force_data[idx].float().cpu().numpy()  # (P,3) 世界系非线性力
+    found = sensor.data.found[idx].float().cpu().numpy()  # (P,)
+    for p in range(force.shape[0]):
+      box = foot_boxes[p % len(foot_boxes)]
+      if not bool(found[p]):
+        continue
+      fn = max(force[p, 2], 0.0)
+      ft = float((force[p, :2] ** 2).sum() ** 0.5)
+      if fn <= 0:
+        continue
+      margin = mu * fn - ft
+      ratio = ft / (mu * fn)  # 摩擦锥利用率
+      # 自 com 沿用足盒：取足盒底面中心上方抬 0.04，画信号灯。
+      center = box[0]
+      color = (
+        (0.85, 0.2, 0.2, 1.0)
+        if margin < 0
+        else ((0.95, 0.85, 0.1, 1.0) if ratio > 0.8 else (0.25, 0.9, 0.3, 1.0))
+      )
+      self.scene.add_sphere(
+        center=np.array([center[0], center[1], data.ground_z + 0.04]),
+        radius=0.02,
+        color=color,
+      )
+
+
+def _geom_name(model: Any, gid: int) -> str:
+  """取宿主 ``MjModel`` 第 ``gid`` 个 geom 名称（与 stability._host_geom_name 一致）。"""
+  if gid < 0 or gid >= int(getattr(model, "ngeom", 0)):
+    return ""
+  adr = int(model.name_geomadr[gid])
+  if adr < 0:
+    return ""
+  end = model.names.find(b"\x00", adr)
+  if end < 0:
+    end = len(model.names)
+  try:
+    return model.names[adr:end].decode()
+  except UnicodeDecodeError:
+    return ""
 
 
 @dataclass

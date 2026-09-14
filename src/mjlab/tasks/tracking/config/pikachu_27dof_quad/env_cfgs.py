@@ -110,9 +110,7 @@ def pikachu_27dof_quad_walk_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     func=mdp.electrical_power_cost,
     weight=-2e-3,
     params={
-      "asset_cfg": SceneEntityCfg(
-        "robot", joint_names=QUAD_27DOF_WALK_JOINT_NAMES
-      )
+      "asset_cfg": SceneEntityCfg("robot", joint_names=QUAD_27DOF_WALK_JOINT_NAMES)
     },
   )
 

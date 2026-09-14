@@ -67,6 +67,18 @@ PIKACHU_27DOF_XML: Path = (
 )
 assert PIKACHU_27DOF_XML.exists()
 
+# sim2sim 专用：train.xml 同 body，顶层恢复 ``<include file="scene.xml"/>``
+# （scene 的 floor 已归零到 z=0），供 CPU 部署渲染/落地，不被 mjlab 训练双地面。
+PIKACHU_27DOF_SIM2SIM_XML: Path = (
+  MJLAB_SRC_PATH
+  / "asset_zoo"
+  / "robots"
+  / "pikachu_xml"
+  / "mjcf"
+  / "pikachu_27dof_sim2sim.xml"
+)
+assert PIKACHU_27DOF_SIM2SIM_XML.exists()
+
 
 def get_spec() -> mujoco.MjSpec:
   """编译出训练体机器人规格（每次调用返回新实例）。"""
@@ -168,22 +180,28 @@ PIKACHU_27DOF_ARTICULATION = EntityArticulationInfoCfg(
 )
 
 ##
-# 关键帧：腿微蹲起步（值与旧 KNEES_BENT 一致，left/right 轴反相），上肢零位。
+# 关键帧：腿微蹲起步（解析 IK：脚底水平 + 脚底面贴地），上肢零位。
+# 平面 3-link 腿（hip_pitch/knee/ankle，轴均绕 +Y/−Y），校准后脚底倾角
+# foot_tilt = −hip + knee − ankle，脚底水平需 ankle = knee − hip。
+# 由 mujoco FK 数值搜索 in-limit 对称踏地解：hip=+0.52, knee=+1.02,
+# ankle=+0.50（全在各自限位内），脚端正下方（水平偏移≈0），脚底面接触 z≈0。
+# 左右 hip/knee/ankle 轴相同（非镜像），故 right 与 left 同号。
+# base pos z=0.168 由脚底贴地自动反求（直腿会伸入地面 ~0.19m，故必须蹲）。
 ##
 KNEES_BENT_27DOF_KEYFRAME = EntityCfg.InitialStateCfg(
-  pos=(0, 0, 0.165),  # 站立 geniz
+  pos=(0, 0, 0.168),  # 解析解：脚底贴地所需的 base 高度
   joint_pos={
-    # 腿：明显下蹲，踝反向补偿保持脚底水平，左右轴反相（同旧 KNEES_BENT）。
-    "left_hip_pitch_joint": -0.0,
-    "right_hip_pitch_joint": 0.0,
+    # 腿：明显下蹲（踝反向补偿保脚底水平），左右同号（轴相同）。
+    "left_hip_pitch_joint": 0.52,
+    "right_hip_pitch_joint": 0.52,
     "left_hip_roll_joint": 0.0,
     "right_hip_roll_joint": 0.0,
     "left_hip_yaw_joint": 0.0,
     "right_hip_yaw_joint": 0.0,
-    "left_knee_joint": -0.0,
-    "right_knee_joint": 0.0,
-    "left_ankle_joint": -0.0,
-    "right_ankle_joint": 0.0,
+    "left_knee_joint": 1.02,
+    "right_knee_joint": 1.02,
+    "left_ankle_joint": 0.50,
+    "right_ankle_joint": 0.50,
     # 臂：自然放松。
     "left_arm_pitch_joint": 0.0,
     "right_arm_pitch_joint": -0.0,
@@ -307,6 +325,7 @@ __all__ = [
   "PIKACHU_27DOF_ARTICULATION",
   "PIKACHU_27DOF_FOOT_GEOM_NAMES",
   "PIKACHU_27DOF_FULL_COLLISION",
+  "PIKACHU_27DOF_SIM2SIM_XML",
   "PIKACHU_27DOF_XML",
   "PICK_START_KEYFRAME",
   "TAIL_JOINT_NAMES",

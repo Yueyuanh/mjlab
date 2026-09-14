@@ -116,7 +116,9 @@ def main(
 
     root = robot.data.default_root_state.clone()
     root[:, 0:3] = base_pos
-    root[:, 2] = h0            # z 用四足默认站高，忽略 csv 绝对 z → 避免低位穿地/narrowphase overflow
+    root[:, 2] = (
+      h0  # z 用四足默认站高，忽略 csv 绝对 z → 避免低位穿地/narrowphase overflow
+    )
     root[:, :2] += scene.env_origins[:, :2]
     root[:, 3:7] = base_rot
     root[:, 7:10] = base_lin_vel

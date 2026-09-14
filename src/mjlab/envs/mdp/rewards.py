@@ -77,9 +77,7 @@ def joint_power_l1(
   )
   actuator_ids = asset_cfg.actuator_ids
   if isinstance(actuator_ids, slice) or actuator_ids is None:
-    actuator_ids = torch.arange(
-      actuator_feedforward.shape[0], device=asset.data.device
-    )
+    actuator_ids = torch.arange(actuator_feedforward.shape[0], device=asset.data.device)
   else:
     actuator_ids = torch.as_tensor(actuator_ids, device=asset.data.device)
   driven_joint_ids = actuator_feedforward[actuator_ids, 0]

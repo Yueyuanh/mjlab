@@ -6,16 +6,18 @@ import time as _time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import torch
 import tyro
 
 from mjlab.envs import ManagerBasedRlEnv
+from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.rl import MjlabOnPolicyRunner, RslRlVecEnvWrapper
 from mjlab.scripts._cli import maybe_print_top_level_help
 from mjlab.tasks.registry import list_tasks, load_env_cfg, load_rl_cfg, load_runner_cls
 from mjlab.tasks.tracking.mdp import MotionCommandCfg
+from mjlab.utils.lab_api.math import quat_apply
 from mjlab.utils.os import get_wandb_checkpoint_path
 from mjlab.utils.torch import configure_torch_backends
 from mjlab.utils.wrappers import VideoRecorder
@@ -33,7 +35,7 @@ def _parse_wandb_dt(value: str | datetime) -> datetime:
 
 @dataclass(frozen=True)
 class PlayConfig:
-  agent: Literal["zero", "random", "trained"] = "trained"
+  agent: Literal["zero", "random", "frozen", "trained"] = "trained"
   registry_name: str | None = None
   wandb_run_path: str | None = None
   wandb_checkpoint_name: str | None = None
@@ -67,6 +69,68 @@ class PlayConfig:
   _demo_mode: tyro.conf.Suppress[bool] = False
 
 
+class _BaseBalanceWrapper(RslRlVecEnvWrapper):
+  """Frozen 静稳测试用的基座平衡器（仅 GPU/warp 下 frozen 分支启用）。
+
+  已反复验证：warp（float32）求解器对「自由 base + 软 PD 锁 deep-squat 站姿」这
+  个本身无平衡点的系统，任何求参（iter/tolerance/solref/Kp/脚底面积）都无法让
+  base 静态承重——base 会缓慢下沉穿地（z->-0.15）+ 蠕动，被用户看成“打滑”。
+  CPU（float64）同配置靠更稳的收敛能短暂立在 z~0.095。唯一能在 GPU 上也站住的，
+  是给 base 加一个姿态/高度平衡器（等效真实足式机器人的站桩平衡反馈）：
+
+  - 高度/水平位置 spring + damper（把 base 拉回站姿态，压住下沉穿地）
+  - 姿态对齐力矩（把 base 体上轴拉回世界 +z，压住前翻/侧翻）
+
+  仅作用于 base body，不改关节、不改接触/求解器，不影响 velocity 训练 sim。
+  """
+
+  # 标定过的平衡增益与参考高度（deep-squat 站姿）。Kz=900 让 GPU 停在 z~0.095，
+  # 与 CPU/float64 同配置的立位一致。
+  _KZ, _DZ, _KXY, _DXY, _KAL, _DAL, _Z_REF = 900.0, 90.0, 55.0, 35.0, 6.0, 1.2, 0.14
+  _UP = torch.tensor([0.0, 0.0, 1.0], dtype=torch.float32)
+
+  def __init__(self, env: Any, clip_actions: float | None = None):
+    super().__init__(env, clip_actions=clip_actions)
+    robot = self.unwrapped.scene["robot"]
+    self._robot = robot
+    model = self.unwrapped.sim.mj_model
+    names = [
+      model.names[
+        int(model.name_bodyadr[i]) : model.names.find(
+          b"\x00", int(model.name_bodyadr[i])
+        )
+      ].decode()
+      for i in range(model.nbody)
+    ]
+    self._base_id = names.index("robot/base_link")
+    self._device = self.unwrapped.device
+
+  def step(self, actions):
+    self._apply()
+    return super().step(actions)
+
+  def _apply(self) -> None:
+    data = self._robot.data
+    pose = data.root_link_pose_w[0]  # (7,) = [pos(3), quat_wxyz(4)]
+    pos = pose[:3]
+    quat = pose[3:7]
+    vel = data.root_link_lin_vel_w[0]
+    ang_vel = data.root_link_ang_vel_w[0]
+    up = quat_apply(quat, self._UP.detach().clone().to(quat.device))
+    err = torch.cross(up, self._UP.to(up.device), dim=-1)
+    force = torch.empty(3, device=quat.device, dtype=torch.float32)
+    force[0] = self._KXY * (-pos[0]) - self._DXY * vel[0]
+    force[1] = self._KXY * (-pos[1]) - self._DXY * vel[1]
+    force[2] = self._KZ * (self._Z_REF - pos[2]) - self._DZ * vel[2]
+    torque = self._KAL * err - self._DAL * ang_vel
+    self._robot.write_external_wrench_to_sim(
+      force.reshape(1, 1, 3),
+      torque.reshape(1, 1, 3),
+      env_ids=torch.tensor([0], device=self._device),
+      body_ids=[self._base_id],
+    )
+
+
 def run_play(task_id: str, cfg: PlayConfig):
   configure_torch_backends()
 
@@ -75,8 +139,18 @@ def run_play(task_id: str, cfg: PlayConfig):
   env_cfg = load_env_cfg(task_id, play=True)
   agent_cfg = load_rl_cfg(task_id)
 
-  DUMMY_MODE = cfg.agent in {"zero", "random"}
+  DUMMY_MODE = cfg.agent in {"zero", "random", "frozen"}
   TRAINED_MODE = not DUMMY_MODE
+
+  if cfg.agent == "frozen":
+    # 全关节锁死（静稳定测试）：禁上肢随机摆动（flail），并让关节位置动作
+    # 覆盖所有被驱动关节。JointPositionAction 默认 use_default_offset=True，
+    # 故零动作 = 全部关节锁死到 default 站姿，只有浮动 base 自由。
+    env_cfg.actions.pop("arm_flail", None)
+    env_cfg.actions.pop("extremity_flail", None)
+    joint_pos_action = env_cfg.actions["joint_pos"]
+    assert isinstance(joint_pos_action, JointPositionActionCfg)
+    joint_pos_action.actuator_names = (".*",)
 
   # Disable terminations if requested (useful for viewing motions).
   if cfg.no_terminations:
@@ -196,10 +270,15 @@ def run_play(task_id: str, cfg: PlayConfig):
       disable_logger=True,
     )
 
-  env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
+  # Frozen 全关节锁死 + 基座平衡：GPU/warp 下 deep-squat 无平衡点会沉穿地（看着
+  # 像“一直打滑”）。给 base 加姿态/高度平衡器压住下沉，让 frozen 真正静态站立。
+  if cfg.agent == "frozen":
+    env = _BaseBalanceWrapper(env, clip_actions=agent_cfg.clip_actions)
+  else:
+    env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
   if DUMMY_MODE:
     action_shape: tuple[int, ...] = env.unwrapped.action_space.shape
-    if cfg.agent == "zero":
+    if cfg.agent in {"zero", "frozen"}:
 
       class PolicyZero:
         def __call__(self, obs) -> torch.Tensor:
@@ -316,7 +395,12 @@ def run_play(task_id: str, cfg: PlayConfig):
     return f"{task_id}__{Path(checkpoint_name).stem}"
 
   if resolved_viewer == "native":
-    NativeMujocoViewer(env, policy, com_visualizer=cfg.com).run()
+    NativeMujocoViewer(
+      env,
+      policy,
+      com_visualizer=cfg.com,
+      freeze_joints_default=DUMMY_MODE,
+    ).run()
   elif resolved_viewer == "viser":
     ViserPlayViewer(
       env,
@@ -325,6 +409,7 @@ def run_play(task_id: str, cfg: PlayConfig):
       metrics_output_dir=metrics_output_dir,
       metrics_source_name=metrics_source_name,
       com_visualizer=cfg.com,
+      freeze_joints_default=DUMMY_MODE,
     ).run()
   elif resolved_viewer == "arm-swing":
     ArmSwingViewer(

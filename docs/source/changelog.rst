@@ -120,6 +120,28 @@ Added
 Changed
 ^^^^^^^
 
+- The Pikachu 27-dof ``KNEES_BENT_27DOF_KEYFRAME`` is now a real crouch computed
+  by a planar analytic IK (``leg_offset = −hip + knee − ankle`` keeps the foot
+  level; the symmetric in-limit solution ``hip=+0.52, knee=+1.02, ankle=+0.50``,
+  left/right legs have identical joint axes so take the same sign). The base
+  height is raised to ``z=0.168`` so the foot bottoms land exactly on the ground
+  instead of the old straight-leg pose that sank into the floor.
+- ``play --com`` now overlays a per-foot slip light on each planted foot: green
+  (usable friction margin ``μ·Fₙ − |Fₜ|`` ≥ 20% of the cone), yellow (friction
+  cone ≥ 80% used), or red when tangential force exceeds the cone (`μ·Fₙ < |Fₜ|`).
+  The contact force and μ come from the ``feet_ground_contact`` sensor, so tasks
+  without it silently skip the overlay.
+- ``play --agent frozen`` now defaults **Freeze Joints** to *on* for dummy agents:
+  every actuated joint (all 27) is welded to its default KNEES posture each physics
+  pre-step, so the robot enters as a single rigid body for static-stability /
+  anti-disturbance testing. In the Viser viewer this is the "Freeze Joints" toggle
+  (checkbox, default on); in the native MuJoCo viewer it is the **L** key (also
+  default on for dummy agents). **L** is used because **F** is reserved by MuJoCo's
+  native "show contact forces" shortcut. Trained agents leave it *off* so a learned
+  policy's own actions are not overridden. An empirical GPU-Warp sweep
+  (μ = 0.6..3.0, frozen, F = 0) showed the residual F=0 drift/fall is *not* friction
+  limited — raising ground friction does not stop it — so the friction default stays
+  0.6 and the "slip" is instead traced to GPU-Warp contact-fidelity rather than μ.
 - Plot-log dashboards now auto-discover and load the newest matching CSV below
   ``logs/`` through a read-only local server. The actuator-response dashboard
   also shows raw per-frequency sine time histories, renders model equations

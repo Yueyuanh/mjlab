@@ -77,12 +77,17 @@ class ViserPlayViewer(BaseViewer):
     metrics_output_dir: Path | None = None,
     metrics_source_name: Callable[[], str] | None = None,
     com_visualizer: bool = False,
+    freeze_joints_default: bool = False,
   ) -> None:
     super().__init__(env, policy, frame_rate, verbosity)
     self._ckpt_mgr = checkpoint_manager
     self._metrics_output_dir = metrics_output_dir
     self._metrics_source_name = metrics_source_name
     self._com_visualizer = com_visualizer
+    # "Freeze Joints" 复选框的初始状态。dummy agent（zero/frozen/random）下默认
+    # 开启=直接把全关节锁死到 default，便于 R4 的静稳定测试；trained 下默认关闭
+    # 以免锁死训练好的策略动作。
+    self._freeze_joints_default = freeze_joints_default
     self._term_overlays: ViserTermOverlays | None = None
     self._camera_overlays: ViserCameraOverlays | None = None
     self._debug_overlays: ViserDebugOverlays | None = None
@@ -96,6 +101,20 @@ class ViserPlayViewer(BaseViewer):
     self._timing_last_log_time: float = 0.0
     self._external_server = viser_server is not None
     self._server = viser_server or viser.ViserServer(label="mjlab")
+
+    # External-force GUI state (built in setup()). Used with `--agent frozen` to
+    # push the joint-locked robot with a tunable sustained wrench on the base.
+    self._ext_force_checkbox = None
+    self._ext_fx_slider = None
+    self._ext_fy_slider = None
+    self._ext_fz_slider = None
+    self._ext_offset_slider = None
+    self._base_body_id: int | None = None
+    # Freeze-joints GUI state: weld all actuated joints to the default posture
+    # (absolute rigidity, only the free-floating base moves). Used to separate
+    # "soft PD yielding under gravity" from "default posture not statically stable".
+    self._freeze_checkbox = None
+    self._freeze_joint_ids: torch.Tensor | None = None
 
   @override
   def setup(self) -> None:
@@ -173,6 +192,41 @@ class ViserPlayViewer(BaseViewer):
             self.request_reset_speed()
           else:
             self.request_speed_up()
+
+      # External-force controls: with `--agent frozen` the joints are locked to
+      # the default stance, so this push tests how the rigid robot tips under a
+      # tunable sustained wrench (world-frame, applied at the base CoM + offset).
+      with self._server.gui.add_folder("External Force"):
+        self._ext_force_checkbox = self._server.gui.add_checkbox(
+          "Apply Force", initial_value=False
+        )
+        self._ext_fx_slider = self._server.gui.add_slider(
+          "Force X (N)", min=-100.0, max=100.0, step=1.0, initial_value=0.0
+        )
+        self._ext_fy_slider = self._server.gui.add_slider(
+          "Force Y (N)", min=-100.0, max=100.0, step=1.0, initial_value=0.0
+        )
+        self._ext_fz_slider = self._server.gui.add_slider(
+          "Force Z (N)", min=-100.0, max=100.0, step=1.0, initial_value=0.0
+        )
+        self._ext_offset_slider = self._server.gui.add_slider(
+          "Apply-point Z offset (m)",
+          min=0.0,
+          max=0.5,
+          step=0.01,
+          initial_value=0.0,
+        )
+
+      # Freeze-joints: each physics pre-step we override every actuated joint's
+      # qpos back to the default posture (and zero its velocity), so the robot
+      # behaves as a single rigid body. See sync_viewer_to_env().
+      # 默认可由构造参数决定（dummy agent 下为 True），让进入 play 即锁定全关节，
+      # 便于直接观察静态站姿/受推下的稳定性，而不是先被上肢随机摆动扰动。
+      with self._server.gui.add_folder("Freeze Joints"):
+        self._freeze_checkbox = self._server.gui.add_checkbox(
+          "Freeze to default (absolute rigidity)",
+          initial_value=self._freeze_joints_default,
+        )
 
       # Let command terms create their own GUI controls.
       env = self.env.unwrapped
@@ -546,7 +600,61 @@ class ViserPlayViewer(BaseViewer):
   @override
   def sync_viewer_to_env(self) -> None:
     """Synchronize viewer state to environment (e.g., perturbations)."""
-    pass
+    # Freeze-joints: override every actuated joint's qpos back to the default
+    # posture and zero its velocity each physics pre-step. This welds the links
+    # into a single rigid body (only the free-floating base moves), isolating
+    # "soft PD yielding under gravity" from "default posture not statically
+    # stable" as the cause of a slow tip-over.
+    if self._freeze_checkbox is not None and self._freeze_checkbox.value:
+      env = self.env.unwrapped
+      robot = env.scene["robot"]
+      if self._freeze_joint_ids is None:
+        ids, _ = robot.find_joints_by_actuator_names((".*",))
+        self._freeze_joint_ids = torch.as_tensor(
+          ids, dtype=torch.long, device=env.device
+        )
+      joint_ids = self._freeze_joint_ids
+      default_pos = robot.data.default_joint_pos[:, joint_ids]
+      robot.write_joint_position_to_sim(default_pos, joint_ids=joint_ids)
+      robot.write_joint_velocity_to_sim(
+        torch.zeros_like(default_pos), joint_ids=joint_ids
+      )
+
+    # External-force GUI: every physics pre-step, write the slider's wrench onto
+    # the base link (world frame, base CoM + Z offset). Zeroes it when disabled.
+    if self._ext_force_checkbox is None:
+      return
+    assert self._ext_fx_slider is not None
+    assert self._ext_fy_slider is not None
+    assert self._ext_fz_slider is not None
+    assert self._ext_offset_slider is not None
+
+    env = self.env.unwrapped
+    robot = env.scene["robot"]
+    device = env.device
+    num = env.num_envs
+
+    if self._base_body_id is None:
+      ids, _ = robot.find_bodies("base_link")
+      self._base_body_id = ids[0]
+
+    apply_on = bool(self._ext_force_checkbox.value)
+    fx = float(self._ext_fx_slider.value)
+    fy = float(self._ext_fy_slider.value)
+    fz = float(self._ext_fz_slider.value)
+    offset_z = float(self._ext_offset_slider.value)
+
+    if apply_on and (fx != 0.0 or fy != 0.0 or fz != 0.0):
+      force = torch.tensor([[fx, fy, fz]], device=device).expand(num, 1, 3)
+      r = torch.tensor([[0.0, 0.0, offset_z]], device=device).expand(num, 1, 3)
+      torque = torch.cross(r, force, dim=-1)
+    else:
+      force = torch.zeros(num, 1, 3, device=device)
+      torque = torch.zeros(num, 1, 3, device=device)
+
+    robot.write_external_wrench_to_sim(
+      force, torque, env_ids=None, body_ids=[self._base_body_id]
+    )
 
   @override
   def reset_environment(self) -> None:

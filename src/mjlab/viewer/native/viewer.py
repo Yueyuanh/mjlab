@@ -129,11 +129,20 @@ class NativeMujocoViewer(BaseViewer):
     enable_perturbations: bool = True,
     verbosity: VerbosityLevel = VerbosityLevel.SILENT,
     com_visualizer: bool = False,
+    freeze_joints_default: bool = False,
   ):
     super().__init__(env, policy, frame_rate, verbosity)
     self.user_key_callback = key_callback
     self.enable_perturbations = enable_perturbations
     self._show_com = com_visualizer
+    # Freeze-joints: weld every actuated joint back to its default posture each
+    # physics pre-step (same rigid-body semantics as the Viser "Freeze Joints"
+    # toggle). dummy agents (zero/random/frozen) default it on for stability
+    # testing; trained agents default it off so a learned policy is untouched.
+    # Toggle in-window with L (note: F is reserved by Mujoco's native "show
+    # contact forces" shortcut, so freeze is bound to L to avoid the clash).
+    self._freeze = freeze_joints_default
+    self._freeze_joint_ids: torch.Tensor | None = None
 
     self.mjm: Optional[mujoco.MjModel] = None
     self.mjd: Optional[mujoco.MjData] = None
@@ -410,13 +419,28 @@ class NativeMujocoViewer(BaseViewer):
       self.mjd.subtree_com[bid] = self.mjd.xpos[bid]
 
   def sync_viewer_to_env(self) -> None:
-    """Sync mouse perturbation to sim via ``qfrc_applied``.
+    """Sync viewer state to sim each physics pre-step.
 
-    Mouse perturbation forces are converted from Cartesian body space
-    (``xfrc_applied``) to generalized joint space (``qfrc_applied``)
-    so that they coexist with programmatic forces on ``xfrc_applied``.
-    See the module docstring for details on the channel separation.
+    Runs two pass-throughs on the active environment's GPU state before the next
+    physics integration: (1) the Freeze-joints weld (toggle with **F**), and
+    (2) mouse-perturbation forces converted from Cartesian body space to
+    generalized joint space (``qfrc_applied``). Freeze is independent of the mujoco
+    window being open, so it works for any dummy agent even without a GUI.
     """
+    # 1) Freeze-joints: weld every actuated joint back to the default posture so
+    # the robot behaves as a single rigid body (mirrors Viser "Freeze Joints").
+    if self._freeze:
+      robot = self.env.unwrapped.scene["robot"]
+      if self._freeze_joint_ids is None:
+        ids, _ = robot.find_joints_by_actuator_names((".*",))
+        self._freeze_joint_ids = torch.as_tensor(
+          ids, dtype=torch.long, device=self.env.device
+        )
+      jid = self._freeze_joint_ids
+      default_pos = robot.data.default_joint_pos[:, jid]
+      robot.write_joint_position_to_sim(default_pos, joint_ids=jid)
+      robot.write_joint_velocity_to_sim(torch.zeros_like(default_pos), joint_ids=jid)
+
     v = self.viewer
     if v is None or self.mjm is None or self.mjd is None:
       return
@@ -467,6 +491,7 @@ class NativeMujocoViewer(BaseViewer):
       KEY_COMMA,
       KEY_ENTER,
       KEY_EQUAL,
+      KEY_L,
       KEY_MINUS,
       KEY_P,
       KEY_PERIOD,
@@ -495,6 +520,8 @@ class NativeMujocoViewer(BaseViewer):
       self.request_action("TOGGLE_SHOW_ALL_ENVS")
     elif key == KEY_RIGHT:
       self.request_single_step()
+    elif key == KEY_L:
+      self.request_action("TOGGLE_FREEZE")
 
     if self.user_key_callback:
       try:
@@ -538,6 +565,12 @@ class NativeMujocoViewer(BaseViewer):
       self._show_all_envs = not self._show_all_envs
       self.log(
         f"[INFO] Show all envs {'enabled' if self._show_all_envs else 'disabled'}",
+        VerbosityLevel.INFO,
+      )
+    if action == ViewerAction.TOGGLE_FREEZE:
+      self._freeze = not self._freeze
+      self.log(
+        f"[INFO] Freeze joints {'ON (absolute rigidity)' if self._freeze else 'OFF'}",
         VerbosityLevel.INFO,
       )
       return True

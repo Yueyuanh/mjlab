@@ -244,6 +244,23 @@ uv run train Mjlab-Velocity-Flat-Pikachu-Quad \
 uv run play Mjlab-Tracking-Flat-Pikachu-27dof-Quad-Walk --motion-file src/mjlab/mocap/npz/quad_27dof_quad.npz --checkpoint-file logs/rsl_rl/pikachu_27dof_quad_walk/2026-09-10_20-28-04_quad_tracking/model_4999.pt --viewer viser
 
 
+# --- 锁死姿态 + GUI 施力静稳定性测试（--agent frozen） ---
+
+全关节锁死到 default 站姿（PD 强伺服，零动作=站姿，只留浮动 base 自由），然后
+在 viser 的 "External Force" 面板用滑条施加可调持续外力，配 --com True 看整机
+CoM / 支撑多边形 / ZMP 实时反应，判断会不会被推倒、在多大外力处分界。
+
+    uv run play Mjlab-Velocity-Flat-Pikachu-27dof --agent frozen \
+        --viewer viser --com True --num-envs 1
+
+- 无自变量时：--agent frozen 与 --agent zero 均锁腿，但 zero 会保留上肢/头/耳/尾的
+  随机摆动；frozen 额外关掉 arm_flail / extremity_flail 并把关节位置动作覆盖全部
+  27 个关节，整机静止站定。
+- External Force 面板：Force X/Y/Z (N) 世界系滑条（±100）+ "Apply Force" 开关 +
+  Apply-point Z offset (m)（上移施力点制造倾覆力矩，0 = 质心平动）。每物理步写
+  xfrc_applied 到 base_link，随开关归零。
+- 施力点 Z 偏移 0：纯平动推离；>0：产生 offset × F 倾覆，CoM 跌破支撑多边形 → 倾倒。
+- 关闭 Apply Force：外力消失，机器人回到静稳。
 
 
 # scp rsync
