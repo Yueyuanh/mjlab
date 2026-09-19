@@ -3,11 +3,12 @@
 import os
 import sys
 import time as _time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
+import mujoco
 import torch
 import tyro
 
@@ -53,6 +54,53 @@ class PlayConfig:
   com: bool = False
   """开启实时稳定性叠加层：整机质心 CoM、绕其惯量主轴椭球、足底接触支撑
   多边形（viser 的 Visualization tab 里也有开关）。"""
+  weld: bool = False
+  """构造"真·焊死"的单刚体做最基本的静止站立（只与 dummy 代理组合使用）。
+
+  在 scene MjSpec 里把全部 27 个内部铰接替换成 ``mjEQ_WELD`` 等式约束，删除
+  全部执行器与旧 keyframe，编译出一个绝对刚性的单体——只剩 base 6 自由度、没有
+  任何关节。base 在重力 + 足底接触下自然站定：不动 solver、不注入能量、不依赖
+  viewer 逐子步强写 qpos。warp（GPU）上 >3s 纹丝不动（up_z≈1.0, dx<1mm）。
+
+  与 viewer "Freeze to default"（每子步强写 ``joint_pos`` + PD target=0，属于
+  能量注入 hack）以及 ``--balance`` 平衡器（把基座弹簧扛住的 hack）不同，这才是
+  物理意义上的"静态站立"。焊死后没有关节可供这两个 hack 作用，因此组合使用时
+  它们会被强制关闭。
+  """
+  freeze_joints: bool | None = None
+  """Override the viewer's "Freeze to default (absolute rigidity)" initial state.
+
+  ``None`` follows the agent default (True for dummy agents zero/random/frozen,
+  False for trained). Set explicitly to force the joint weld on/off at startup
+  (e.g. ``--freeze-joints False`` under ``--agent frozen`` to see the true tip-
+  over); the weld can still be toggled live afterwards (viser checkbox / native
+  L key)."""
+  balance: bool | None = None
+  """Override the frozen/zero base-balance wrapper (altitude/attitude springs
+  that hold the base up on GPU warp sims, which otherwise cannot statically
+  stand a free base under soft PD).
+
+  ``None`` follows the agent default (True for zero/frozen, inert for trained).
+  ``--balance False`` removes the wrapper so an external force produces the
+  *true* rigid-body tip-over instead of stopping at a balanced tilt; the base
+  may then subside/creep on warp, which is exactly what this wrapper was added
+  to compensate for. ``--balance True`` also applies it to trained agents."""
+  foot_friction: float | None = None
+  """Override the tangential (sliding) friction mu of the foot collision geoms
+  (``*_ankle_collision``). Baseline in this scene is the warp default mu (≈1.03);
+  the 0.3..1.2 range used during training is a startup DR event that dummy play
+  disables.
+
+  Low values (e.g. 0.05) make the feet slip, so a push slides the robot along
+  the ground; high values (e.g. 3.0) keep the feet glued so a push results in a
+  clean tip-over instead. Pair with ``--balance False --freeze-joints True`` to
+  separate the slip vs tip-over failure modes."""
+  foot_scale: float | None = None
+  """Scale the foot collision contact area (x/y = length/width, thickness kept).
+
+  ``>1`` grows the support polygon (harder to overturn, clearer slips),
+  ``<1`` shrinks it (tips over easily). Uses the same size scaling as domain
+  randomization, then recomputes the broadphase bounds."""
   no_terminations: bool = False
   """Disable all termination conditions (useful for viewing motions with dummy agents)."""
   sampling_mode: Literal["adaptive", "uniform", "start"] | None = None
@@ -86,7 +134,7 @@ class _BaseBalanceWrapper(RslRlVecEnvWrapper):
 
   # 平衡增益。z_ref 不再写死：从 default_root_state 读当前 keyframe 高度
   # （YRP 屈膝约 0.180，PRY 约 0.168，旧 deep-squat 约 0.14）。
-  _KZ, _DZ, _KXY, _DXY, _KAL, _DAL = 900.0, 90.0, 55.0, 35.0, 6.0, 1.2
+  _KZ, _DZ, _KXY, _DXY, _KAL, _DAL = 1200.0, 120.0, 80.0, 45.0, 40.0, 8.0
   _UP = torch.tensor([0.0, 0.0, 1.0], dtype=torch.float32)
 
   def __init__(
@@ -139,6 +187,130 @@ class _BaseBalanceWrapper(RslRlVecEnvWrapper):
       env_ids=torch.tensor([0], device=self._device),
       body_ids=[self._base_id],
     )
+
+
+def _apply_foot_debug_params(env: Any, cfg: PlayConfig) -> None:
+  """Apply play-time foot debug overrides (friction / contact-area scale).
+
+  Runs on the raw env right after construction so ``env.sim.model`` is
+  available. Reuses the domain-randomization model writers
+  (``dr.geom_friction`` / ``dr.geom_size``), so the override lands once in the
+  warp model (and survives resets). Foot geoms are the ``*_ankle_collision``
+  boxes shared by all 27-dof variants.
+  """
+  if cfg.foot_friction is None and cfg.foot_scale is None:
+    return
+
+  from mjlab.envs.mdp.dr import geom_friction, geom_size
+  from mjlab.managers.scene_entity_config import SceneEntityCfg
+
+  foot = SceneEntityCfg(
+    "robot", geom_names=("left_ankle_collision", "right_ankle_collision")
+  )
+  # DR writers expect pre-resolved IDs (``geom_ids``); without this the cfg keeps
+  # ``slice(None)`` and every geom would be scaled.
+  foot.resolve(env.scene)
+  if cfg.foot_friction is not None:
+    geom_friction(
+      env,
+      None,
+      ranges=(cfg.foot_friction, cfg.foot_friction),
+      distribution="uniform",
+      operation="abs",
+      asset_cfg=foot,
+    )
+    print(f"[INFO]: foot tangential friction set to {cfg.foot_friction}")
+  if cfg.foot_scale is not None:
+    geom_size(
+      env,
+      None,
+      ranges=(cfg.foot_scale, cfg.foot_scale),
+      distribution="uniform",
+      operation="scale",
+      axes=[0, 1],
+      asset_cfg=foot,
+    )
+    print(f"[INFO]: foot contact area x/y scaled by {cfg.foot_scale}")
+
+
+def _weld_spec(spec: mujoco.MjSpec) -> None:
+  """Replace every internal joint with an absolute ``mjEQ_WELD`` equality.
+
+  Called as ``SceneCfg.spec_fn`` for ``play --weld``. Runs after entity assembly
+  (the Scene attaches robots, then calls ``spec_fn``), so here we:
+  1. drop every staged actuator (weld has none left to drive);
+  2. delete every hinge/ball joint in favor of a parent<->child weld equality;
+  3. delete stale keyframes — they still encode the original 27-dof qpos, which
+     no longer matches the welded model's ``nq==7``.
+
+  The result is one free-jointed base and all links absolutely welded together:
+  a true rigid monolith, no soft PD, no per-substep position writes. The upright
+  deep-squat pose that forward dynamics cannot hold on warp under servo control
+  stands perfectly still here because it is a single rigid body sitting on the
+  ground in a static equilibrium.
+  """
+  for a in list(spec.actuators):
+    spec.delete(a)
+  fixed: list[tuple[mujoco.MjsBody, mujoco.MjsJoint]] = []
+  for body in list(spec.bodies):
+    for jnt in list(body.joints):
+      if jnt.type in (mujoco.mjtJoint.mjJNT_HINGE, mujoco.mjtJoint.mjJNT_BALL):
+        fixed.append((body, jnt))
+  for body, jnt in fixed:
+    parent = body.parent
+    if parent is None:
+      continue
+    spec.delete(jnt)
+    spec.add_equality(
+      type=mujoco.mjtEq.mjEQ_WELD,
+      name=f"weld_{body.name}",
+      name1=parent.name,
+      name2=body.name,
+      objtype=mujoco.mjtObj.mjOBJ_BODY,
+    )
+  for key in list(spec.keys):
+    spec.delete(key)
+
+
+def _apply_weld_cfg(env_cfg: Any, cfg: PlayConfig) -> PlayConfig:
+  """Configure a scene for ``--weld``: weld the robot into a rigid monolith.
+
+  Must run after the dummy-agent sanitization (which touches per-joint actions)
+  and before env construction. Mutates ``env_cfg`` so the Managers observe the
+  welded model; returns a new ``cfg`` with the freeze/balance switches forced
+  off (a monolith has nothing for those hacks to act on).
+  """
+  if cfg.agent not in {"zero", "frozen", "random"}:
+    raise ValueError("--weld only makes sense with a dummy agent (zero/random/frozen).")
+  env_cfg.scene.spec_fn = _weld_spec
+  robot_cfg = env_cfg.scene.entities["robot"]
+  if getattr(robot_cfg, "articulation", None) is not None:
+    # Prevent the entity from staging actuator instances at assembly: their ids
+    # die with the spec objects, and driving then crashes on empty ctrl writes.
+    robot_cfg.articulation.actuators = []
+  # Only reset_base (poses the free-jointed base) survives; every joint-driven
+  # event / action / observation / reward / termination is meaningless on a
+  # monolith and would write into empty joint/ctrl slices.
+  env_cfg.events = {"reset_base": env_cfg.events["reset_base"]}
+  env_cfg.actions = {}
+  env_cfg.commands = {}
+  env_cfg.terminations = {}
+  env_cfg.rewards = {}
+  env_cfg.observations = {}
+  env_cfg.metrics = {}
+  env_cfg.recorders = {}
+  env_cfg.curriculum = {}
+  if cfg.freeze_joints:
+    print(
+      "[INFO]: --weld overrides --freeze-joints: nothing left to freeze on the "
+      "welded monolith"
+    )
+  if cfg.balance:
+    print(
+      "[INFO]: --weld overrides --balance: the monolith stands without the base "
+      "balance wrapper"
+    )
+  return replace(cfg, weld=True, freeze_joints=False, balance=False)
 
 
 def run_play(task_id: str, cfg: PlayConfig):
@@ -200,6 +372,12 @@ def run_play(task_id: str, cfg: PlayConfig):
     joint_pos_action.actuator_names = (".*",)
     if cfg.agent == "zero":
       print("[INFO]: zero agent holding default_joint_pos on all joints")
+
+  if cfg.weld:
+    # True basic stand: weld the robot into a single rigid monolith. This must
+    # run after the per-joint dummy sanitization above, and changes the frozen
+    # PlayConfig fields (freeze/balance) to values that make sense for a monolith.
+    cfg = _apply_weld_cfg(env_cfg, cfg)
 
   # Disable terminations if requested (useful for viewing motions).
   if cfg.no_terminations:
@@ -308,6 +486,10 @@ def run_play(task_id: str, cfg: PlayConfig):
     )
   env = ManagerBasedRlEnv(cfg=env_cfg, device=device, render_mode=render_mode)
 
+  # Foot debug overrides must land on the raw env (before wrappers) so they can
+  # reach ``env.sim.model`` once and survive resets.
+  _apply_foot_debug_params(env, cfg)
+
   if TRAINED_MODE and cfg.video:
     print("[INFO] Recording videos during play")
     assert log_dir is not None  # log_dir is set in TRAINED_MODE block
@@ -322,14 +504,58 @@ def run_play(task_id: str, cfg: PlayConfig):
   # zero/frozen 静稳测试：GPU/warp + 软 PD + 自由 base 在站姿下无静态平衡点，
   # base 会下沉/蠕动，用户常看成“向后打滑/滑倒”。与 frozen 相同，给 zero 也
   # 挂基座姿态/高度平衡器（只作用 base，不改关节 PD / 训练路径）。
-  if cfg.agent in {"frozen", "zero"}:
+  # `--balance` 显式覆盖默认：False 摘除 wrapper，才能看到 Freeze 刚体被推的
+  # 真实倒伏（代价是 warp 下 base 可能下沉/蠕动，正是当初加平衡器的原因）。
+  use_balance = (
+    cfg.balance if cfg.balance is not None else cfg.agent in {"frozen", "zero"}
+  )
+  if use_balance:
     env = _BaseBalanceWrapper(
       env,
       clip_actions=agent_cfg.clip_actions,
       body_name=(env_cfg.viewer.body_name or "base_link"),
     )
+    print("[INFO]: base balance wrapper ENABLED")
   else:
+    if cfg.agent in {"frozen", "zero"}:
+      print(
+        "[INFO]: base balance wrapper DISABLED (--balance False) — "
+        "base may subside on warp"
+      )
     env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
+
+  if cfg.agent in {"frozen", "zero"} and not cfg.weld:
+    # Live stand diagnostics (viser/terminal): print base pose every ~1s sim time.
+    _rb = env.unwrapped.scene["robot"]
+    _n = {"i": 0}
+    _step0 = env.step
+
+    def _step_log(actions):
+      out = _step0(actions)
+      _n["i"] += 1
+      if _n["i"] % 50 == 0:
+        import numpy as _np
+
+        p_ = _rb.data.root_link_pos_w[0].detach().cpu().numpy()
+        q_ = _rb.data.root_link_quat_w[0].detach().cpu().numpy()
+        w, x, y, z = q_
+        upz = 1 - 2 * (x * x + y * y)
+        tilt = _np.degrees(_np.arccos(max(-1.0, min(1.0, abs(upz)))))
+        jp = _rb.data.joint_pos[0].detach().cpu().numpy()
+        jt = _rb.data.joint_pos_target[0].detach().cpu().numpy()
+        knee_i = (
+          _rb.joint_names.index("left_knee_joint")
+          if "left_knee_joint" in _rb.joint_names
+          else 0
+        )
+        print(
+          f"[stand-log] step={_n['i']} pos={_np.round(p_, 4)} up_z={upz:.3f} "
+          f"tilt~{tilt:.1f}deg knee={jp[knee_i]:.3f}/{jt[knee_i]:.3f}",
+          flush=True,
+        )
+      return out
+
+    env.step = _step_log
   if DUMMY_MODE:
     action_shape: tuple[int, ...] = env.unwrapped.action_space.shape
     if cfg.agent in {"zero", "frozen"}:
@@ -453,7 +679,9 @@ def run_play(task_id: str, cfg: PlayConfig):
       env,
       policy,
       com_visualizer=cfg.com,
-      freeze_joints_default=DUMMY_MODE,
+      freeze_joints_default=(
+        cfg.freeze_joints if cfg.freeze_joints is not None else DUMMY_MODE
+      ),
     ).run()
   elif resolved_viewer == "viser":
     ViserPlayViewer(
@@ -463,7 +691,9 @@ def run_play(task_id: str, cfg: PlayConfig):
       metrics_output_dir=metrics_output_dir,
       metrics_source_name=metrics_source_name,
       com_visualizer=cfg.com,
-      freeze_joints_default=DUMMY_MODE,
+      freeze_joints_default=(
+        cfg.freeze_joints if cfg.freeze_joints is not None else DUMMY_MODE
+      ),
     ).run()
   elif resolved_viewer == "arm-swing":
     ArmSwingViewer(

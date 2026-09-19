@@ -8,6 +8,16 @@ Upcoming version (not yet released)
 Added
 ^^^^^
 
+- Added ``play --weld``: constructs a **true rigid monolith** for the most basic
+  static standing on GPU/warp. The scene MjSpec has every internal hinge/ball
+  joint replaced by an ``mjEQ_WELD`` equality and all actuators removed, yielding
+  a single free-jointed rigid body that rests on its feet under plain gravity —
+  no base-balance wrapper, no viewer per-substep position writes. On warp it
+  stands still >3s (``up_z≈1.0``, ``dx<1mm``), the standalone pose the soft-PD
+  ``--agent frozen`` path cannot hold. Use with dummy agents
+  (``uv run play <TASK> --agent frozen --weld``); ``--freeze-joints`` /
+  ``--balance`` are forced off because a monolith has nothing for those hacks
+  to act on.
 - Added ``Mjlab-Velocity-Flat-Pikachu-Quad-Bounding`` as an isolated forward
   quadruped bounding task. It uses separate front-hand and rear-foot contact
   sensors, an ordered rear-stance / flight / front-stance / flight reward,
@@ -116,6 +126,23 @@ Added
   ``actuator_spec_violation`` step fraction, and mean action acceleration
   (action smoothness) to every velocity and tracking task. Tasks that do not
   already define ``feet_ground_contact`` get the sensor added automatically.
+- ``play`` now accepts ``--freeze-joints {True,False}`` to override the viewer's
+  "Freeze to default (absolute rigidity)" initial state (default ``None``
+  follows the agent: on for dummy agents zero/random/frozen, off for trained).
+  The weld can still be toggled live afterwards (viser checkbox / native L key).
+- ``play`` now accepts ``--balance {True,False}`` to override the frozen/zero
+  base-balance wrapper (altitude/attitude springs that hold the base up on GPU
+  warp sims). ``--balance False`` removes the wrapper so an external force
+  produces the true rigid-body tip-over instead of stopping at a balanced tilt;
+  ``None`` follows the agent default (on for zero/frozen, inert for trained).
+- ``play`` now accepts ``--foot-friction <float>`` and ``--foot-scale <float>``
+  to decouple the two stand-failure modes on the 27-dof biped: a low
+  ``--foot-friction`` (e.g. ``0.05``) makes the feet slide under a side force,
+  and a high value (e.g. ``3.0``) or a smaller ``--foot-scale`` (e.g. ``0.5``)
+  makes them tip over instead. ``--foot-scale`` scales the sole contact area in
+  x/y (``2.0`` doubles it, ``0.5`` halves it); the sole thickness is untouched.
+  Both default to ``None`` (model default). For cleanly separate failure modes
+  combine them as ``--balance False --freeze-joints True``.
 
 Changed
 ^^^^^^^
