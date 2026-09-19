@@ -868,15 +868,35 @@ class Entity:
       act.update(dt)
 
   def reset(self, env_ids: torch.Tensor | slice | None = None) -> None:
-    """Zero actuator targets and reset actuator internal state.
+    """Reset actuator targets/defaults and actuator internal state.
 
     Called by the scene when environments are reset at episode boundaries,
     and by commands that teleport the robot to a new pose mid-episode.
+
+    After clearing actuator internals, position targets are set to
+    ``default_joint_pos`` (not zero) so PD holds the reset pose for joints
+    outside the policy action space (arms/head/ears/tail) instead of yanking
+    them toward 0.
     """
     self._data.clear_state(env_ids)
+    self._write_default_joint_targets(env_ids)
 
     for act in self._actuators:
       act.reset(env_ids)
+
+  def _write_default_joint_targets(
+    self, env_ids: torch.Tensor | slice | None = None
+  ) -> None:
+    """Set joint_pos_target to default_joint_pos for reset envs."""
+    if not self.is_actuated:
+      return
+    default = self._data.default_joint_pos
+    if default is None:
+      return
+    if env_ids is None:
+      self._data.joint_pos_target[:] = default
+    else:
+      self._data.joint_pos_target[env_ids] = default[env_ids]
 
   def clear_state(self, env_ids: torch.Tensor | slice | None = None) -> None:
     """Deprecated. Use ``reset`` instead."""
