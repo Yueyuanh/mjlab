@@ -35,7 +35,12 @@ _DESIRED_FRAME_COLORS = ((1.0, 0.5, 0.5), (0.5, 1.0, 0.5), (0.5, 0.5, 1.0))
 
 class MotionLoader:
   def __init__(
-    self, motion_file: str, body_indexes: torch.Tensor, device: str = "cpu"
+    self,
+    motion_file: str,
+    body_indexes: torch.Tensor,
+    device: str = "cpu",
+    src_body_names: tuple[str, ...] | None = None,
+    dst_body_names: tuple[str, ...] | None = None,
   ) -> None:
     data = np.load(motion_file)
     self.joint_pos = torch.tensor(data["joint_pos"], dtype=torch.float32, device=device)
@@ -53,10 +58,22 @@ class MotionLoader:
       data["body_ang_vel_w"], dtype=torch.float32, device=device
     )
     self._body_indexes = body_indexes
-    self.body_pos_w = self._body_pos_w[:, self._body_indexes]
-    self.body_quat_w = self._body_quat_w[:, self._body_indexes]
-    self.body_lin_vel_w = self._body_lin_vel_w[:, self._body_indexes]
-    self.body_ang_vel_w = self._body_ang_vel_w[:, self._body_indexes]
+    # npz 的 body_*_w 列按 src_body_names 名序排布。缺省（均为 None）时认为它已按
+    # 当前模型的 body 先序排好，直接用 body_indexes 切出目标 body；若提供 src/dst
+    # 名序，则把列重排到 dst_names 序（= cfg.body_names 序），与 body_indexes
+    # （也是按 cfg.body_names 序取的模型 id）语义一致。同名 body 名是跨模型的
+    # 唯一锚，因此不同 hip 拆分序（PRY/YRP）的模型也能按名字对齐取参考。
+    if src_body_names is not None and dst_body_names is not None:
+      col_perm = [src_body_names.index(n) for n in dst_body_names]
+      self.body_pos_w = self._body_pos_w[:, col_perm]
+      self.body_quat_w = self._body_quat_w[:, col_perm]
+      self.body_lin_vel_w = self._body_lin_vel_w[:, col_perm]
+      self.body_ang_vel_w = self._body_ang_vel_w[:, col_perm]
+    else:
+      self.body_pos_w = self._body_pos_w[:, self._body_indexes]
+      self.body_quat_w = self._body_quat_w[:, self._body_indexes]
+      self.body_lin_vel_w = self._body_lin_vel_w[:, self._body_indexes]
+      self.body_ang_vel_w = self._body_ang_vel_w[:, self._body_indexes]
     self.time_step_total = self.joint_pos.shape[0]
 
 
@@ -79,7 +96,11 @@ class MotionCommand(CommandTerm):
     )
 
     self.motion = MotionLoader(
-      self.cfg.motion_file, self.body_indexes, device=self.device
+      self.cfg.motion_file,
+      self.body_indexes,
+      device=self.device,
+      src_body_names=self.cfg.motion_body_column_names,
+      dst_body_names=self.cfg.body_names,
     )
     # Clamp the episode start frame to a valid range so it can't fly past the
     # reference length or under negative.
@@ -657,6 +678,14 @@ class MotionCommandCfg(CommandTermCfg):
    walk-base arm ablation), set this to the same leg joints so the metric
    doesn't miscompare against all 14. Default ``None`` = all joints."""
   entity_name: str
+  motion_body_column_names: tuple[str, ...] | None = None
+  """npz 里 ``body_*_w`` 列的 body 名序（即生成该 npz 时所用模型的 body 先序）。
+
+  缺省 ``None`` = 认为 npz 列已按当前模型的 body 先序排好，直接按模型 id 切片。
+  当参考在一个机器人构型（如 PRY hip 拆分）上录制、却被另一构型（如 YRP）的
+  模型消费时，传入这份名序，``MotionLoader`` 会把参考列按名字重排到当前
+  ``body_names`` 序 —— 同名 body 是唯一锚，与 hip 拆分轴序无关。该字段只在跟踪
+  body 布局与 npz 布局不一致时设置；原任务保持 None 行为不变。"""
   pose_range: dict[str, tuple[float, float]] = field(default_factory=dict)
   velocity_range: dict[str, tuple[float, float]] = field(default_factory=dict)
   joint_position_range: tuple[float, float] = (-0.52, 0.52)
