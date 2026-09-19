@@ -19,3 +19,11 @@ benchmark_results/
 # Documentation outputs.
 **/_build/*
 **/generated/*
+
+# Training artifacts under deploy corpus — never commit intermediates.
+pre_train/**/events.out.tfevents.*
+pre_train/**/torchrunx/
+pre_train/**/model_*.pt
+# Exception: allow final deploy checkpoints via git add -f if needed.
+# Policy: only promote final model + onnx + metrics (see pre_train/README.md).
+**/MUJOCO_LOG.TXT

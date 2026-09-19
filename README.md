@@ -84,6 +84,43 @@ uv run play Mjlab-Your-Task-Id --agent random  # Sends uniform random actions
 When running motion-tracking tasks, add `--registry-name your-org/motions/motion-name` to the command.
 
 
+## Pikachu Fork (internal)
+
+This repository is the **Pikachu** fork of [mjlab](https://github.com/mujocolab/mjlab),
+developed on the internal remote (`git.finnoxcorp.com/yuanhao.yue/mjlab`).
+
+| Resource | Location |
+|----------|----------|
+| Task lineage (all registered tasks, status, pretrain map) | [`docs/task_lineage.md`](docs/task_lineage.md) |
+| Train / tune workflow (start_server, sanity checks) | [`TrainSpec.md`](TrainSpec.md) |
+| Branch strategy & W&B conventions | [`CLAUDE.md`](CLAUDE.md) |
+| Deploy corpus policy | [`pre_train/README.md`](pre_train/README.md) |
+
+**Current main training paths (27-dof):**
+
+```bash
+# Velocity (biped, flat) — legs 10, upper body as disturbance
+uv run train Mjlab-Velocity-Flat-Pikachu-27dof --env.scene.num-envs 512
+
+# Motion tracking (biped forward walk)
+uv run train Mjlab-Tracking-Flat-Pikachu-27dof-Walk --env.scene.num-envs 256
+
+# Quadruped velocity (16 walk joints)
+uv run train Mjlab-Velocity-Flat-Pikachu-27dof-Quad --env.scene.num-envs 512
+
+# Local experiment dashboard (discovers tasks, checkpoints, motions)
+uv run start_server
+```
+
+List every registered task ID:
+
+```bash
+uv run list-envs
+```
+
+Upstream docs still apply for framework APIs; Pikachu-specific task design notes live in each
+`src/mjlab/tasks/{velocity,tracking}/config/pikachu_*/` package docstring.
+
 ## Documentation
 
 Full documentation is available at **[mujocolab.github.io/mjlab](https://mujocolab.github.io/mjlab/)**.
