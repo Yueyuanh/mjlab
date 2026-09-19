@@ -250,6 +250,9 @@ def pikachu_27dof_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     cfg.events.pop("push_robot", None)
     cfg.terminations.pop("out_of_terrain_bounds", None)
     cfg.curriculum = {}
+    # Play / --agent zero: no upper-body flail.
+    cfg.actions.pop("arm_flail", None)
+    cfg.actions.pop("extremity_flail", None)
     twist_cmd.ranges.lin_vel_x = (-0.6, 0.8)
     twist_cmd.ranges.lin_vel_y = (-0.5, 0.5)
     twist_cmd.ranges.ang_vel_z = (-0.5, 0.5)

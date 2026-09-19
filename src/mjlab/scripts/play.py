@@ -84,15 +84,25 @@ class _BaseBalanceWrapper(RslRlVecEnvWrapper):
   仅作用于 base body，不改关节、不改接触/求解器，不影响 velocity 训练 sim。
   """
 
-  # 标定过的平衡增益与参考高度（deep-squat 站姿）。Kz=900 让 GPU 停在 z~0.095，
-  # 与 CPU/float64 同配置的立位一致。
-  _KZ, _DZ, _KXY, _DXY, _KAL, _DAL, _Z_REF = 900.0, 90.0, 55.0, 35.0, 6.0, 1.2, 0.14
+  # 平衡增益。z_ref 不再写死：从 default_root_state 读当前 keyframe 高度
+  # （YRP 屈膝约 0.180，PRY 约 0.168，旧 deep-squat 约 0.14）。
+  _KZ, _DZ, _KXY, _DXY, _KAL, _DAL = 900.0, 90.0, 55.0, 35.0, 6.0, 1.2
   _UP = torch.tensor([0.0, 0.0, 1.0], dtype=torch.float32)
 
-  def __init__(self, env: Any, clip_actions: float | None = None):
+  def __init__(
+    self, env: Any, clip_actions: float | None = None, body_name: str = "base_link"
+  ):
     super().__init__(env, clip_actions=clip_actions)
     robot = self.unwrapped.scene["robot"]
     self._robot = robot
+    # 平衡器把力/力矩作用在机器人的躯干(body)上。body 名逐任务不同：
+    # Pikachu 叫 base_link，G1 叫 torso_link —— 不能硬编码，从调用方传
+    # (env_cfg.viewer.body_name)，默认 base_link 兼容旧调用。
+    self._body_name = body_name
+    default_root = robot.data.default_root_state
+    z_ref = float(default_root[0, 2].item()) if default_root is not None else 0.168
+    self._Z_REF = z_ref
+    print(f"[INFO]: BaseBalance z_ref={z_ref:.4f} (from default_root_state)")
     model = self.unwrapped.sim.mj_model
     names = [
       model.names[
@@ -102,7 +112,7 @@ class _BaseBalanceWrapper(RslRlVecEnvWrapper):
       ].decode()
       for i in range(model.nbody)
     ]
-    self._base_id = names.index("robot/base_link")
+    self._base_id = names.index(f"robot/{self._body_name}")
     self._device = self.unwrapped.device
 
   def step(self, actions):
@@ -142,15 +152,54 @@ def run_play(task_id: str, cfg: PlayConfig):
   DUMMY_MODE = cfg.agent in {"zero", "random", "frozen"}
   TRAINED_MODE = not DUMMY_MODE
 
-  if cfg.agent == "frozen":
-    # 全关节锁死（静稳定测试）：禁上肢随机摆动（flail），并让关节位置动作
-    # 覆盖所有被驱动关节。JointPositionAction 默认 use_default_offset=True，
-    # 故零动作 = 全部关节锁死到 default 站姿，只有浮动 base 自由。
+  if DUMMY_MODE:
+    # Dummy agents are for static pose / pipeline checks, not robustness demos.
+    # Strip upper-body flail and startup domain randomization so the robot is
+    # evaluated on the calibrated keyframe, not a randomized model.
     env_cfg.actions.pop("arm_flail", None)
     env_cfg.actions.pop("extremity_flail", None)
+    # Pin velocity command to zero: nonzero sampled twists only affect reward/obs,
+    # but viewers often read them as "the robot is being told to walk".
+    if "twist" in env_cfg.commands:
+      twist = env_cfg.commands["twist"]
+      if hasattr(twist, "ranges"):
+        twist.ranges.lin_vel_x = (0.0, 0.0)
+        twist.ranges.lin_vel_y = (0.0, 0.0)
+        twist.ranges.ang_vel_z = (0.0, 0.0)
+        if getattr(twist, "ranges", None) is not None and hasattr(
+          twist.ranges, "heading"
+        ):
+          twist.ranges.heading = (0.0, 0.0)
+      if hasattr(twist, "rel_standing_envs"):
+        twist.rel_standing_envs = 1.0
+        twist.rel_heading_envs = 0.0
+        twist.rel_forward_envs = 0.0
+        twist.rel_backward_envs = 0.0
+        twist.rel_lateral_envs = 0.0
+    for ev_name in ("foot_friction", "encoder_bias", "base_com", "push_robot"):
+      env_cfg.events.pop(ev_name, None)
+    # Pin root reset offsets to zero (keep default_root_state pose).
+    if "reset_base" in env_cfg.events:
+      env_cfg.events["reset_base"].params["pose_range"] = {
+        "x": (0.0, 0.0),
+        "y": (0.0, 0.0),
+        "z": (0.0, 0.0),
+        "roll": (0.0, 0.0),
+        "pitch": (0.0, 0.0),
+        "yaw": (0.0, 0.0),
+      }
+    print(f"[INFO]: Dummy agent '{cfg.agent}' — flail/DR disabled, reset pinned")
+
+  if cfg.agent in {"frozen", "zero"}:
+    # Hold the calibrated default stance on every actuated joint.
+    # JointPositionAction has use_default_offset=True, so zero action =
+    # default_joint_pos for all joints in actuator_names. Entity.reset also
+    # writes non-action joint targets to default after clear_state.
     joint_pos_action = env_cfg.actions["joint_pos"]
     assert isinstance(joint_pos_action, JointPositionActionCfg)
     joint_pos_action.actuator_names = (".*",)
+    if cfg.agent == "zero":
+      print("[INFO]: zero agent holding default_joint_pos on all joints")
 
   # Disable terminations if requested (useful for viewing motions).
   if cfg.no_terminations:
@@ -270,10 +319,15 @@ def run_play(task_id: str, cfg: PlayConfig):
       disable_logger=True,
     )
 
-  # Frozen 全关节锁死 + 基座平衡：GPU/warp 下 deep-squat 无平衡点会沉穿地（看着
-  # 像“一直打滑”）。给 base 加姿态/高度平衡器压住下沉，让 frozen 真正静态站立。
-  if cfg.agent == "frozen":
-    env = _BaseBalanceWrapper(env, clip_actions=agent_cfg.clip_actions)
+  # zero/frozen 静稳测试：GPU/warp + 软 PD + 自由 base 在站姿下无静态平衡点，
+  # base 会下沉/蠕动，用户常看成“向后打滑/滑倒”。与 frozen 相同，给 zero 也
+  # 挂基座姿态/高度平衡器（只作用 base，不改关节 PD / 训练路径）。
+  if cfg.agent in {"frozen", "zero"}:
+    env = _BaseBalanceWrapper(
+      env,
+      clip_actions=agent_cfg.clip_actions,
+      body_name=(env_cfg.viewer.body_name or "base_link"),
+    )
   else:
     env = RslRlVecEnvWrapper(env, clip_actions=agent_cfg.clip_actions)
   if DUMMY_MODE:

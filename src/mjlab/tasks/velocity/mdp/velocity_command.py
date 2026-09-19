@@ -223,11 +223,14 @@ class UniformVelocityCommand(CommandTerm):
       enabled = server.gui.add_checkbox("Enable", initial_value=False)
 
       for label, max_val in axes:
+        # The commanded range upper bound can legitimately be above the slider
+        # window (e.g. >10) or below 0.1 (e.g. 0 for a forward-only task), so
+        # clamp the initial value and allow a zero lower bound.
         max_input = server.gui.add_slider(
           f"Max {label}",
-          initial_value=max_val,
+          initial_value=float(min(max(max_val, 0.0), 10.0)),
           step=0.1,
-          min=0.1,
+          min=0.0,
           max=10.0,
         )
         slider = server.gui.add_slider(

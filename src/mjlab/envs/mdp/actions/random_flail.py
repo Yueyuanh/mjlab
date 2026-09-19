@@ -133,7 +133,10 @@ class RandomFlailAction(ActionTerm):
     self._write_target()
 
   def _write_target(self) -> None:
-    factor = self._curriculum_factor() if self.cfg.use_curriculum else 1.0
+    # use_curriculum=False (play): keep limbs at default pose (factor 0) so
+    # --agent zero / play sanity checks are not thrown off by full flail.
+    # Training still ramps via _curriculum_factor when use_curriculum=True.
+    factor = self._curriculum_factor()
     scale = self.cfg.flail_ratio * self._half_width
     target = self._center + self._offset * scale * factor
     target = torch.clamp(target, self._lo, self._hi)
