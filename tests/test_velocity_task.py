@@ -14,6 +14,19 @@ def velocity_task_ids() -> list[str]:
   return [t for t in list_tasks() if "Velocity" in t]
 
 
+def _pool_filtered(task_ids: list[str]) -> list[str]:
+  """Return task IDs still in the task pool, skipping if none remain.
+
+  ``_TASK_POOL_EXCLUDED_IDS`` in ``mjlab.tasks.registry`` currently unregisters
+  non-Pikachu reference tasks for a cleaner train task list; tests loading them
+  directly would otherwise KeyError on ``load_env_cfg``.
+  """
+  active = [t for t in task_ids if t in list_tasks()]
+  if not active:
+    pytest.skip(f"task(s) not in task pool: {task_ids}")
+  return active
+
+
 @pytest.fixture(scope="module")
 def g1_velocity_task_ids(velocity_task_ids: list[str]) -> list[str]:
   """Get all G1 velocity task IDs."""
@@ -133,10 +146,12 @@ def test_rough_velocity_tasks_have_generator_terrain(
 
 def test_rough_velocity_training_has_curriculum_enabled() -> None:
   """Rough velocity training tasks should have terrain curriculum enabled."""
-  rough_training_tasks = [
-    "Mjlab-Velocity-Rough-Unitree-G1",
-    "Mjlab-Velocity-Rough-Unitree-Go1",
-  ]
+  rough_training_tasks = _pool_filtered(
+    [
+      "Mjlab-Velocity-Rough-Unitree-G1",
+      "Mjlab-Velocity-Rough-Unitree-Go1",
+    ]
+  )
 
   for task_id in rough_training_tasks:
     cfg = load_env_cfg(task_id)
@@ -153,10 +168,12 @@ def test_rough_velocity_training_has_curriculum_enabled() -> None:
 
 def test_rough_velocity_play_has_curriculum_disabled() -> None:
   """Rough velocity play tasks should have terrain curriculum disabled."""
-  rough_training_tasks = [
-    "Mjlab-Velocity-Rough-Unitree-G1",
-    "Mjlab-Velocity-Rough-Unitree-Go1",
-  ]
+  rough_training_tasks = _pool_filtered(
+    [
+      "Mjlab-Velocity-Rough-Unitree-G1",
+      "Mjlab-Velocity-Rough-Unitree-Go1",
+    ]
+  )
 
   for task_id in rough_training_tasks:
     cfg = load_env_cfg(task_id, play=True)
