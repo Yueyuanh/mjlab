@@ -1,6 +1,10 @@
 from mjlab.rl.config import RslRlBaseRunnerCfg as RslRlBaseRunnerCfg
+from mjlab.rl.config import RslRlDaggerPpoAlgorithmCfg as RslRlDaggerPpoAlgorithmCfg
+from mjlab.rl.config import RslRlDaggerRunnerCfg as RslRlDaggerRunnerCfg
 from mjlab.rl.config import RslRlModelCfg as RslRlModelCfg
 from mjlab.rl.config import RslRlOnPolicyRunnerCfg as RslRlOnPolicyRunnerCfg
 from mjlab.rl.config import RslRlPpoAlgorithmCfg as RslRlPpoAlgorithmCfg
+from mjlab.rl.dagger_ppo import DaggerPPO as DaggerPPO
+from mjlab.rl.dagger_runner import DaggerOnPolicyRunner as DaggerOnPolicyRunner
 from mjlab.rl.runner import MjlabOnPolicyRunner as MjlabOnPolicyRunner
 from mjlab.rl.vecenv_wrapper import RslRlVecEnvWrapper as RslRlVecEnvWrapper

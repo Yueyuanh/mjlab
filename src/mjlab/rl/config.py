@@ -82,6 +82,27 @@ class RslRlPpoAlgorithmCfg:
 
 
 @dataclass
+class RslRlDaggerPpoAlgorithmCfg(RslRlPpoAlgorithmCfg):
+  """Config for the DAgger + PPO hybrid algorithm (PHP distillation).
+
+  ``L = λ_PPO · L_PPO + λ_D · L_BC``,λ_D 线性退火但**永不为 0**。
+  """
+
+  class_name: str = "mjlab.rl.dagger_ppo:DaggerPPO"
+  """Algorithm class name resolved by RSL-RL."""
+  lambda_d_start: float = 1.0
+  """BC 项的初始权重。"""
+  lambda_d_final: float = 0.1
+  """BC 项的退火终点权重(PHP:BC 全程保留,不归零)。"""
+  lambda_d_anneal_iters: int = 5000
+  """λ_D 从 start 线性退火到 final 所经历的迭代数。"""
+  bc_loss_type: Literal["mse", "huber"] = "mse"
+  """BC 损失类型。"""
+  bc_mask_terminations: bool = True
+  """是否把"学生真终止(非超时)"样本的 BC 权重置 0(PHP Module 3)。"""
+
+
+@dataclass
 class RslRlBaseRunnerCfg:
   seed: int = 42
   """The seed for the experiment. Default is 42."""
@@ -142,4 +163,36 @@ class RslRlOnPolicyRunnerCfg(RslRlBaseRunnerCfg):
   critic: RslRlModelCfg = field(default_factory=RslRlModelCfg)
   """The critic configuration."""
   algorithm: RslRlPpoAlgorithmCfg = field(default_factory=RslRlPpoAlgorithmCfg)
+  """The algorithm configuration."""
+
+
+@dataclass
+class RslRlDaggerRunnerCfg(RslRlOnPolicyRunnerCfg):
+  """Runner config for DAgger + PPO distillation from a frozen teacher.
+
+  比 ``RslRlOnPolicyRunnerCfg`` 多一个 ``teacher`` 网络与 ``teacher_checkpoint``
+  (教师权重路径)。教师与学生共用同一个 env:env 的 ``teacher`` 观测组必须与
+  教师训练时的 ``actor`` 观测组**逐项同构**,否则权重加载会形状不匹配。
+  """
+
+  class_name: str = "mjlab.rl.dagger_runner:DaggerOnPolicyRunner"
+  """The runner class name."""
+  teacher: RslRlModelCfg = field(
+    default_factory=lambda: RslRlModelCfg(
+      hidden_dims=(512, 256, 128),
+      activation="elu",
+      obs_normalization=True,
+      distribution_cfg={
+        "class_name": "GaussianDistribution",
+        "init_std": 1.0,
+        "std_type": "scalar",
+      },
+    )
+  )
+  """冻结的教师网络配置(须与教师训练时一致)。"""
+  teacher_checkpoint: str = ""
+  """教师 checkpoint(``model_*.pt``)路径。空字符串 = 跳过加载。"""
+  algorithm: RslRlDaggerPpoAlgorithmCfg = field(
+    default_factory=RslRlDaggerPpoAlgorithmCfg
+  )
   """The algorithm configuration."""

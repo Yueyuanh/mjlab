@@ -365,7 +365,14 @@ class MotionCommand(CommandTerm):
     self.robot.write_root_state_to_sim(root_state, env_ids=env_ids)
     self.robot.reset(env_ids=env_ids)
 
-  def _resample_command(self, env_ids: torch.Tensor):
+  def _sample_time_steps(self, env_ids: torch.Tensor) -> None:
+    """Pick the reference time step(s) for ``env_ids`` into ``self.time_steps``.
+
+    Split out of ``_resample_command`` so a subclass that carries a *library* of
+    references (see ``multi_motion.MultiMotionCommand``) can choose a
+    (clip, frame) pair here while reusing the base's state-writing half
+    unchanged. Default behaviour is identical to the previous inline block.
+    """
     if self.cfg.sampling_mode == "start":
       self.time_steps[env_ids] = self._start_frame
     elif self.cfg.sampling_mode == "uniform":
@@ -380,6 +387,9 @@ class MotionCommand(CommandTerm):
       self._start_frame,
       self.motion.time_step_total - 1,
     )
+
+  def _resample_command(self, env_ids: torch.Tensor):
+    self._sample_time_steps(env_ids)
 
     root_pos = self.body_pos_w[env_ids, 0].clone()
     root_ori = self.body_quat_w[env_ids, 0].clone()
@@ -468,12 +478,20 @@ class MotionCommand(CommandTerm):
     self._pending_forward = False
     return extras
 
+  def _wrapped_env_ids(self) -> torch.Tensor:
+    """Envs whose reference has run past its end and must be resampled.
+
+    Overridden by ``multi_motion.MultiMotionCommand`` to wrap at the end of the
+    env's *current clip* rather than at the end of the whole reference.
+    """
+    return torch.where(self.time_steps >= self.motion.time_step_total)[0]
+
   def _update_command(self, env_ids: torch.Tensor | None = None):
     if env_ids is None:
       self.time_steps += 1
     else:
       self.time_steps[env_ids] += 1
-    wrap_ids = torch.where(self.time_steps >= self.motion.time_step_total)[0]
+    wrap_ids = self._wrapped_env_ids()
     if wrap_ids.numel() > 0:
       self._resample_command(wrap_ids)
 
