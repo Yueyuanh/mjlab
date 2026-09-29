@@ -132,10 +132,14 @@ class RmgAmpMotionLoader:
       blend.unsqueeze(1),
     )
 
-  def _lerp(self, a: torch.Tensor, b: torch.Tensor, blend: torch.Tensor) -> torch.Tensor:
+  def _lerp(
+    self, a: torch.Tensor, b: torch.Tensor, blend: torch.Tensor
+  ) -> torch.Tensor:
     return a * (1 - blend) + b * blend
 
-  def _slerp(self, a: torch.Tensor, b: torch.Tensor, blend: torch.Tensor) -> torch.Tensor:
+  def _slerp(
+    self, a: torch.Tensor, b: torch.Tensor, blend: torch.Tensor
+  ) -> torch.Tensor:
     out = torch.zeros_like(a)
     for i in range(a.shape[0]):
       out[i] = quat_slerp(a[i], b[i], float(blend[i]))
@@ -181,6 +185,47 @@ class RmgAmpMotionLoader:
     return state, reset_flag
 
 
+def left_leg_sign(robot: Entity, leg_joint_ids: list[int]) -> torch.Tensor:
+  """左腿各关节的符号修正 ``(10,)``,把 rmg 参考约定换算到 MJCF 约定。
+
+  **为什么需要它**:rmg 的 URDF 是**左右对称**的(``left_knee_joint`` 与
+  ``right_knee_joint`` 同为 ``axis="0 1 0"``、``range=[0, 1.57]``),而 mjlab 的
+  MJCF(6 个 pikachu 变体一致,也是 velocity/transition 与部署所用的模型)
+  **左腿三关节轴是镜像的**:``left_knee_joint axis="0 -1 0" range=[-1.57, 0]``。
+  直接把 rmg 的关节角写进 MJCF,左膝会被限位钉死在 0,左腿整条不可达。
+
+  实测(``probe_leg_sign.py``,clip ``0.185_0.0_0.0``):不修正时左腿最大越界
+  **2.076 rad** 而右腿只有 0.504;按本函数修正后左 0.506 / 右 0.504 —— 左右
+  完全对称,残余的 0.50 rad 是两条腿共有的 rmg 膝超限(119° vs 90° 限位),
+  与符号无关。
+
+  判据用**关节限位**:镜像关节的限位恰好互为相反数,即
+  ``left_lo == -right_hi`` 且 ``left_hi == -right_lo``。本机器人上
+  ``left_hip_pitch / left_knee / left_ankle`` 命中;``hip_roll``(左右同为
+  ``[-0.09, 0.26]``)与 ``hip_yaw``(同)不命中。这与**关节轴点积**判据结论
+  完全一致(镜像的三关节左右轴点积为 -1,另两个为 +1)。
+
+  不硬编码关节名,换机器人时这里自动跟上:新模型若没有镜像,自然返回全 1。
+  """
+  lim = robot.data.joint_pos_limits[0]
+  sign = torch.ones(len(LEG_JOINT_NAMES), device=lim.device)
+  tol = 1e-6
+  for i, name in enumerate(LEG_JOINT_NAMES):
+    if not name.startswith("left_"):
+      continue
+    right = "right_" + name[len("left_") :]
+    if right not in LEG_JOINT_NAMES:
+      continue
+    li = leg_joint_ids[i]
+    ri = leg_joint_ids[LEG_JOINT_NAMES.index(right)]
+    lo_l, hi_l = float(lim[li, 0]), float(lim[li, 1])
+    lo_r, hi_r = float(lim[ri, 0]), float(lim[ri, 1])
+    mirrored = abs(lo_l + hi_r) < tol and abs(hi_l + lo_r) < tol
+    if mirrored and abs(lo_l - lo_r) > tol:
+      sign[i] = -1.0
+  return sign
+
+
 def convert_one(
   csv_path: Path,
   output_path: Path,
@@ -200,6 +245,7 @@ def convert_one(
     output_fps=output_fps,
     device=sim.device,
   )
+  sign = left_leg_sign(robot, leg_joint_ids)
 
   log: dict[str, Any] = {
     "fps": [output_fps],
@@ -239,8 +285,10 @@ def convert_one(
     joint_pos = robot.data.default_joint_pos.clone()
     joint_vel = robot.data.default_joint_vel.clone()
     # 只写 10 个腿关节;手臂留在 default pose(参考里没有手臂)。
-    joint_pos[:, leg_joint_ids] = motion_dof_pos
-    joint_vel[:, leg_joint_ids] = motion_dof_vel
+    # ``* sign`` 把 rmg 的对称约定换算到 MJCF 的镜像左腿约定(见 ``left_leg_sign``);
+    # 不换算的话左膝会被限位钉死,FK 出来的左腿 body 位姿也是错的。
+    joint_pos[:, leg_joint_ids] = motion_dof_pos * sign
+    joint_vel[:, leg_joint_ids] = motion_dof_vel * sign
     robot.write_joint_state_to_sim(joint_pos, joint_vel)
 
     sim.forward()
@@ -260,11 +308,15 @@ def convert_one(
     # FK 速度 vs 差分速度的一致性校验(base body = 0 号)。
     vel_err_lin = max(
       vel_err_lin,
-      float(torch.linalg.norm(robot.data.body_link_lin_vel_w[0, 0] - motion_base_lin_vel[0])),
+      float(
+        torch.linalg.norm(robot.data.body_link_lin_vel_w[0, 0] - motion_base_lin_vel[0])
+      ),
     )
     vel_err_ang = max(
       vel_err_ang,
-      float(torch.linalg.norm(robot.data.body_link_ang_vel_w[0, 0] - motion_base_ang_vel[0])),
+      float(
+        torch.linalg.norm(robot.data.body_link_ang_vel_w[0, 0] - motion_base_ang_vel[0])
+      ),
     )
     frames += 1
     if reset_flag:
@@ -304,9 +356,7 @@ def convert_one(
     dtype=np.float32,
   )
   log["command"] = command
-  log["nominal_command"] = np.array(
-    parse_clip_command(csv_path.stem), dtype=np.float32
-  )
+  log["nominal_command"] = np.array(parse_clip_command(csv_path.stem), dtype=np.float32)
 
   output_path.parent.mkdir(parents=True, exist_ok=True)
   np.savez_compressed(output_path, **log)
@@ -375,6 +425,10 @@ def main(
 
   print(f"robot joints ({len(robot.joint_names)}): {robot.joint_names}")
   print(f"leg joint ids: {leg_joint_ids}")
+  _sign = left_leg_sign(robot, leg_joint_ids)
+  print("left-leg sign (rmg -> MJCF):")
+  for _n, _s in zip(LEG_JOINT_NAMES, _sign.tolist(), strict=True):
+    print(f"  {_n:<26} {_s:+.0f}")
   print(f"bodies ({len(robot.body_names)}): {robot.body_names}")
 
   report: list[dict[str, Any]] = []
@@ -405,7 +459,9 @@ def main(
       f"{r['clip']:42s} {r['frames']:7d} {r['fk_lin_vel_max_err']:9.5f} "
       f"{r['fk_ang_vel_max_err']:9.5f} {str(r['nan']):>5s}{flag}"
     )
-  print(f"\nclips={len(report)}  worst fk lin err={worst_lin:.5f}  ang err={worst_ang:.5f}")
+  print(
+    f"\nclips={len(report)}  worst fk lin err={worst_lin:.5f}  ang err={worst_ang:.5f}"
+  )
   if any(r["nan"] for r in report):
     raise RuntimeError("NaN detected in converted npz — aborting")
 
