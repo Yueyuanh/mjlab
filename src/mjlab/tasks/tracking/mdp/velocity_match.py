@@ -125,8 +125,12 @@ class VelocityMatchMotionCommand(MultiMotionCommand):
 
     self.clip_ids[env_ids] = clips
     center = self.motion.clip_command[clips]
-    jitter = sample_uniform(-1.0, 1.0, center.shape, device=self.device)
-    self.velocity_command[env_ids] = center + jitter * self._half_widths[clips]
+    if self.cfg.sampling_mode == "start":
+      # 录像/评估:命令就是该 clip 的格心,不加抖动,免得"发 A 却看到 B 的动作"。
+      self.velocity_command[env_ids] = center
+    else:
+      jitter = sample_uniform(-1.0, 1.0, center.shape, device=self.device)
+      self.velocity_command[env_ids] = center + jitter * self._half_widths[clips]
 
     starts = self.motion.clip_starts[clips]
     lengths = self.motion.clip_lengths[clips]

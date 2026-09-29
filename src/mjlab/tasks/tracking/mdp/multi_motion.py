@@ -120,8 +120,10 @@ class MultiMotionLoader:
       commands.append(np.array(parse_clip_command(n), dtype=np.float32))
     self.clip_command = torch.from_numpy(np.stack(commands)).to(device)
 
+    # ``joint_pos`` 单独赋值(而不是走下面的动态 ``setattr``):步态周期要从它
+    # 估,而类型检查器看不见动态属性。
+    self.joint_pos = torch.cat([m.joint_pos for m in loaders], dim=0)
     for attr in (
-      "joint_pos",
       "joint_vel",
       "body_pos_w",
       "body_quat_w",
@@ -129,6 +131,40 @@ class MultiMotionLoader:
       "body_ang_vel_w",
     ):
       setattr(self, attr, torch.cat([getattr(m, attr) for m in loaders], dim=0))
+
+    self.clip_periods = self._estimate_clip_periods(self.joint_pos, device)
+
+  def _estimate_clip_periods(
+    self, joint_pos: torch.Tensor, device: str
+  ) -> torch.Tensor:
+    """逐条 clip 估**步态周期(帧)**:参考关节角自相关的第一个显著峰。
+
+    为什么需要它:学生策略的观测里没有参考动作,唯一的"节拍"来源就是这个相位。
+    用一个固定周期(比如 53 帧)不行 —— rmg 库里同时存在 **52 / 53 / 57** 三种
+    周期,499 帧跑下来相位会漂掉 0.6 个周期,时钟反而成了噪声源。
+
+    静态 clip(``pikachu_stand``,关节角恒定)周期记 **0**,相位项对它们输出常数;
+    否则会给一个本该站着不动的动作注入假节拍。自相关找不到峰时回退到 53 帧。
+    """
+    periods = torch.zeros(self.num_clips, dtype=torch.float32, device=device)
+    joint_pos = joint_pos.cpu().numpy()
+    for c in range(self.num_clips):
+      lo, hi = int(self.clip_starts[c]), int(self.clip_ends[c])
+      seg = joint_pos[lo:hi]
+      # 取幅度最大的关节做自相关:它对步态相位最敏感。
+      sig = seg[:, int(np.argmax(seg.std(axis=0)))]
+      sig = sig - sig.mean()
+      if sig.std() < 1e-4:
+        continue
+      ac = np.correlate(sig, sig, "full")[len(sig) - 1 :]
+      ac /= ac[0]
+      peak = 53.0
+      for i in range(5, min(len(ac) - 1, 200)):
+        if ac[i] > ac[i - 1] and ac[i] > ac[i + 1] and ac[i] > 0.3:
+          peak = float(i)
+          break
+      periods[c] = peak
+    return periods
 
   def clip_index_of(self, time_steps: torch.Tensor) -> torch.Tensor:
     """全局帧号 -> clip 序号(右开区间,边界帧归前一条 clip)。"""
@@ -330,9 +366,31 @@ class MultiMotionCommand(MotionCommand):
 
   @property
   def clip_phase_obs(self) -> torch.Tensor:
-    """相位的 (cos, sin) 编码,给策略当"我在步态哪一段"的输入。"""
+    """**clip 进度**的 (cos, sin) 编码。注意它不是步态相位:整条 499 帧的 clip
+    只走完 2π,而里面装了约 9.4 个步态周期。要"我在步态哪一段"请用
+    ``gait_phase_obs``。
+    """
     ang = 2.0 * math.pi * self.clip_phase
     return torch.stack([torch.cos(ang), torch.sin(ang)], dim=-1)
+
+  @property
+  def gait_phase_obs(self) -> torch.Tensor:
+    """**步态相位**的 (cos, sin) 编码 —— 一个步态周期走完 2π。
+
+    学生策略的观测里既没有参考动作也没有参考位姿,只有速度命令和本体感受;
+    而它要模仿的教师是**相位锁定**的(教师能看到整段参考)。少了这个节拍,
+    学生只能靠关节角自激振荡维持步态 —— 实测会塌缩成"只往一个方向转"。
+    这里把参考的相位直接喂给它,补上这条信息。
+
+    周期为 0 的静态 clip 输出常数 ``(1, 0)``,避免给站立动作注入假节拍。
+    """
+    periods = self.motion.clip_periods[self.clip_ids].clamp(min=1.0)
+    ang = 2.0 * math.pi * self.time_steps.float() / periods
+    out = torch.stack([torch.cos(ang), torch.sin(ang)], dim=-1)
+    rest = torch.tensor([1.0, 0.0], device=out.device, dtype=out.dtype)
+    return torch.where(
+      (self.motion.clip_periods[self.clip_ids] > 0.0)[:, None], out, rest
+    )
 
 
 __all__ = [

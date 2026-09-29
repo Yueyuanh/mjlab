@@ -14,6 +14,8 @@ from .commands import MotionCommand
 if TYPE_CHECKING:
   from mjlab.envs import ManagerBasedRlEnv
 
+  from .multi_motion import MultiMotionCommand
+
 
 def motion_anchor_pos_b(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
   command = cast(MotionCommand, env.command_manager.get_term(command_name))
@@ -80,3 +82,13 @@ def motion_reference(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
   """
   command = cast(MotionCommand, env.command_manager.get_term(command_name))
   return torch.cat([command.joint_pos, command.joint_vel], dim=1)
+
+
+def motion_gait_phase(env: ManagerBasedRlEnv, command_name: str) -> torch.Tensor:
+  """参考步态的相位 ``(cos, sin)``,一个周期走完 2π。
+
+  只给学生用。学生观测里没有参考动作/位姿,而它要模仿的教师是相位锁定的,
+  缺了这个节拍就只能靠自激振荡,实测会塌缩成单方向行为。静态 clip 输出常数。
+  """
+  command = cast("MultiMotionCommand", env.command_manager.get_term(command_name))
+  return command.gait_phase_obs

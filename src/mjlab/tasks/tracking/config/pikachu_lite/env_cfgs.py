@@ -1,6 +1,6 @@
 """Pikachu **lite 碰撞体** + RMG_AMP 25 条动作库的 tracking 任务配置。
 
-与 ``pikachu_walk_base`` 同源(纯腿 10 关节 + 摆臂课程干扰),两处关键差异:
+与 ``pikachu_walk_base`` 同源(纯腿 10 关节),两处关键差异:
 
 1. **碰撞体换成 lite**：``get_pikachu_robot_cfg`` / ``PIKACHU_FOOT_GEOM_NAMES``
    从 ``pikachu_constants_lite`` 导入。lite 的脚底是 ``ankle_link`` 自身网格
@@ -86,14 +86,20 @@ def pikachu_lite_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   )
   cfg.scene.sensors = (self_collision_cfg,)
 
-  # -- 裁剪动作层到 10 腿 + 零维摆臂 term -------------------------------------
+  # -- 裁剪动作层到 10 腿 + 零维手臂 term -------------------------------------
   joint_pos_action = cfg.actions["joint_pos"]
   assert isinstance(joint_pos_action, JointPositionActionCfg)
   joint_pos_action.actuator_names = LEG_JOINT_NAMES
   joint_pos_action.scale = LEG_ACTION_SCALE
+  # 手臂**固定在默认姿态**,不摆臂。幅值置零后 ``ArmSineAction.apply_actions``
+  # 走 ``target = self._default_arm`` 分支(``arm_sine.py:126-127``),即每个
+  # substep 主动把 4 个手臂关节压在 ``default_joint_pos`` 上。term 必须保留:
+  # ``joint_pos_action`` 只驱动 10 个腿关节,删掉它手臂就没有任何目标了。
   cfg.actions["arm_sine"] = ArmSineActionCfg(
     entity_name="robot",
-    use_curriculum=not play,
+    default_amp_pitch=0.0,
+    default_amp_roll=0.0,
+    use_curriculum=False,
   )
 
   # -- 裁观测到腿 --------------------------------------------------------------
