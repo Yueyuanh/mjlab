@@ -8,6 +8,17 @@ Upcoming version (not yet released)
 Added
 ^^^^^
 
+- Added ``play --viewer velocity-joystick``: a Viser panel with ``vx`` / ``vy``
+  / ``wz`` sliders that drives ``VelocityMatchMotionCommand`` live, so the
+  distilled student policy can be verified interactively the way the velocity
+  tasks are (send a velocity command, the robot matches the reference motion
+  itself). Changing a slider rewrites ``velocity_command`` and re-runs the
+  nearest-neighbour clip match; the reference then loops inside its own clip
+  with a **phase-continuous** fold (whole gait periods are subtracted from
+  ``time_steps``), so the robot neither teleports when the clip ends nor sees
+  a phase jump in ``gait_phase``. Pair it with ``--no-terminations`` — with
+  the default 10 s episodes the robot would be re-seeded to a reference start
+  pose every 10 seconds.
 - Added ``play --weld``: constructs a **true rigid monolith** for the most basic
   static standing on GPU/warp. The scene MjSpec has every internal hinge/ball
   joint replaced by an ``mjEQ_WELD`` equality and all actuators removed, yielding
