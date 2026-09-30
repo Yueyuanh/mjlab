@@ -24,10 +24,13 @@ tracking 任务的 ``MotionCommand.create_gui``(``tracking/mdp/commands.py``)只
 用法::
 
     uv run play Mjlab-Tracking-Flat-Pikachu-Lite-Distill \\
-      --checkpoint-file <model.pt> --viewer velocity-joystick --no-terminations
+      --checkpoint-file <model.pt> --viewer velocity-joystick \\
+      --no-terminations True
 
-``--no-terminations`` 是必须的:tracking 档 ``episode_length_s=10.0``,不关掉的话
-回合每 10 秒重置一次,机器人会被反复瞬移回参考起点。
+``--no-terminations True`` 是必须的:tracking 档 ``episode_length_s=10.0``,不关掉的
+话回合每 10 秒重置一次,机器人会被反复瞬移回参考起点。值 ``True`` 也不能省 —— 字段
+名自带 ``no_`` 前缀,tyro 视其为歧义名而要求显式取值(``play <TASK> --help`` 里写作
+``--no-terminations {True,False}``)。
 """
 
 from __future__ import annotations

@@ -409,6 +409,11 @@ def run_play(task_id: str, cfg: PlayConfig):
     if cfg.motion_file is not None and Path(cfg.motion_file).exists():
       print(f"[INFO]: Using local motion file: {cfg.motion_file}")
       motion_cmd.motion_file = cfg.motion_file
+    elif getattr(motion_cmd, "motion_files", ()):
+      # 多参考库任务(MultiMotionCommandCfg)自带动作库,不需要外部 npz。没有
+      # 这一支时,这类任务用 --checkpoint-file 回放会误报"缺少 motion_file"。
+      n_clips = len(motion_cmd.motion_files)  # type: ignore[attr-defined]
+      print(f"[INFO]: Using the task's own motion library ({n_clips} clips)")
     elif DUMMY_MODE:
       if not cfg.registry_name:
         raise ValueError(

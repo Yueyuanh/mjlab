@@ -16,9 +16,9 @@ Added
   nearest-neighbour clip match; the reference then loops inside its own clip
   with a **phase-continuous** fold (whole gait periods are subtracted from
   ``time_steps``), so the robot neither teleports when the clip ends nor sees
-  a phase jump in ``gait_phase``. Pair it with ``--no-terminations`` — with
-  the default 10 s episodes the robot would be re-seeded to a reference start
-  pose every 10 seconds.
+  a phase jump in ``gait_phase``. Pair it with ``--no-terminations True`` —
+  with the default 10 s episodes the robot would be re-seeded to a reference
+  start pose every 10 seconds.
 - Added ``play --weld``: constructs a **true rigid monolith** for the most basic
   static standing on GPU/warp. The scene MjSpec has every internal hinge/ball
   joint replaced by an ``mjEQ_WELD`` equality and all actuators removed, yielding
@@ -224,6 +224,10 @@ Changed
 Fixed
 ^^^^^
 
+- ``play`` on a multi-clip tracking task (``MultiMotionCommandCfg``) no longer
+  demands ``--motion-file``: those tasks carry their own ``motion_files``
+  library in the env cfg, so replaying them with ``--checkpoint-file`` now
+  works instead of raising "Tracking tasks require ``motion_file``".
 - ``tests/test_start_server.py``: restored the truncated ``play`` command
   assertion (missing task name and tuple close) that was a syntax error and
   blocked ``make check``.
