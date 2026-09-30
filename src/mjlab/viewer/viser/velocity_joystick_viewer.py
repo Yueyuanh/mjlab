@@ -20,6 +20,14 @@ tracking 任务的 ``MotionCommand.create_gui``(``tracking/mdp/commands.py``)只
    写回 clip 起点会让相位突跳、策略踉跄。折返时减去**整数个周期** ``k*P``,
    ``(cos, sin)`` 完全不变。
 3. **换 clip 时同样让相位对齐**,否则改命令的瞬间会踢一下。
+4. **命令必须吸附到档实测速度**(默认开启)。学生训练时命令恒等于所匹配 clip 的
+   实测速度 —— ``command_jitter=0.3`` 乘的是 Voronoi 半宽,而本库在 vx 轴上有
+   近似重复条目(``walk_0.185_*`` 与 ``walk_0.37_*`` 实测都是 0.188),同轴最近邻
+   距离 ~1e-3,半宽被压到 ~4e-4,**抖动实际为 0**。于是学生只见过 25 个离散命令
+   点。实测(``scripts/scan_command_space.py``,vx 轴 17 点):命令 0.118(落在
+   ``stand`` 与 ``walk_0.37`` 之间)时学生只走出 0.015 m/s、步幅 0.017 m
+   —— 就是"小碎步";吸附到该档实测 0.189 后变成 0.172 m/s、步幅 0.130 m。
+   滑条只用来**选**哪条参考,真正执行的速度是这条参考自己的实测速度。
 
 用法::
 
@@ -62,7 +70,10 @@ class VelocityJoystickViewer(ViserPlayViewer):
     self._wz = 0.0
     self._term: VelocityMatchMotionCommand | None = None
     self._status_html: Any = None
-    self._shown_clip: int | None = None
+    self._shown_key: tuple[Any, ...] | None = None
+    # 默认吸附 —— 学生的训练命令就是各档实测速度(见模块 docstring 第 4 点),
+    # 喂格间命令等于让它外推。关掉可以复现"不吸附时档间退化"的对比。
+    self._snap = True
 
   # -- 初始化 -----------------------------------------------------------------
 
@@ -129,11 +140,19 @@ class VelocityJoystickViewer(ViserPlayViewer):
         for name in ("vx", "vy", "wz"):
           setattr(self, f"_{name}", 0.0)
 
+      snap = server.gui.add_checkbox("命令吸附到档实测速度", initial_value=self._snap)
+
+      @snap.on_update
+      def _(_ev) -> None:
+        self._snap = bool(snap.value)
+        self._shown_key = None  # 强制刷新状态行
+
       self._status_html = server.gui.add_html("")
       server.gui.add_html(
         "<div style='font-size:0.78em;line-height:1.3;opacity:0.75;"
-        "padding:0 1em 0.5em;'>勾选 Enable 后生效;命令按最近邻匹配参考,"
-        "参考播完会在本 clip 内循环(不瞬移)。</div>"
+        "padding:0 1em 0.5em;'>勾选 Enable 后生效;滑条按最近邻**选**参考,"
+        "参考播完会在本 clip 内循环(不瞬移)。吸附开启时真正执行的速度是所选"
+        "参考的实测速度 —— 学生只在这些离散命令上训练过。</div>"
       )
       self._sync_status(int(self._term.clip_ids[0]))
 
@@ -170,9 +189,15 @@ class VelocityJoystickViewer(ViserPlayViewer):
     if bool((term.clip_ids != target).any()):
       term.clip_ids[:] = target
       term.time_steps[:] = self._clip_entry(target)
-      self._sync_status(target)
     else:
       self._fold_reference()
+
+    # 3. 吸附到该档实测速度 —— 见模块 docstring 第 4 点。必须放在匹配**之后**:
+    #    匹配要用滑条的原值决定"选哪条参考",执行值再用选中那条的实测速度覆盖。
+    if self._snap:
+      term.velocity_command[:] = self._lib.clip_command[term.clip_ids]
+
+    self._sync_status(target)
 
   def _clip_entry(self, clip: int) -> int:
     """进入某条 clip 的入口帧(与 ``_sample_time_steps`` 的 start 分支一致)。"""
@@ -212,17 +237,32 @@ class VelocityJoystickViewer(ViserPlayViewer):
   # -- 状态显示 ---------------------------------------------------------------
 
   def _sync_status(self, clip: int) -> None:
-    """把"命令匹配到了哪条参考"显示到面板上。"""
-    if self._status_html is None or clip == self._shown_clip:
+    """把"匹配到哪条参考 / 实际执行什么命令"显示到面板上。
+
+    每步都会调,但只在 ``(clip, 滑条值)`` 变化时才写 DOM —— 否则 50 Hz 刷
+    viser 的 HTML 太浪费。
+    """
+    if self._status_html is None:
       return
-    self._shown_clip = clip
+    key = (clip, round(self._vx, 3), round(self._vy, 3), round(self._wz, 3))
+    if key == self._shown_key:
+      return
+    self._shown_key = key
     term = self._term
     assert term is not None
     name = self._lib.clip_names[clip]
-    center = self._lib.clip_command[clip].cpu()
+    exec_cmd = self._lib.clip_command[clip].cpu()
+    req = f"vx={self._vx:+.3f} vy={self._vy:+.3f} wz={self._wz:+.3f}"
+    act = (
+      f"vx={exec_cmd[0]:+.3f} vy={exec_cmd[1]:+.3f} wz={exec_cmd[2]:+.3f}"
+      if self._snap
+      else req
+    )
+    tag = " <span style='opacity:0.6'>(吸附)</span>" if self._snap else ""
     self._status_html.content = (
       "<div style='font-size:0.85em;line-height:1.35;padding:0 1em 0.5em;'>"
       f"匹配参考: <code>{name}</code><br/>"
-      f"该档实测: vx={center[0]:+.3f} vy={center[1]:+.3f} wz={center[2]:+.3f}"
+      f"滑条请求: {req}<br/>"
+      f"实际执行: {act}{tag}"
       "</div>"
     )

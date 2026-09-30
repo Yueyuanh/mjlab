@@ -8,9 +8,9 @@
   带参考动作,真机上拿不到。
 
 学生(``VelocityMatchMotionCommand``)
-  ``actor`` 观测 = 速度命令 ``(vx, vy, wz)`` + 本体感受,共 **39 维**,全部是
-  真机可得量。命令项在参考库里做最近邻匹配,自动把该 env 的参考切到对应 clip
-  —— 这就是"发送速度控制命令自动匹配模型和数据"。
+  ``actor`` 观测 = 速度命令 ``(vx, vy, wz)`` + 本体感受 + 基座线速度,共 **44
+  维**,全部是真机可得量。命令项在参考库里做最近邻匹配,自动把该 env 的参考切到
+  对应 clip —— 这就是"发送速度控制命令自动匹配模型和数据"。
 
 蒸馏通过 ``teacher`` 观测组实现:该组逐项复刻教师 ``actor`` 组的 65 维
 (``command`` 换成语义相同的 ``motion_reference``,关掉噪声),让冻结教师能在
@@ -18,9 +18,9 @@
 
 三组观测的分工::
 
-    actor   (39)  可部署  速度命令 + 本体感受            -> 学生策略
-    teacher (65)  仅训练  复刻教师 actor 组              -> 冻结教师前向
-    critic  (128) 仅训练  特权信息(参考 body 位姿等)   -> 价值函数
+    actor   (44)  可部署  速度命令 + 本体感受 + 基座线速度 -> 学生策略
+    teacher (65)  仅训练  复刻教师 actor 组                -> 冻结教师前向
+    critic  (128) 仅训练  特权信息(参考 body 位姿等)     -> 价值函数
 """
 
 from __future__ import annotations
@@ -39,15 +39,24 @@ from mjlab.tasks.tracking.config.pikachu_lite.env_cfgs import (
 from mjlab.tasks.tracking.mdp.velocity_match import VelocityMatchMotionCommandCfg
 from mjlab.utils.noise import UniformNoiseCfg as Unoise
 
-# 学生可部署观测的维度:3 命令 + 2 步态相位 + 3 角速度 + 3 投影重力
-# + 10 + 10 关节 + 10 动作。
-STUDENT_OBS_DIM = 41
+# 学生可部署观测的维度:3 命令 + 2 步态相位 + 3 线速度 + 3 角速度
+# + 3 投影重力 + 10 + 10 关节 + 10 动作。
+STUDENT_OBS_DIM = 44
+
+BASE_LIN_VEL_NOISE = 0.05
+"""学生 ``base_lin_vel`` 观测的均匀噪声半宽(m/s)。
+
+仓库里 velocity / tracking 档的默认值是 **±0.5**,那是按 ±1 m/s 的命令量级定的;
+本库实测速度只有 0.19 m/s、步态自身的线速度波动 std ≈ 0.10 —— ±0.5 相当于整个
+速度量程的 2.6 倍,会把这一项彻底变成噪声,学生学不会用它。真正要纠正的前进档
+侧漂是 0.07~0.10 m/s,±0.05 下信噪比约 3:1,够用又不至于当干净真值。
+"""
 # 教师 actor 组维度(与训练日志中 Actor Model 的 in_features 一致)。
 TEACHER_OBS_DIM = 65
 
 
 def _student_actor_terms() -> dict[str, ObservationTermCfg]:
-  """学生策略的观测:真机可得的 39 维。"""
+  """学生策略的观测:真机可得的 44 维。"""
   return {
     # 唯一的任务指令。``VelocityMatchMotionCommand.command`` 返回 (vx, vy, wz)。
     "velocity_command": ObservationTermCfg(
@@ -61,6 +70,16 @@ def _student_actor_terms() -> dict[str, ObservationTermCfg]:
     # 补上节拍后学生才有能力复现教师的相位锁定步态。
     "gait_phase": ObservationTermCfg(
       func=mdp.motion_gait_phase, params={"command_name": "motion"}
+    ),
+    # 基座线速度 —— 学生**唯一**能感知"自己实际在往哪走"的量。缺了它,学生只能
+    # 开环复现步态:实测前进档每走 0.19 m/s 就侧漂 0.07~0.10 m/s(同一条 clip
+    # 上教师 (0.186, +0.017) 走直线、学生 (0.162, +0.083)),而侧漂**不产生偏航**,
+    # ``base_ang_vel`` 与 ``projected_gravity`` 都看不见它。真机侧对应 IMU + 腿
+    # 里程计的状态估计输出;噪声见 ``BASE_LIN_VEL_NOISE``。
+    "base_lin_vel": ObservationTermCfg(
+      func=mdp.builtin_sensor,
+      params={"sensor_name": "robot/imu_lin_vel"},
+      noise=Unoise(n_min=-BASE_LIN_VEL_NOISE, n_max=BASE_LIN_VEL_NOISE),
     ),
     "base_ang_vel": ObservationTermCfg(
       func=mdp.builtin_sensor,
@@ -206,7 +225,7 @@ def pikachu_lite_student_env_cfg(
   #   | \|v\|>=0.05(有位移) | 16 | 0.520 | 0.087 | **6.0x** |
   #
   # 零速档**一模一样**,有位移档实速全是 ~0.000;而 ``joint_mae`` 只差 5%
-  # (0.542 vs 0.515)—— 腿的轨迹是对的,**就是原地踏步**。原因在观测:学生 39 维
+  # (0.542 vs 0.515)—— 腿的轨迹是对的,**就是原地踏步**。原因在观测:学生 44 维
   # 里没有位置、没有相位、没有线速度,参考帧又按墙钟 ``time_steps += 1``
   # (``commands.py:489-493``)推进,学生看不见相位,只能靠自身关节角自激振荡维持
   # 步态。**关节空间的"走"与"原地摆腿"是同一条轨迹**,唯一能打破对称性的就是奖励。

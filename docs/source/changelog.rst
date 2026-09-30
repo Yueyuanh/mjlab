@@ -19,6 +19,18 @@ Added
   a phase jump in ``gait_phase``. Pair it with ``--no-terminations True`` —
   with the default 10 s episodes the robot would be re-seeded to a reference
   start pose every 10 seconds.
+  By default the slider only **selects** the
+  reference — the command actually handed to the policy is snapped to the
+  matched clip's measured steady-state velocity. That is the only command value
+  the student ever trained on: this library's Voronoi half-widths collapse to
+  ~4e-4 (near-duplicate clips such as ``walk_0.185_0.0_0.0`` /
+  ``walk_0.37_0.0_0.0``, both measuring 0.188 m/s, sit ~1e-3 apart), so
+  ``command_jitter`` contributes nothing and training commands are 25 discrete
+  points. Feeding an in-between command degrades the gait into a shuffle —
+  measured on the vx axis, ``0.118`` gives 0.015 m/s over a 0.017 m stride,
+  while the snapped command gives 0.172 m/s over 0.130 m. A checkbox disables
+  snapping for side-by-side comparison, and the panel always shows both the
+  requested and the executed command.
 - Added ``play --weld``: constructs a **true rigid monolith** for the most basic
   static standing on GPU/warp. The scene MjSpec has every internal hinge/ball
   joint replaced by an ``mjEQ_WELD`` equality and all actuators removed, yielding

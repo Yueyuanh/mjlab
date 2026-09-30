@@ -1,7 +1,7 @@
 """RL configuration for the Pikachu lite distillation (student) task.
 
 网络结构与教师完全一致(512-256-128 ELU + Gaussian),这样教师权重能原样装进
-``teacher`` 网络。学生 ``actor`` 的输入是 39 维可部署观测,教师是 65 维,
+``teacher`` 网络。学生 ``actor`` 的输入是 44 维可部署观测,教师是 65 维,
 ``critic`` 保持教师的 128 维特权观测。
 
 算法换成 ``DaggerPPO``:``L = λ_PPO·L_PPO + λ_D·L_BC``,λ_D 从 1.0 退火到 0.1

@@ -2,7 +2,7 @@
 
 ``Mjlab-Tracking-Flat-Pikachu-Lite-Distill`` = 教师档
 (``Mjlab-Tracking-Flat-Pikachu-Lite``)的学生。教师用 65 维含参考的观测跟踪整库
-25 条 rmg 参考;学生只用 39 维可部署观测(速度命令 + 本体感受),靠 DAgger + PPO
+25 条 rmg 参考;学生只用 44 维可部署观测(速度命令 + 本体感受 + 基座线速度),靠 DAgger + PPO
 从冻结教师那里把"整库跟踪"的能力蒸馏过来。
 
 部署形态:喂 ``(vx, vy, wz)``,命令项在参考库里最近邻匹配到对应 clip,策略输出
