@@ -246,6 +246,11 @@ Fixed
 - ``csv_to_npz_pikachu.py``: the lazy ``import wandb`` inside ``run_sim``
   shadowed the ``wandb: bool`` parameter; the module is now imported as
   ``wandb_mod`` so the artifact upload path type-checks.
+- ``Mjlab-Tracking-Flat-Pikachu-Lite-Distill``: the default teacher checkpoint
+  globbed ``logs/rsl_rl/pikachu_lite_tracking/*/model_*.pt``, which silently
+  resolves to a **pre-left-leg-sign-fix** teacher once the fixed run gets its
+  own top-level directory (``pikachu_lite_tracking_signfix``). It now globs
+  ``pikachu_lite_tracking*``, matching ``scripts/train_student.sh``.
 
 Version 1.6.0 (August 8, 2026)
 ------------------------------

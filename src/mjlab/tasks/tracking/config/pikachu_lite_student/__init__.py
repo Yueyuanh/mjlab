@@ -36,8 +36,16 @@ def _default_teacher_checkpoint() -> str:
   if env_path:
     return env_path
   try:
+    # 通配 ``pikachu_lite_tracking*``:教师档换一版就是换一个顶层名
+    # (``_signfix`` 是左腿符号修复后的那一版),写死 ``pikachu_lite_tracking``
+    # 会静默挑到修复**之前**的教师 —— 蒸馏出来的学生会跟着学错的参考。
+    # ``train_student.sh`` 里是同一处通配,两边必须一致。
     candidates = sorted(
-      (_TEACHER_LOG_ROOT / "pikachu_lite_tracking").glob("*/model_*.pt"),
+      (
+        p
+        for d in _TEACHER_LOG_ROOT.glob("pikachu_lite_tracking*")
+        for p in d.glob("*/model_*.pt")
+      ),
       key=lambda p: (p.stat().st_mtime, p.name),
     )
   except OSError:
