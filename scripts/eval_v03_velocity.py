@@ -86,9 +86,10 @@ def main() -> int:
   print()
   print(
     f"{'档位':<7} {'命令vx':>7} {'命令vy':>7} {'命令wz':>7} | "
-    f"{'实测vx':>8} {'实测vy':>8} {'实测wz':>8} | "
-    f"{'跟踪比':>7} {'roll°':>7} {'pitch°':>7} {'终止':>5} "
-    f"{'单脚支撑':>8} {'平均脚数':>7}",
+    f"{'base_vx':>8} {'base_vy':>8} {'base_wz':>8} | "
+    f"{'跟踪比':>7} {'方向cos':>7} {'roll°':>7} {'pitch°':>7} {'终止':>5} "
+    f"{'单脚支撑':>8} {'平均脚数':>7} | "
+    f"{'净位移vx':>9} {'净位移vy':>9} {'净位移wz':>9}",
     flush=True,
   )
 
@@ -141,6 +142,8 @@ def main() -> int:
     steps = int(args.seconds / step_dt)
     n_term = 0
     n_contact = []  # 每步在接触中的脚数（0/1/2）
+    b_lin = []  # 每步 base 系线速度
+    b_ang = []  # 每步 base 系角速度
     for _ in range(steps):
       with torch.no_grad():
         action = policy(obs)
@@ -153,6 +156,8 @@ def main() -> int:
       yaw_acc += torch.atan2(torch.sin(d), torch.cos(d))
       prev_yaw = y
       n_contact.append(float(contact.data.found[0].sum()))
+      b_lin.append(robot.data.root_link_lin_vel_b[0].clone())
+      b_ang.append(robot.data.root_link_ang_vel_b[0].clone())
 
     dp = robot.data.root_link_pos_w[0, :2] - p0
     n_done = len(n_contact)
@@ -161,6 +166,14 @@ def main() -> int:
     # 直接用世界位移除以时间作为实测速度。
     ax, ay = float(dp[0]) / dt, float(dp[1]) / dt
     aw = float(yaw_acc) / dt
+
+    # 但**世界系净位移只在机器人不转身时才等于 base 系前进**：实测里未受
+    # 命令的 yaw 可以跑到 0.3 rad/s，8 s 就是 149°，世界位移方向随之外偏，
+    # 「跟踪比」会失真。所以同时给 base 系速度的**时均** —— 它与命令同系、
+    # 可直接比。步态瞬时速度有周期性起伏，但 8 s 的均值不受影响
+    # （这正是「用均值不用单帧」那句话的正确用法）。
+    bl = torch.stack(b_lin).mean(dim=0) if b_lin else torch.zeros(3, device=args.device)
+    ba = torch.stack(b_ang).mean(dim=0) if b_ang else torch.zeros(3, device=args.device)
 
     roll, pitch, _ = rpy(robot.data.root_link_quat_w)
     r_deg = float(roll[0]) * 180 / np.pi
@@ -174,14 +187,21 @@ def main() -> int:
     single = float((c == 1).mean())
     mean_feet = float(c.mean())
 
+    # 跟踪比用 **base 系时均** 算 —— 与命令同系，不受转身污染。
     cmd_mag = np.hypot(vx, vy)
-    act_mag = np.hypot(ax, ay)
+    act_mag = float(torch.hypot(bl[0], bl[1]))
     ratio = act_mag / cmd_mag if cmd_mag > 1e-6 else float("nan")
+    # 方向余弦：+1 = 走对方向，-1 = 反向走，0 = 垂直。命令为 0 时无意义。
+    if cmd_mag > 1e-6 and act_mag > 1e-6:
+      cos_dir = float((bl[0] * vx + bl[1] * vy) / (act_mag * cmd_mag))
+    else:
+      cos_dir = float("nan")
     print(
       f"{name:<7} {vx:>7.2f} {vy:>7.2f} {wz:>7.2f} | "
-      f"{ax:>8.3f} {ay:>8.3f} {aw:>8.3f} | "
-      f"{ratio:>7.2f} {r_deg:>7.1f} {p_deg:>7.1f} {n_term:>5} "
-      f"{single:>8.2f} {mean_feet:>7.2f}",
+      f"{float(bl[0]):>8.3f} {float(bl[1]):>8.3f} {float(ba[2]):>8.3f} | "
+      f"{ratio:>7.2f} {cos_dir:>7.2f} {r_deg:>7.1f} {p_deg:>7.1f} {n_term:>5} "
+      f"{single:>8.2f} {mean_feet:>7.2f} | "
+      f"{ax:>8.3f} {ay:>8.3f} {aw:>8.3f}",
       flush=True,
     )
     env.close()
