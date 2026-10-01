@@ -70,5 +70,130 @@ git checkout -b task/pikachu-v03-locomotion
 5. **`push_robot` 与 `reset_base` 的 z 随机化会污染开环测试** ——
    冒烟测试的 quiet 模式要把它们弹掉。
 
+### 开训
+
+```bash
+CUDA_VISIBLE_DEVICES=0 uv run train Mjlab-Velocity-Flat-Pikachu-V03 \
+  --env.scene.num-envs 2048 --agent.run-name v03-flat-r01 --video True
+```
+
+- run 目录：`logs/rsl_rl/pikachu_v03_velocity/2026-10-01_12-17-25_v03-flat-r01`
+- 训练 commit：`a1ae500`
+- 吞吐 ~0.72 s/迭代（warmup 后），50 Hz 控制
+- `--video True` 每 500 迭代录一段 200 步的训练录像
+  （`VideoRecorder` 默认分辨率，不是最终的 720P 成品）
+
+**踩坑**：tyro 的 bool 参数要显式给值 —— `--video` 会报
+`Missing value for argument ('--video',)`，必须写 `--video True`。
+
+### 训练早期观察（iter 271）
+
+| iter | mean_reward | episode_length | track_lin | track_ang | error_vel_xy | fell_over |
+|---|---|---|---|---|---|---|
+| 0 | -1.91 | 23.3 | 0.011 | 0.001 | 0.013 | 7.05 |
+| 116 | +44.3 | 897.4 | 1.475 | 0.542 | 0.639 | 0.00 |
+| 232 | +84.9 | **1000.0** | 1.453 | 1.484 | 0.676 | 0.00 |
+| 271 | +87.0 | **1000.0** | 1.392 | 1.533 | 0.731 | 0.00 |
+
+- **好消息**：iter 232 起 `episode_length` 顶到 1000（20 s 上限），
+  `fell_over = 0` —— 站得非常稳，环境设计（静平衡 keyframe）奏效。
+- **待观察**：`error_vel_xy` 平在 0.68~0.73 **不降**。`track_linear_velocity`
+  卡在 1.4/2.0 不动，既可能是「走得不错」，也可能是「站着不动拿到的基线分」。
+  这是已知的局部最优形态，需要继续盯着 `error_vel_xy` 的趋势 ——
+  若再跑 1000~2000 迭代仍平，就要动奖励权重（`pose` 降权 / track 升权）。
+
+### 录像管线
+
+`play.py` 无头必挂（末尾交给 `viewer.run()` 无限循环：有 DISPLAY 开 GUI 窗口
+等关闭，无 DISPLAY 走 viser 停在暂停态不推进仿真）。改走离线渲染：
+`scripts/record_v03_video.py`，自己 `env.render()` 取帧 + imageio 写 mp4，
+命令通过在**构造 env 前**把 twist 的 ranges 收成点来固定。
+
 ### 下一步
-开训 `Mjlab-Velocity-Flat-Pikachu-V03`，`num_envs=2048`，`save_interval=500`。
+盯 `error_vel_xy` 趋势；收敛后跑 `record_v03_video.py` 出 720P 成品。
+
+---
+
+## 2026-10-01 · r01 定性：**策略在站桩**，找到两个独立缺陷（已修，待复跑验证）
+
+### 怎么定性的
+
+看板上的 `track_linear_velocity = 1.4/2.0` 是**二义**的：命令幅度平均
+~0.25 m/s 时，「站着不动」的跟踪误差本身就只有 0.25 左右，exp 项天然能拿到
+0.7+。光看奖励分不出「走得不错」和「站着不动」。
+
+所以新写了 `scripts/eval_v03_velocity.py`：把命令**固定成档位**，跑 8 s，
+量 base 在**世界系的净位移**除以时间，与命令对比。
+
+> ⚠️ 用净位移而不是瞬时速度 —— 步态瞬时速度有周期性起伏，均值可信单帧不可信
+> （记忆 `amp-v4-behavior-direction`）。
+
+对 `model_500.pt`（r01 中途存档）逐档评测：
+
+| 档位 | 命令 vx | 命令 vy | 命令 wz | 实测 vx | 实测 vy | 实测 wz | 跟踪比 | roll° | pitch° | 终止 | 单脚支撑 | 平均脚数 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| stand | 0.00 | 0.00 | 0.00 | 0.001 | 0.000 | 0.001 | — | -0.6 | 3.0 | 0 | 0.00 | 7.00 |
+| fwd | **0.40** | 0.00 | 0.00 | **0.001** | 0.000 | 0.001 | **0.00** | -0.6 | 3.0 | 0 | 0.00 | 7.03 |
+| back | **-0.30** | 0.00 | 0.00 | **0.001** | 0.000 | 0.001 | **0.00** | -0.6 | 3.0 | 0 | 0.00 | 6.99 |
+| lat | 0.00 | **0.25** | 0.00 | 0.001 | **0.000** | 0.001 | **0.00** | -0.6 | 3.0 | 0 | 0.00 | 6.99 |
+| turn | 0.00 | 0.00 | **0.30** | 0.001 | 0.000 | **0.001** | — | -0.6 | 3.0 | 0 | 0.00 | 7.01 |
+
+**五个档位实测速度全是 0.001 m/s，单脚支撑占比 0.00 —— 一次脚都没抬过。**
+姿态倒是完美（roll -0.6°、pitch 3.0°、零终止）。
+
+> 📌 **迈步判据用「单脚支撑占比」，不要用「接触翻转次数」当步频**：
+> 胶囊脚底在软接触下 `found` 会抖动，站着不动也能翻出 3~4 Hz 的假步频
+> （实测踩过）。单脚支撑占比没这个毛病：真迈步稳定在 0.3~0.6，站桩接近 0。
+
+### 根因：两个**互相独立**的缺陷
+
+**缺陷 1 —— track 奖励的 std 没随命令范围缩放。**
+
+`make_velocity_env_cfg` 给的默认 std（lin `√0.25 = 0.5`、ang `√0.5 = 0.707`）
+是配 G1 那种 ±3 m/s 大命令的。v03 的命令收窄到 lin ±0.5 / ang ±0.3 之后：
+
+```
+站桩误差 mean|cmd| ≈ 0.29 m/s
+exp(-0.29² / 0.5²) = 0.72     →  站桩白拿 72% 的跟踪分
+```
+
+梯度压力直接消失，策略落向「站着不动」这个鞍点。
+
+> 这**不是新坑** —— AMP 侧踩过一模一样的，见记忆
+> `amp-track-std-must-match-command`（Pikachu 取 lin 0.12 / ang 0.25）。
+
+**缺陷 2 —— `alternating_feet_air_time` 在「从不抬脚」时是**死梯度**。**
+
+翻它的实现（`tasks/velocity/mdp/rewards.py`）：它只在**落地瞬间**
+（`first_contact & has_other_support`）给分。策略一次脚都不抬 → 没有落地事件
+→ 该项恒为 0，**梯度也为 0**。光靠它推不出第一步（r01 实测 `air_time`
+只有 +0.0016）。同文件的 `feet_air_time` 是**每步**给分（
+`threshold_min < current_air_time < threshold_max` 就计分），有活梯度。
+
+### 修复（`env_cfgs.py`）
+
+1. `track_linear_velocity.std`: 0.5 → **0.20**；
+   `track_angular_velocity.std`: 0.707 → **0.25**
+   （收到命令上限量级：lin 站桩只剩 0.13 分，ang 站桩 0.70）。
+2. 抬脚奖励拆成两项，**缺一不可**：
+   - `air_time` = `feet_air_time`（每步给分，weight 1.0）→ 把策略推离站桩鞍点
+   - `alternating_air_time` = `alternating_feet_air_time`（落地质量，weight 3.0）
+     → 它不能靠「双脚一起腾空」刷分，负责把步态收成真交替步
+3. `pose.std_walking` 放宽：`hip_pitch`/`knee_up` 0.5、`ankle` 0.45
+   （原值把正常迈步摆幅当误差罚，策略为保 pose 分不敢抬腿）；
+   `hip_roll`/`hip_yaw` 保持 0.15 收着。
+
+### 复跑
+
+r01 的进程是**启动时**读的 `env_cfgs.py`，改文件对它无效，必须重启。
+
+```bash
+kill 901627
+CUDA_VISIBLE_DEVICES=0 uv run train Mjlab-Velocity-Flat-Pikachu-V03 \
+  --env.scene.num-envs 2048 --agent.run-name v03-flat-r02 --video True
+```
+
+**验收标准**（跑够 500 迭代后看）：
+- `Metrics/twist/error_vel_xy` 明显下降（r01 平在 0.68~0.73）
+- `Episode_Reward/air_time` 不再是 ~0
+- 复跑 `eval_v03_velocity.py`，fwd 档跟踪比 > 0.5、单脚支撑 > 0.2

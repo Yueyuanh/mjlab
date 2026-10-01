@@ -122,6 +122,9 @@ def main() -> int:
     twist.ranges.lin_vel_y = (vy, vy)
     twist.ranges.ang_vel_z = (wz, wz)
     twist.heading_command = False
+    # heading_command=False 时 ranges.heading 必须为 None，否则
+    # UniformVelocityCommand.__init__ 直接抛 ValueError。
+    twist.ranges.heading = None
     for attr in (
       "rel_standing_envs",
       "rel_heading_envs",
@@ -132,7 +135,9 @@ def main() -> int:
     ):
       setattr(twist, attr, 0.0)
 
-    steps = int(args.seconds / env_cfg.decimation / env_cfg.sim.mujoco.timestep)
+    # step_dt = decimation × timestep（控制周期），cfg 上没有现成属性。
+    step_dt = env_cfg.decimation * env_cfg.sim.mujoco.timestep
+    steps = int(args.seconds / step_dt)
     dest = out_dir / (f"{name}__{args.tag}.mp4" if args.tag else f"{name}.mp4")
 
     env, policy = build_policy(args.task, args.checkpoint, args.device, env_cfg)
@@ -158,7 +163,7 @@ def main() -> int:
     imageio.mimsave(
       dest,
       frames,
-      fps=int(1.0 / env_cfg.step_dt),
+      fps=int(1.0 / step_dt),
       codec="libx264",
       quality=8,
       macro_block_size=None,

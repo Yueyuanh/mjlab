@@ -170,13 +170,16 @@ def pikachu_v03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   pose = cfg.rewards["pose"]
   pose.params["asset_cfg"].joint_names = PIKACHU_V03_POSE_JOINT_NAMES
   pose.params["std_standing"] = {".*": 0.05}
+  # std_walking 要比「步态里这些关节的真实摆幅」略宽一点：收得太紧等于
+  # 惩罚正常的迈步动作，策略会为了保住 pose 分而不敢抬腿。hip_pitch / knee_up
+  # 是迈步主力，给到 0.5；hip_roll / hip_yaw 不该乱摆，保持 0.15 收着。
   pose.params["std_walking"] = {
-    r".*hip_pitch.*": 0.4,
+    r".*hip_pitch.*": 0.5,
     r".*hip_roll.*": 0.15,
     r".*hip_yaw.*": 0.15,
     # knee_up 的行程比串联膝小（±0.87 rad 全行程），std 相应收窄。
-    r".*knee_up.*": 0.4,
-    r".*ankle.*": 0.35,
+    r".*knee_up.*": 0.5,
+    r".*ankle.*": 0.45,
   }
   pose.params["std_running"] = {
     r".*hip_pitch.*": 0.5,
@@ -193,9 +196,44 @@ def pikachu_v03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   for reward_name in ["foot_clearance", "foot_slip"]:
     cfg.rewards[reward_name].params["asset_cfg"].site_names = SITE_NAMES
 
+  # --- track 奖励的 std 必须随命令范围缩放 ---------------------------------
+  # make_velocity_env_cfg 的默认值（lin std=√0.25=0.5、ang std=√0.5=0.707）
+  # 是配 G1 那种大命令（±3 m/s）的。v03 的命令收窄到 lin ±0.5 / ang ±0.3 之后，
+  # 「原地站住」的误差就只有 mean|cmd| ≈ 0.29 m/s：
+  #     exp(-0.29² / 0.5²) = 0.72   → 站桩白拿 72% 的跟踪分
+  # 梯度压力随之消失，策略直接落向「站着不动」（v03-flat-r01 实测：
+  # error_vel_xy 平在 0.7 不降、air_time ≈ 0、episode_length 却顶满 1000）。
+  # 这不是新坑 —— AMP 侧踩过一模一样的，见记忆 amp-track-std-must-match-command。
+  # 收到命令上限量级：lin 0.20 → 站桩只剩 0.13；ang 0.25 → 站桩 0.70。
+  cfg.rewards["track_linear_velocity"].params["std"] = 0.20
+  cfg.rewards["track_angular_velocity"].params["std"] = 0.25
+
   cfg.rewards["body_ang_vel"].weight = -0.05
   cfg.rewards["angular_momentum"].weight = -0.02
+
+  # 抬脚奖励拆成两项，缺一不可：
+  #
+  #   air_time  = feet_air_time（**每步**给分）
+  #     ``alternating_feet_air_time`` 只在【落地瞬间】给分，策略一次都不抬脚时
+  #     该项恒为 0、梯度也为 0 —— 光靠它推不出第一步（这是典型的死梯度，
+  #     v03-flat-r01 里 air_time 实测 +0.0016）。每步给分的那版只要脚离地
+  #     超过 threshold_min 就有梯度，用来把策略推离「站着不动」的鞍点。
+  #
+  #   alternating_air_time = alternating_feet_air_time（落地质量）
+  #     它**不能**靠「双脚一起腾空」刷分（见其 docstring：要求另一只脚已有
+  #     稳定支撑），所以作为高质量项保留，负责把步态收成真正的交替步。
   cfg.rewards["air_time"] = RewardTermCfg(
+    func=mdp.feet_air_time,
+    weight=1.0,
+    params={
+      "sensor_name": feet_ground_cfg.name,
+      "threshold_min": 0.05,
+      "threshold_max": 0.5,
+      "command_name": "twist",
+      "command_threshold": 0.15,
+    },
+  )
+  cfg.rewards["alternating_air_time"] = RewardTermCfg(
     func=mdp.alternating_feet_air_time,
     weight=3.0,
     params={
