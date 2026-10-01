@@ -139,14 +139,37 @@ def pikachu_v03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   twist_cmd = cfg.commands["twist"]
   assert isinstance(twist_cmd, UniformVelocityCommandCfg)
   twist_cmd.viz.z_offset = 0.15
-  # 方向桶的总量要留够给「全随机」环境 —— 三个桶在 `_resample_command` 里
-  # **都把 ang_vel_z 强制置 0**，桶占比越高，能见到 yaw 命令的环境就越少。
-  # r02 用 0.25×3 = 0.75，只剩 25% 的环境练过转向，结果是
-  # 「原地转向命令 0.30 → 实测 0.005」完全不会转。收到 0.50 给 yaw 让路；
-  # 前进/后退已经 100% 跟踪，不需要那么宽的覆盖。
-  twist_cmd.rel_forward_envs = 0.20
-  twist_cmd.rel_backward_envs = 0.15
-  twist_cmd.rel_lateral_envs = 0.15
+  # --- 转向的暴露面：**不要动方向桶，动 rel_heading_envs** ----------------
+  #
+  # 「有多少环境能见到非零 yaw 命令」的精确公式（见 03-task-design.md）：
+  #
+  #     P(见过 yaw) = [ rel_heading_envs × (1 − 桶总量) ] × (1 − rel_standing_envs)
+  #
+  # 因为方向桶在 `_resample_command` 里把 `ang_vel_z` 强制置 0，
+  # `is_heading_env &= ~directional` 又把它们踢出 heading，
+  # 而 `_update_command` 最后一步把 standing 环境的整个命令清零。
+  # **只有 heading 环境拿得到非零 yaw。**
+  #
+  #   r02: [0.3 × 0.25] × 0.9 = **6.79%** → 原地转向命令 0.30 实测 0.005
+  #   r03: [0.3 × 0.50] × 0.9 = 13.49% → 0.075（15× 改善，但仍只有命令的 25%）
+  #
+  # ⚠️ r03 走了一条**错路**：靠砍方向桶（0.75→0.50）来换 yaw 暴露面。
+  # 代价立刻出现 —— 纯后退/侧移的训练样本被砍掉 1/3，实测
+  # **back 跟踪比 1.02 → 0.80、lat 0.41 → 0.28**。
+  # 方向桶和 heading 是两个独立的旋钮，**该动的是 heading**：
+  #
+  #   r04: [1.0 × 0.25] × 0.95 = **23.80%** 且方向桶**全恢复**
+  #
+  # 方向桶回到 r02 的 0.25×3（后退/侧移样本恢复），yaw 暴露面反而比 r03 更高。
+  twist_cmd.rel_forward_envs = 0.25
+  twist_cmd.rel_backward_envs = 0.25
+  twist_cmd.rel_lateral_envs = 0.25
+  # 非方向桶的环境**全部**用 heading 控制器驱动 yaw（闭合环跟踪目标朝向）。
+  # 它们仍然抽随机的 lin_vel_x/y，所以线速度的探索面不受影响。
+  twist_cmd.rel_heading_envs = 1.0
+  # standing 环境每步把整个命令清零，纯属浪费 —— 站桩已由
+  # `track_linear_velocity` 的 std=0.20 摁住，不需要专门留 10% 的环境。
+  twist_cmd.rel_standing_envs = 0.05
   twist_cmd.ranges.lin_vel_x = (-0.4, 0.5)
   twist_cmd.ranges.lin_vel_y = (-0.35, 0.35)
   twist_cmd.ranges.ang_vel_z = (-0.3, 0.3)

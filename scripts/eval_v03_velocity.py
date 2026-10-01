@@ -141,7 +141,7 @@ def main() -> int:
 
     steps = int(args.seconds / step_dt)
     n_term = 0
-    n_contact = []  # 每步在接触中的脚数（0/1/2）
+    n_feet = []  # 每步着地的**脚**数（0/1/2），按 slot 判 > 0
     b_lin = []  # 每步 base 系线速度
     b_ang = []  # 每步 base 系角速度
     for _ in range(steps):
@@ -155,12 +155,20 @@ def main() -> int:
       d = y - prev_yaw
       yaw_acc += torch.atan2(torch.sin(d), torch.cos(d))
       prev_yaw = y
-      n_contact.append(float(contact.data.found[0].sum()))
+      # ⚠️ `found` 的形状是 **(num_envs, slot)**，slot 按 `primary` 正则匹配到的
+      # body 逐个排 —— v03 的 `^(left|right)_ankle_link$` 匹配 2 个 body，
+      # 所以是 2 个 slot：**[0] = 左脚子树、[1] = 右脚子树**，
+      # 值是该子树当前的**接触点数**（站定时实测 `[10, 10]`）。
+      #
+      # 所以「有没有脚着地」要按 slot 判 `> 0`，**不能** `found.sum() == 1`
+      # —— 后者是「全身恰好只有 1 个接触点」，跟单脚支撑是两回事。
+      # 这个 bug 一开始就写进去了，用它得出的「单脚支撑 0.76」是错的。
+      n_feet.append(int((contact.data.found[0] > 0).sum()))
       b_lin.append(robot.data.root_link_lin_vel_b[0].clone())
       b_ang.append(robot.data.root_link_ang_vel_b[0].clone())
 
     dp = robot.data.root_link_pos_w[0, :2] - p0
-    n_done = len(n_contact)
+    n_done = len(n_feet)
     dt = n_done * step_dt
     # 命令在 base 系；起手 yaw≈0（seed 固定），世界系与 base 系近似重合，
     # 直接用世界位移除以时间作为实测速度。
@@ -179,11 +187,11 @@ def main() -> int:
     r_deg = float(roll[0]) * 180 / np.pi
     p_deg = float(pitch[0]) * 180 / np.pi
 
-    # 迈步判据：**单脚支撑占比**。
+    # 迈步判据：**单脚支撑占比**（着地脚数 == 1 的步数占比）。
     # 不要用「接触状态翻转次数」当步频 —— 胶囊脚底在软接触下 found 会抖动，
-    # 站着不动也能翻出 3~4 Hz 的假步频（实测过）。单脚支撑占比没有这个毛病：
-    # 真迈步时它稳定在 0.3~0.6，站着不动时接近 0。
-    c = np.asarray(n_contact) if n_contact else np.zeros(1)
+    # 站着不动也能翻出 3~4 Hz 的假步频（实测过）。着地脚数没有这个毛病：
+    # 真迈步时会 1↔2 交替，站着不动时恒为 2。
+    c = np.asarray(n_feet) if n_feet else np.zeros(1)
     single = float((c == 1).mean())
     mean_feet = float(c.mean())
 
