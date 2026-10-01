@@ -400,8 +400,11 @@ cfg.curriculum.pop("command_vel", None)
 
 1. **命令分布把 yaw 饿死了**：三个方向桶
    （`rel_forward/backward/lateral_envs = 0.25` 各一份）在
-   `_resample_command` 里**都把 `ang_vel_z` 强制置 0**，
-   只剩最后 25% 的环境能见到非零 yaw 命令。
+   `_resample_command` 里**都把 `ang_vel_z` 强制置 0**。
+   ⚠️ 这里一开始我算错了，写成「只剩 25% 的环境能见到 yaw」——
+   **真实值只有 6.79%**，因为还要再乘两项
+   （`is_heading_env &= ~directional` 和 standing 清零整个命令）。
+   精确推算见本文档下方「⚠️ 修正」一节。
 2. **`pose` 奖励在罚转向**：`hip_yaw` 的 `std_walking` 设的是 0.15，
    而 `hip_yaw` 的机械限位只有 **±0.26** —— 转向必须动 `hip_yaw`，
    一动就被 pose 当误差罚，策略自然选择不动。
@@ -426,7 +429,7 @@ cfg.curriculum.pop("command_vel", None)
 | `pose.std_walking[hip_yaw]` | 0.15 | **0.30** |
 | `pose.std_walking[hip_roll]` | 0.15 | **0.25** |
 
-方向桶总量 0.75 → 0.50，让一半环境能见到 yaw 命令。
+方向桶总量 0.75 → 0.50，见过 yaw 命令的环境 6.79% → **13.49%**（见下方修正一节）。
 
 ---
 
@@ -474,7 +477,8 @@ r02@2500 的评测（命令固定修好之后）显示：
 | `pose.std_walking[hip_yaw]` | 0.15 | **0.30** | v03 的 `hip_yaw` 机械限位只有 **±0.26**，而转向必须动它 —— 给 0.15 等于「一动就罚」 |
 | `pose.std_walking[hip_roll]` | 0.15 | **0.25** | 同理，侧移必须动 `hip_roll` |
 
-方向桶总量 0.75 → 0.50：r02 只有 25% 的环境见过转向命令，r03 有一半。
+方向桶总量 0.75 → 0.50：见过转向命令的环境 6.79% → 13.49%
+（**不是** 25% → 50%，见下方修正一节）。
 
 ### 已排除的嫌疑
 
