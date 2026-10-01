@@ -211,10 +211,54 @@ CUDA_VISIBLE_DEVICES=0 uv run train Mjlab-Velocity-Flat-Pikachu-V03 \
 r01 是「站得完美但一动不动」，r02 是「真的在动、偶尔摔」—— 后者才是
 学习中的形态。`air_time` 从 0.0016 涨到 0.45 直接证明缺陷 2 的死梯度被救活了。
 
+到 iter 1540 继续往好的方向走：
+
+| iter | ep_len | mean_reward | err_xy | err_yaw | air_time | alt_air | track_lin | fell_over |
+|---|---|---|---|---|---|---|---|---|
+| 211 | 782 | +28.5 | 0.456 | 2.21 | +0.454 | +0.084 | 0.487 | 0.95 |
+| 1540 | **969** | **+48.3** | 0.420 | **2.10** | **+0.555** | **+0.127** | 1.00 | **0.05** |
+
+`fell_over` 从 0.95 掉到 **0.05**、`episode_length` 969/1000 —— 步态在稳定下来；
+`error_vel_yaw` 也**开始回落**（2.35 → 2.10），说明暂时不必动 ang std。
+
 **待观察的隐患**：`error_vel_yaw` 从 0.058 涨到 **2.21 且仍在涨**，
 而 `track_angular_velocity` 只有 +0.0077 —— std=0.25 下
 `exp(-(2.21/0.25)²) ≈ e⁻⁷⁸ ≈ 0`，这一项已经**饱和到零梯度**。
 若再跑 2000 迭代仍不回落，要把 ang std 放宽（例如 0.4）或改线性跟踪项。
+
+### ⚠️ 重要：`Episode_Reward/track_*` **本身会骗人**，别拿它当进度指标
+
+读实现（`tasks/velocity/mdp/rewards.py`）：
+
+```python
+lin_vel_error = |cmd_xy − actual_xy|² + actual_vz²
+reward = exp(-lin_vel_error / std²)        # weight 2.0
+```
+
+奖励是 `exp(−误差²)` 的**逐帧均值**，而 `error_vel_xy` 是**时均误差**。
+`exp(−x²)` 在 |x| > 1/√2 区间是凸的，由 Jensen 不等式，
+「一半时间跟得准、一半时间跟得烂」也能刷出高分：
+
+| 场景 | mean\|err\| | mean(exp(−err²/0.04)) |
+|---|---|---|
+| 恒定 err = 0.17 | 0.17 | 0.50 |
+| err 在 0.05 / 0.90 间各半 | **0.475** | **≈0.47** |
+
+**所以 `track_linear_velocity = 1.00` 对应的等效误差只有 ~0.17，
+而 `error_vel_xy` 报的是 0.42。两个数不矛盾，但只有后者诚实。**
+
+反过来，这个公式**反过来验证了 r01 的站桩诊断**：
+站桩时 err ≈ mean\|cmd\| = 0.29、默认 std = 0.5
+
+```
+2 · exp(−0.29² / 0.25) = 1.43
+```
+
+而 **r01 实测 `track_linear_velocity` = 1.392 ~ 1.453** —— 分毫不差。
+这就是「站桩白拿 72% 跟踪分」那句话的精确版本。
+
+**纪律**：判断「在走还是在站」，只看 `Metrics/twist/error_vel_xy` 的**趋势**
+和 `eval_v03_velocity.py` 的**净位移**，不看奖励分。
 
 ### ⚠️ 重大教训：**训练期间绝不能再起第二个仿真进程**
 
