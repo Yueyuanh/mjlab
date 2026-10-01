@@ -15,7 +15,7 @@ Pikachu **v03**（并联四杆膝，10 驱动关节 / 14 关节）在 mjlab 上�
 | [02-stand-keyframe.md](02-stand-keyframe.md) | 站立 keyframe 标定：从「脚在髋下」到「质心在脚心上方」 |
 | [03-task-design.md](03-task-design.md) | velocity 任务设计：动作缩放、奖励、命令空间、课程 |
 | [04-worklog.md](04-worklog.md) | 工作日志（按时间倒序） |
-| [reports/](reports/) | 训练报告 |
+| [reports/](reports/) | 训练报告 + [曲线文本快照](reports/training-curve.md) |
 | [videos/](videos/) | 最优模型 720P 录像 |
 
 ## 快速上手
