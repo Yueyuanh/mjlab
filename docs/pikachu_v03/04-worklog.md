@@ -197,3 +197,41 @@ CUDA_VISIBLE_DEVICES=0 uv run train Mjlab-Velocity-Flat-Pikachu-V03 \
 - `Metrics/twist/error_vel_xy` 明显下降（r01 平在 0.68~0.73）
 - `Episode_Reward/air_time` 不再是 ~0
 - 复跑 `eval_v03_velocity.py`，fwd 档跟踪比 > 0.5、单脚支撑 > 0.2
+
+### r02 前 211 迭代：修复生效（形态和 r01 完全不同）
+
+| 指标 | r01 @232（旧配置） | r02 @211（新配置） |
+|---|---|---|
+| `Metrics/twist/error_vel_xy` | 0.676 **平** | 0.592→0.516→**0.456 下降** |
+| `Episode_Reward/air_time` | **+0.0016** | **+0.4537**（×280） |
+| `Episode_Reward/alternating_air_time` | ~0 | +0.0836 |
+| `Episode_Termination/fell_over` | 0.00 | 0.95 |
+| `Train/mean_episode_length` | 1000（顶满） | 782 |
+
+r01 是「站得完美但一动不动」，r02 是「真的在动、偶尔摔」—— 后者才是
+学习中的形态。`air_time` 从 0.0016 涨到 0.45 直接证明缺陷 2 的死梯度被救活了。
+
+**待观察的隐患**：`error_vel_yaw` 从 0.058 涨到 **2.21 且仍在涨**，
+而 `track_angular_velocity` 只有 +0.0077 —— std=0.25 下
+`exp(-(2.21/0.25)²) ≈ e⁻⁷⁸ ≈ 0`，这一项已经**饱和到零梯度**。
+若再跑 2000 迭代仍不回落，要把 ang std 放宽（例如 0.4）或改线性跟踪项。
+
+### ⚠️ 重大教训：**训练期间绝不能再起第二个仿真进程**
+
+想把 r01 的 `model_500.pt` 录成「修复前」对照素材，于是训练还在跑时启动了
+`record_v03_video.py`。结果：
+
+```
+[record_v03] ok stand__r01-before.mp4  300 帧  用时 2393.3s
+```
+
+**8 秒/帧**。而单独基准测同一套代码是 **render 12.4 ms/帧、step 20.2 ms/帧**，
+差 **600 倍**。同一时间训练从 0.72 s/迭代 掉到 **30 分钟只走 6 个迭代**。
+
+不是 GPU 争用（GPU 只用了 34%、2.1 GB / 8 GB），是**内存**：
+`free -g` 显示 14 GB 里已用 11 GB、可用 3 GB，**swap 已满** —— 训练那 2048 个
+环境几乎吃光内存，第二个进程一进来就开始疯狂换页。
+
+杀掉录像进程后训练立刻恢复（45 秒走 54 个迭代 = 0.83 s/迭代）。
+
+**规矩**：录像、评测这类要再建仿真环境的活，一律等训练**停下来**再做。
