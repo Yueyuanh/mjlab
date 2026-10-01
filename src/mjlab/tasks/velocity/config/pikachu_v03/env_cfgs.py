@@ -139,9 +139,14 @@ def pikachu_v03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   twist_cmd = cfg.commands["twist"]
   assert isinstance(twist_cmd, UniformVelocityCommandCfg)
   twist_cmd.viz.z_offset = 0.15
-  twist_cmd.rel_forward_envs = 0.25
-  twist_cmd.rel_backward_envs = 0.25
-  twist_cmd.rel_lateral_envs = 0.25
+  # 方向桶的总量要留够给「全随机」环境 —— 三个桶在 `_resample_command` 里
+  # **都把 ang_vel_z 强制置 0**，桶占比越高，能见到 yaw 命令的环境就越少。
+  # r02 用 0.25×3 = 0.75，只剩 25% 的环境练过转向，结果是
+  # 「原地转向命令 0.30 → 实测 0.005」完全不会转。收到 0.50 给 yaw 让路；
+  # 前进/后退已经 100% 跟踪，不需要那么宽的覆盖。
+  twist_cmd.rel_forward_envs = 0.20
+  twist_cmd.rel_backward_envs = 0.15
+  twist_cmd.rel_lateral_envs = 0.15
   twist_cmd.ranges.lin_vel_x = (-0.4, 0.5)
   twist_cmd.ranges.lin_vel_y = (-0.35, 0.35)
   twist_cmd.ranges.ang_vel_z = (-0.3, 0.3)
@@ -171,12 +176,16 @@ def pikachu_v03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   pose.params["asset_cfg"].joint_names = PIKACHU_V03_POSE_JOINT_NAMES
   pose.params["std_standing"] = {".*": 0.05}
   # std_walking 要比「步态里这些关节的真实摆幅」略宽一点：收得太紧等于
-  # 惩罚正常的迈步动作，策略会为了保住 pose 分而不敢抬腿。hip_pitch / knee_up
-  # 是迈步主力，给到 0.5；hip_roll / hip_yaw 不该乱摆，保持 0.15 收着。
+  # 惩罚正常的迈步动作，策略会为了保住 pose 分而不敢抬腿。
+  #
+  # ⚠️ `hip_roll` / `hip_yaw` 尤其不能用 0.15 收着 —— v03 这两个关节的机械
+  # 限位只有 **±0.26**，而**转向必须动 hip_yaw、侧移必须动 hip_roll**。
+  # 给 0.15 等于「一动就罚」，r02 实测就是原地转向命令 0.30 → 实际 0.005、
+  # 侧移只有 41%。std 要放到接近限位的量级才算「不惩罚」。
   pose.params["std_walking"] = {
     r".*hip_pitch.*": 0.5,
-    r".*hip_roll.*": 0.15,
-    r".*hip_yaw.*": 0.15,
+    r".*hip_roll.*": 0.25,
+    r".*hip_yaw.*": 0.30,
     # knee_up 的行程比串联膝小（±0.87 rad 全行程），std 相应收窄。
     r".*knee_up.*": 0.5,
     r".*ankle.*": 0.45,
@@ -206,7 +215,14 @@ def pikachu_v03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   # 这不是新坑 —— AMP 侧踩过一模一样的，见记忆 amp-track-std-must-match-command。
   # 收到命令上限量级：lin 0.20 → 站桩只剩 0.13；ang 0.25 → 站桩 0.70。
   cfg.rewards["track_linear_velocity"].params["std"] = 0.20
-  cfg.rewards["track_angular_velocity"].params["std"] = 0.25
+  #
+  # ang 的 std 比 lin 宽：r02 实测 yaw 误差落在 0.2~0.6 rad/s 区间
+  # （行走时未被命令的偏航 0.2~0.33，原地转向命令 0.30 则完全没跟）。
+  # std=0.25 时该区间 exp(-err²/0.0625) 已经很小、梯度趋零：
+  # 在 err=0.5 处梯度 -0.29，而 std=0.40 时是 -1.31。
+  # 放宽的代价是站桩白拿的角速度分变多（exp(-0.15²/0.16)=0.87），
+  # 但站桩已经被 lin std=0.20 和 air_time 摁死了，不靠这一项。
+  cfg.rewards["track_angular_velocity"].params["std"] = 0.40
 
   cfg.rewards["body_ang_vel"].weight = -0.05
   cfg.rewards["angular_momentum"].weight = -0.02
