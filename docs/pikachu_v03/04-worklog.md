@@ -510,3 +510,51 @@ r02@2500 的评测（命令固定修好之后）显示：
 iter 150 才降到 1.25），到 2500 迭代看终评。若终评跌倒率仍显著高于 r02，
 再考虑给这两项加回一点约束，或者用 `pose.std_running`（目前 hip_yaw/roll = 0.2）
 在高速段兜底。
+
+### ⚠️ 修正：能见到 yaw 命令的环境不是 25%，是 **6.79%**
+
+前面写「r02 用 0.25×3 = 0.75，只剩 25% 的环境练转向」—— **这个数是错的**。
+`1 − 桶总量` 只是第一步，还要连乘两件事：
+
+```python
+self.is_heading_env[env_ids] = r.uniform_(0.0, 1.0) <= self.cfg.rel_heading_envs  # 0.3
+...
+directional = is_forward | is_backward | is_lateral
+self.is_heading_env[env_ids] &= ~directional        # ← 方向桶被踢出 heading
+...
+# _update_command 的最后一步：
+self.vel_command_b[standing_env_ids, :] = 0.0       # ← standing 把整个命令清零
+```
+
+所以：
+
+```
+P(见过 yaw) = [ rel_heading_envs × (1 − 桶总量) ] × (1 − rel_standing_envs)
+```
+
+**只有 heading 环境会拿到非零的 `ang_vel_z`** —— 方向桶把它置 0，
+standing 环境每步把整个命令清零，两个都轮不到。
+
+| 轮次 | 桶总量 | heading | standing | 见过 yaw 的环境 |
+|---|---|---|---|---|
+| r01 / r02 | 0.75 | 0.3 | 0.1 | **6.79%**（139 / 2048） |
+| r03 | 0.50 | 0.3 | 0.1 | **13.49%**（276 / 2048） |
+| r04 预案 | 0.50 | **0.6** | **0.05** | **28.55%**（585 / 2048） |
+
+（用 2×10⁶ 次采样模拟确认，不是纸面估算。）
+
+**这条把「完全不会转」解释圆了**：`track_angular_velocity` 权重 2.0，
+但只有 6.79% 的环境因它产生非零梯度 → 在平均奖励里的最大贡献
+`2.0 × 0.068 = 0.14`，而 `track_linear_velocity` 是**全部**环境贡献的 2.0。
+**信号弱 15 倍**，策略忽略 yaw 是理性的 —— 不是「学不会」，是「不值得学」。
+
+r03 把暴露面翻倍到 13.49%。同时它还有两个独立杠杆（ang std 0.25→0.40
+使 err=0.5 处梯度 ×4.5；pose 不再罚 hip_yaw），三者相乘。
+**若 r03 终评转向仍不达标，r04 直接动暴露面**（上面第三行）。
+
+### 又排除两个嫌疑
+
+| 嫌疑 | 结论 |
+|---|---|
+| `body_ang_vel`（权重 −0.05）会不会罚转向？ | **不会**。`rewards.py::body_angular_velocity_penalty` 里 `ang_vel_xy = ang_vel[:, :2]  # Don't penalize z-angular velocity.` 明确排除 z 轴 |
+| `angular_momentum`（权重 −0.02）罚全向量模长、含 z，会不会罚转向？ | **量级可忽略**。转身时 `L_z ≈ I·ω ≈ 0.02 × 0.3 = 0.006`，`L² × 0.02 ≈ 7e-7`，相对 `track_angular` 的 2.0 是噪声 |
