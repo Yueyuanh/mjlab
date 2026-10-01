@@ -96,10 +96,59 @@ def bar(v: float, lo: float, hi: float, width: int = 24) -> str:
   return "█" * n + "·" * (width - n)
 
 
+TREND_KEYS = (
+  "Train/mean_reward",
+  "Train/mean_episode_length",
+  "Episode_Reward/track_linear_velocity",
+  "Episode_Reward/track_angular_velocity",
+  "Metrics/twist/error_vel_xy",
+  "Metrics/twist/error_vel_x",
+  "Metrics/twist/error_vel_yaw",
+  "Episode_Termination/fell_over",
+)
+
+
+def print_trend(acc: EventAccumulator, n: int = 8) -> None:
+  """把关键标量按迭代等距抽 n 个点打成趋势表（训练是否在变好，一眼看出）。
+
+  单点快照看不出方向：`track_linear_velocity = 1.4/2.0` 既可能是「走得不错」，
+  也可能是「站着不动拿到的基线分」。要看 `error_vel_xy` 有没有往下掉。
+  """
+  series = {}
+  for k in TREND_KEYS:
+    try:
+      series[k] = acc.Scalars(k)
+    except KeyError:
+      continue
+  if not series:
+    return
+  ref = series.get("Train/mean_reward") or next(iter(series.values()))
+  if len(ref) < 2:
+    return
+  idx = sorted({int(round(i * (len(ref) - 1) / (n - 1))) for i in range(n)})
+
+  print()
+  print("--- 趋势（等距抽样）---")
+  head = "iter".rjust(7)
+  short = {k: k.split("/", 1)[1][-18:] for k in series}
+  for k in series:
+    head += short[k].rjust(20)
+  print(head)
+  for i in idx:
+    row = str(ref[i].step).rjust(7)
+    for k, s in series.items():
+      if i < len(s):
+        row += f"{s[i].value:>20.4f}"
+      else:
+        row += " " * 20
+    print(row)
+
+
 def main() -> None:
   ap = argparse.ArgumentParser()
   ap.add_argument("--run", default=None, help="run 目录名（默认取最新的）")
   ap.add_argument("--top", type=int, default=14, help="每组最多打多少项")
+  ap.add_argument("--trend", type=int, default=8, help="趋势表抽多少个点，0 关闭")
   args = ap.parse_args()
 
   run = newest_run(args.run)
@@ -129,6 +178,10 @@ def main() -> None:
     r = last(acc, k)
     if r:
       print(f"  {k.split('/', 1)[1]:<22}: {fmt(r[1])}")
+
+  # --- 趋势 ---
+  if args.trend > 1:
+    print_trend(acc, args.trend)
 
   # --- 3~5. 分组 ---
   scalars = set(acc.Tags()["scalars"])
