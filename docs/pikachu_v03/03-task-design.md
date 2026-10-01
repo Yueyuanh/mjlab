@@ -53,13 +53,22 @@ actuator_groups=PIKACHU_V03_ACTUATOR_GROUPS)` —— `pikachu_metrics.py` 已参
 ## 3 · 命令空间
 
 ```python
-rel_forward_envs = 0.25
-rel_backward_envs = 0.25     # ← 显式给后退样本
-rel_lateral_envs  = 0.25     # ← 显式给侧移样本
+# r03 现值。r01/r02 曾是 0.25 / 0.25 / 0.25，见下方 ⚠️。
+rel_forward_envs = 0.20
+rel_backward_envs = 0.15     # ← 显式给后退样本
+rel_lateral_envs  = 0.15     # ← 显式给侧移样本
 ranges.lin_vel_x = (-0.4, 0.5)
 ranges.lin_vel_y = (-0.35, 0.35)
 ranges.ang_vel_z = (-0.3, 0.3)
 ```
+
+> ⚠️ **这三个桶的占比直接决定「有多少环境练过转向」**。
+> `_resample_command` 对 forward / backward / lateral 三种环境**都把
+> `ang_vel_z` 强制置 0** —— 落进桶里的环境永远见不到 yaw 命令。
+> r02 用 0.25×3 = 0.75，只剩 25% 的环境练转向，实测结果就是
+> **原地转向命令 0.30 rad/s → 实际 0.005，完全不会转**。
+> r03 收到 0.20 / 0.15 / 0.15（桶总量 0.50），让一半环境能见到 yaw。
+> 前进/后退在 r02 已经 100% 跟踪，不需要那么宽的覆盖。
 
 课程（`command_vel`）：
 
@@ -85,15 +94,16 @@ ranges.ang_vel_z = (-0.3, 0.3)
 
 | 奖励 | 权重 | v03 参数 | 理由 |
 |---|---|---|---|
-| `track_linear_velocity` | 2.0 | std = √0.25 | 骨架默认 |
-| `track_angular_velocity` | 2.0 | std = √0.5 | 骨架默认 |
+| `track_linear_velocity` | 2.0 | **std = 0.20**（骨架默认 √0.25 = 0.5） | 见下 ⚠️ |
+| `track_angular_velocity` | 2.0 | **std = 0.40**（骨架默认 √0.5 ≈ 0.707） | 见下 ⚠️ |
 | `pose` | 1.0 | 见下 | **只覆盖 10 个驱动关节** |
 | `upright` | 1.0 | `base_link` | — |
 | `body_ang_vel` | **-0.05** | `base_link` | 抑制机身摇晃 |
 | `angular_momentum` | **-0.02** | `root_angmom` | 抑制甩腿带来的角动量 |
 | `base_vertical_velocity` | **-0.5** | — | 抑制上下弹跳 |
 | `base_height` | **-0.2** | target 0.25 / std 0.02 | 防蹲防跳 |
-| `air_time` | **+3.0** | `alternating_feet_air_time`，target 0.22 s / std 0.08 | **迈步的主要驱动** |
+| `air_time` | **+1.0** | `feet_air_time`，`threshold_min 0.05` / `max 0.5` | **每步给分** → 脱离站桩鞍点 |
+| `alternating_air_time` | **+3.0** | `alternating_feet_air_time`，target 0.22 s / std 0.08 | **只在落地给分** → 收成真交替步 |
 | `flight` | **-2.0** | grace 0.04 s | 禁止双脚同时离地（不是跑步任务） |
 | `foot_clearance` | **-4.0** | target 0.04 m | 抬脚别太高也别拖地 |
 | `foot_swing_height` | **-2.0** | target 0.04 m | 同上 |
@@ -103,15 +113,47 @@ ranges.ang_vel_z = (-0.3, 0.3)
 | `dof_pos_limits` | -1.0 | — | 骨架默认 |
 | `self_collisions` | **-1.0** | force_threshold 10 N | 新增项 |
 
+### ⚠️ track 奖励的 std 必须随命令范围缩放
+
+`make_velocity_env_cfg()` 的默认 std（lin `√0.25 = 0.5`、ang `√0.5 ≈ 0.707`）
+是配 G1 那种 ±3 m/s 大命令的。v03 的命令收窄到 lin ±0.5 / ang ±0.3 之后，
+**「站着不动」的误差就只有 `mean|cmd| ≈ 0.29 m/s`**：
+
+```
+exp(-0.29² / 0.5²) = 0.72     →  站桩白拿 72% 的跟踪分
+```
+
+梯度压力随之消失，策略直接落向「站着不动」这个鞍点 —— **r01 就是这么失败的**
+（`error_vel_xy` 平在 0.68~0.73 不降、`air_time ≈ 0`、`episode_length` 却顶满 1000）。
+公式的精确验证：站桩理论值 `2·exp(-0.29²/0.25) = 1.43`，
+而 r01 实测 `Episode_Reward/track_linear_velocity` = **1.392 ~ 1.453**，分毫不差。
+
+这不是新坑 —— AMP 侧踩过一模一样的（记忆 `amp-track-std-must-match-command`）。
+
+**lin 收到 0.20**（站桩只剩 0.13 分）。**ang 收到 0.40 而不是更窄**，因为：
+
+- r02 实测 yaw 误差落在 **0.2~0.6 rad/s** 区间（行走时未受命令的偏航 0.2~0.33、
+  原地转向命令 0.30 则完全没跟）。
+- std=0.25 时该区间 `exp(-err²/0.0625)` 已经很小、梯度趋零：
+  err=0.5 处梯度 −0.29；std=0.40 时是 **−1.31**。
+- 放宽的代价是站桩白拿的角速度分变多（`exp(-0.15²/0.16) = 0.87`），
+  但站桩已经被 lin std=0.20 和 air_time 摁死了，不靠这一项。
+
 ### `pose` 的 std 表
 
 ```python
 asset_cfg.joint_names = PIKACHU_V03_POSE_JOINT_NAMES   # 只 10 个驱动关节
 std_standing = {".*": 0.05}
-std_walking  = {hip_pitch 0.4, hip_roll 0.15, hip_yaw 0.15, knee_up 0.4, ankle 0.35}
+# r03 现值。r01/r02 曾是 {hip_pitch 0.4, hip_roll 0.15, hip_yaw 0.15, knee_up 0.4, ankle 0.35}
+std_walking  = {hip_pitch 0.5, hip_roll 0.25, hip_yaw 0.30, knee_up 0.5, ankle 0.45}
 std_running  = {hip_pitch 0.5, hip_roll 0.2,  hip_yaw 0.2,  knee_up 0.5, ankle 0.35}
 running_threshold = 2.0
 ```
+
+> ⚠️ **`hip_roll` / `hip_yaw` 不能用 0.15 收着**。v03 这两个关节的机械限位
+> 只有 **±0.26 rad**，而**转向必须动 `hip_yaw`、侧移必须动 `hip_roll`** ——
+> std 给 0.15 等于「一动就罚」。r02 实测：原地转向命令 0.30 → 实际 0.005，
+> 侧移只有 41%。r03 放到 0.30 / 0.25（接近限位量级）才算「不惩罚」。
 
 > `variable_posture` 要求 std 字典**覆盖 `asset_cfg.joint_names` 里的每一个
 > 关节**，漏一个就 KeyError。
