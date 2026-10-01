@@ -118,6 +118,14 @@ reward = exp(-lin_vel_error / std²)        # weight 2.0
 量 base 在**世界系的净位移**除以时间（`scripts/eval_v03_velocity.py`）。
 日常盯训练则只看 `Metrics/twist/error_vel_xy` 的**趋势**。
 
+> ⚠️ 连 `error_vel_xy` 本身也有坑：它的归一化分母是**命令窗口最大长度**
+> （`resampling_time_range[1] / step_dt = 8.0 / 0.02 = 400` 步），
+> **不是实际步数**。所以 episode 短于 400 步时这个指标被系统性低估
+> （iter 0 时 `ep_len = 23` → 低估 17 倍）。它只在 `ep_len > 400` 之后才诚实，
+> 且跨 run 比较时若 `ep_len` 差得多就不可比。
+>
+> **最终结论一律以净位移评测为准，不用任何训练期指标。**
+
 > ⚠️ 用净位移而不是瞬时速度：步态瞬时速度有周期性起伏，均值可信单帧不可信。
 >
 > ⚠️ **不要用「接触状态翻转次数」当步频**：胶囊脚底在软接触下 `found` 会
