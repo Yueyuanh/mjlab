@@ -1,0 +1,192 @@
+<mujoco model="pikachu_v03_base_series">
+    <compiler angle="radian" meshdir="meshes/" />
+
+    <!-- 全局关节阻尼。
+         必须写在【顶层 default（不带 class）】里才会作用于所有 <joint>：
+         若写成 <default class="xxx"><joint damping="..."/></default>，
+         只有显式写 class="xxx" 的 joint 才继承 —— 而 URDF 转换出来的 <joint>
+         全都没有 class，所以那样写等于没写（模型无阻尼会一直抖/晃）。
+         solreflimit 是关节限位的刚度（timeconst 最小只能到 2×timestep=0.004）。
+         默认 (0.02,1) 时限位太软：knee_up 惯量仅 2.7e-5，满扭矩 12.5 N·m 能把它
+         顶穿 107°；调到最硬后穿透降到约 5°，可作兜底。真正的限位仍须在控制器里做。 -->
+    <default>
+        <joint damping="0.3" frictionloss="0.01" solreflimit="0.004 1" />
+    </default>
+    <asset>
+        <mesh name="base_link" file="base_link.STL" />
+        <mesh name="right_hip_pitch_link" file="right_hip_pitch_link.STL" />
+        <mesh name="right_hip_roll_link" file="right_hip_roll_link.STL" />
+        <mesh name="right_hip_yaw_link" file="right_hip_yaw_link.STL" />
+        <mesh name="right_knee_link" file="right_knee_link.STL" />
+        <mesh name="right_ankle_link" file="right_ankle_link.STL" />
+        <mesh name="right_knee_up_link" file="right_knee_up_link.STL" />
+        <mesh name="right_knee_mid_link" file="right_knee_mid_link.STL" />
+        <mesh name="left_hip_pitch_link" file="left_hip_pitch_link.STL" />
+        <mesh name="left_hip_roll_link" file="left_hip_roll_link.STL" />
+        <mesh name="left_hip_yaw_link" file="left_hip_yaw_link.STL" />
+        <mesh name="left_knee_link" file="left_knee_link.STL" />
+        <mesh name="left_ankle_link" file="left_ankle_link.STL" />
+        <mesh name="left_knee_up_link" file="left_knee_up_link.STL" />
+        <mesh name="left_knee_mid_link" file="left_knee_mid_link.STL" />
+    </asset>
+    <worldbody>
+        <body name="base_link" pos="0 0 0">
+            <freejoint name="floating_base" />
+            <site name="imu" pos="0 0 0" size="0.01" />
+            <inertial pos="4.446e-06 8.72337e-11 0.0638862" quat="1 6.42813e-06 2.48732e-05 -0.000278803" mass="0.461569" diaginertia="0.00116246 0.00112541 0.000198703" />
+            <geom name="base_link_visual" type="mesh" contype="0" conaffinity="0" group="2" rgba="0.792157 0.819608 0.933333 1" mesh="base_link" />
+            <geom name="base_link_collision" type="mesh" group="3" rgba="0.792157 0.819608 0.933333 1" mesh="base_link" />
+            <body name="right_hip_pitch_link" pos="0 -0.1 0">
+                <inertial pos="-0.000423704 0.00640601 1.27238e-05" quat="0.963198 -0.0013036 0.000161455 0.268789" mass="0.170749" diaginertia="9.75963e-05 9.11232e-05 8.33153e-05" />
+                <joint name="right_hip_pitch_joint" pos="0 0 0" axis="0 1 0" range="-2.45 2.45" limited="true" />
+                <geom name="right_hip_pitch_link_visual" type="mesh" contype="0" conaffinity="0" group="2" rgba="0.792157 0.819608 0.933333 1" mesh="right_hip_pitch_link" />
+                <geom name="right_hip_pitch_link_collision" type="mesh" group="3" rgba="0.792157 0.819608 0.933333 1" mesh="right_hip_pitch_link" />
+                <body name="right_hip_roll_link" pos="-0.068 0 0">
+                    <inertial pos="0.0063496 -2.06662e-05 -0.000690243" quat="0.616659 0.614754 -0.348358 0.347068" mass="0.170868" diaginertia="9.75758e-05 9.11455e-05 8.33167e-05" />
+                    <joint name="right_hip_roll_joint" pos="0 0 0" axis="1 0 0" range="-0.26 0.26" limited="true" />
+                    <geom name="right_hip_roll_link_visual" type="mesh" contype="0" conaffinity="0" group="2" rgba="0.792157 0.819608 0.933333 1" mesh="right_hip_roll_link" />
+                    <geom name="right_hip_roll_link_collision" type="mesh" group="3" rgba="0.792157 0.819608 0.933333 1" mesh="right_hip_roll_link" />
+                    <body name="right_hip_yaw_link" pos="0.00764127 0 -0.140334" quat="0.95423 0 0.299074 0">
+                        <inertial pos="-0.0527953 -0.0242882 0.0480356" quat="0.328356 0.532458 0.738259 0.252277" mass="0.299212" diaginertia="0.000183209 0.00015845 9.70248e-05" />
+                        <joint name="right_hip_yaw_joint" pos="0 0 0" axis="-0.570771 0 0.821109" range="-0.26 0.26" limited="true" />
+                        <geom name="right_hip_yaw_link_visual" type="mesh" contype="0" conaffinity="0" group="2" rgba="0.792157 0.819608 0.933333 1" mesh="right_hip_yaw_link" />
+                        <geom name="right_hip_yaw_link_collision" type="mesh" group="3" rgba="0.792157 0.819608 0.933333 1" mesh="right_hip_yaw_link" />
+                        <body name="right_knee_link" pos="0 0 0">
+                            <inertial pos="2.4257e-05 -3.79055e-05 -0.0576557" quat="0.707219 0.000252307 1.10504e-05 0.706994" mass="0.132243" diaginertia="0.000119199 0.000101415 2.56913e-05" />
+                            <joint name="right_knee_joint" pos="0 0 0" axis="0 -1 0" />
+                            <geom name="right_knee_link_visual" type="mesh" contype="0" conaffinity="0" group="2" rgba="0.792157 0.819608 0.933333 1" mesh="right_knee_link" />
+                            <geom name="right_knee_link_collision" type="mesh" group="3" rgba="0.792157 0.819608 0.933333 1" mesh="right_knee_link" />
+                            <site name="right_knee_mid" pos="0 0 -0.042" type="sphere" size="0.014" rgba="1 0.15 0 1" group="2" />
+                            
+                            <body name="right_ankle_link" pos="0 0 -0.086" quat="0.95423 0 -0.299074 0">
+                                <inertial pos="-2.16301e-07 0.00135214 -0.0181394" quat="0.485395 0.514186 -0.514175 0.485415" mass="0.0810575" diaginertia="0.000104159 7.81159e-05 6.52567e-05" />
+                                <joint name="right_ankle_joint" pos="0 0 0" axis="0 -1 0" range="-2.36 0.79" limited="true" />
+                                <geom name="right_ankle_link_visual" type="mesh" contype="0" conaffinity="0" group="2" rgba="0.792157 0.819608 0.933333 1" mesh="right_ankle_link" />
+                                <geom name="right_ankle_link_collision" type="mesh" contype="0" conaffinity="0" group="2" rgba="0.792157 0.819608 0.933333 1" mesh="right_ankle_link" />
+            <site name="right_foot" pos="0 0 -0.034" size="0.01" rgba="1 0 0 1" />
+            <geom name="right_foot1_collision" type="capsule" size="0.012" fromto="-0.04 -0.028 -0.022000000000000002 0.04 -0.028 -0.022000000000000002" group="3" rgba="0.2 0.6 0.2 0.3" contype="1" conaffinity="1" condim="3" priority="1" friction="0.6" />
+            <geom name="right_foot2_collision" type="capsule" size="0.012" fromto="-0.04 -0.014 -0.022000000000000002 0.04 -0.014 -0.022000000000000002" group="3" rgba="0.2 0.6 0.2 0.3" contype="1" conaffinity="1" condim="3" priority="1" friction="0.6" />
+            <geom name="right_foot3_collision" type="capsule" size="0.012" fromto="-0.04 0.0 -0.022000000000000002 0.04 0.0 -0.022000000000000002" group="3" rgba="0.2 0.6 0.2 0.3" contype="1" conaffinity="1" condim="3" priority="1" friction="0.6" />
+            <geom name="right_foot4_collision" type="capsule" size="0.012" fromto="-0.04 0.014 -0.022000000000000002 0.04 0.014 -0.022000000000000002" group="3" rgba="0.2 0.6 0.2 0.3" contype="1" conaffinity="1" condim="3" priority="1" friction="0.6" />
+            <geom name="right_foot5_collision" type="capsule" size="0.012" fromto="-0.04 0.028 -0.022000000000000002 0.04 0.028 -0.022000000000000002" group="3" rgba="0.2 0.6 0.2 0.3" contype="1" conaffinity="1" condim="3" priority="1" friction="0.6" />
+                            </body>
+                        </body>
+                        <body name="right_knee_up_link" pos="-0.0688891 0 0.0462957" quat="0.95423 0 -0.299074 0">
+                            <inertial pos="-0.0144446 0.00021797 -0.0207869" quat="0.675033 0.212255 0.210554 0.674496" mass="0.0563674" diaginertia="2.76721e-05 2.38324e-05 8.90785e-06" />
+                            <!-- 膝关节唯一驱动关节（并联四杆机构）。
+                                 行程边界由动力学实测（PD + 12.5 N·m，跟丢判据 err>8°）：
+                                     伸展方向 +30.1°（q_des=+35° 时只到 +30.1°，再推不动）
+                                     屈曲方向 -70.6°（q_des=-80° 时只到 -70.6°）
+                                 取 range [-1.22, 0.52] rad = [-69.9°, +29.8°]，各留约 0.5° 裕量。
+                                 伸展侧的边界是四杆机构传动力臂趋零，不是机械碰撞
+                                 （已排除相关 geom 对后实测不变）。
+                                 !! 左右 knee_up 转轴相反，左腿 range 是右腿的镜像（符号取反） -->
+                            <joint name="right_knee_up_joint" pos="0 0 0" axis="0 -1 0" range="-1.22 0.52" limited="true" />
+                            <geom name="right_knee_up_link_visual" type="mesh" contype="0" conaffinity="0" group="2" rgba="0.792157 0.819608 0.933333 1" mesh="right_knee_up_link" />
+                            <geom name="right_knee_up_link_collision" type="mesh" group="3" rgba="0.792157 0.819608 0.933333 1" mesh="right_knee_up_link" />
+                            <body name="right_knee_mid_link" pos="-0.0239724 0 -0.0344866" quat="0.982785 0 -0.184755 0">
+                                <inertial pos="0 -0.0001 -0.0415" mass="0.0494964" diaginertia="4.95413e-05 4.90398e-05 5.9947e-06" />
+                                <joint name="right_knee_mid_joint" pos="0 0 0" axis="0 -1 0" />
+                                <geom name="right_knee_mid_link_visual" type="mesh" contype="0" conaffinity="0" group="2" rgba="0.792157 0.819608 0.933333 1" mesh="right_knee_mid_link" />
+                                <geom name="right_knee_mid_link_collision" type="mesh" group="3" rgba="0.792157 0.819608 0.933333 1" mesh="right_knee_mid_link" />
+                                <site name="right_knee_mid_closure" pos="0 0 -0.084" type="sphere" size="0.01" rgba="0 0.4 1 1" group="2" />
+                            </body>
+                        </body>
+                    </body>
+                </body>
+            </body>
+            <body name="left_hip_pitch_link" pos="0 0.1 0">
+                <inertial pos="-0.000423704 -0.00634466 1.13131e-05" quat="0.963429 -0.00159703 0.000307477 -0.267959" mass="0.170749" diaginertia="9.75752e-05 9.11444e-05 8.33153e-05" />
+                <joint name="left_hip_pitch_joint" pos="0 0 0" axis="0 1 0" range="-2.45 2.45" limited="true" />
+                <geom name="left_hip_pitch_link_visual" type="mesh" contype="0" conaffinity="0" group="2" rgba="0.792157 0.819608 0.933333 1" mesh="left_hip_pitch_link" />
+                <geom name="left_hip_pitch_link_collision" type="mesh" group="3" rgba="0.792157 0.819608 0.933333 1" mesh="left_hip_pitch_link" />
+                <body name="left_hip_roll_link" pos="-0.068 0 0">
+                    <inertial pos="0.00634466 -1.1323e-05 -0.000710482" quat="0.616646 0.614742 -0.34838 0.34709" mass="0.170749" diaginertia="9.75752e-05 9.11444e-05 8.33153e-05" />
+                    <joint name="left_hip_roll_joint" pos="0 0 0" axis="1 0 0" range="-0.26 0.26" limited="true" />
+                    <geom name="left_hip_roll_link_visual" type="mesh" contype="0" conaffinity="0" group="2" rgba="0.792157 0.819608 0.933333 1" mesh="left_hip_roll_link" />
+                    <geom name="left_hip_roll_link_collision" type="mesh" group="3" rgba="0.792157 0.819608 0.933333 1" mesh="left_hip_roll_link" />
+                    <body name="left_hip_yaw_link" pos="0.00764127 0 -0.140334" quat="0.95423 0 0.299074 0">
+                        <inertial pos="-0.0528837 0.0242252 0.0481861" quat="0.248317 0.739657 0.534141 0.325483" mass="0.299212" diaginertia="0.000183243 0.000158051 9.73885e-05" />
+                        <joint name="left_hip_yaw_joint" pos="0 0 0" axis="-0.570771 0 0.821109" range="-0.26 0.26" limited="true" />
+                        <geom name="left_hip_yaw_link_visual" type="mesh" contype="0" conaffinity="0" group="2" rgba="0.792157 0.819608 0.933333 1" mesh="left_hip_yaw_link" />
+                        <geom name="left_hip_yaw_link_collision" type="mesh" group="3" rgba="0.792157 0.819608 0.933333 1" mesh="left_hip_yaw_link" />
+                        <body name="left_knee_link" pos="0 0 0">
+                            <inertial pos="3.27559e-05 3.79055e-05 -0.0576563" quat="0.706996 0.000102818 0.000343491 0.707218" mass="0.132243" diaginertia="0.000119199 0.000101415 2.56918e-05" />
+                            <joint name="left_knee_joint" pos="0 0 0" axis="0 -1 0" />
+                            <geom name="left_knee_link_visual" type="mesh" contype="0" conaffinity="0" group="2" rgba="0.792157 0.819608 0.933333 1" mesh="left_knee_link" />
+                            <geom name="left_knee_link_collision" type="mesh" group="3" rgba="0.792157 0.819608 0.933333 1" mesh="left_knee_link" />
+                            <site name="left_knee_mid" pos="0 0 -0.042" type="sphere" size="0.014" rgba="1 0.15 0 1" group="2" />
+
+                            <body name="left_ankle_link" pos="0 0 -0.086" quat="0.95423 0 -0.299074 0">
+                                <inertial pos="2.16297e-07 -0.00135214 -0.0181394" quat="0.514175 0.485415 -0.485395 0.514186" mass="0.0810575" diaginertia="0.000104159 7.81159e-05 6.52567e-05" />
+                                <joint name="left_ankle_joint" pos="0 0 0" axis="0 1 0" range="-0.79 2.36" limited="true" />
+                                <geom name="left_ankle_link_visual" type="mesh" contype="0" conaffinity="0" group="2" rgba="0.792157 0.819608 0.933333 1" mesh="left_ankle_link" />
+                                <geom name="left_ankle_link_collision" type="mesh" contype="0" conaffinity="0" group="2" rgba="0.792157 0.819608 0.933333 1" mesh="left_ankle_link" />
+            <site name="left_foot" pos="0 0 -0.034" size="0.01" rgba="1 0 0 1" />
+            <geom name="left_foot1_collision" type="capsule" size="0.012" fromto="-0.04 -0.028 -0.022000000000000002 0.04 -0.028 -0.022000000000000002" group="3" rgba="0.2 0.6 0.2 0.3" contype="1" conaffinity="1" condim="3" priority="1" friction="0.6" />
+            <geom name="left_foot2_collision" type="capsule" size="0.012" fromto="-0.04 -0.014 -0.022000000000000002 0.04 -0.014 -0.022000000000000002" group="3" rgba="0.2 0.6 0.2 0.3" contype="1" conaffinity="1" condim="3" priority="1" friction="0.6" />
+            <geom name="left_foot3_collision" type="capsule" size="0.012" fromto="-0.04 0.0 -0.022000000000000002 0.04 0.0 -0.022000000000000002" group="3" rgba="0.2 0.6 0.2 0.3" contype="1" conaffinity="1" condim="3" priority="1" friction="0.6" />
+            <geom name="left_foot4_collision" type="capsule" size="0.012" fromto="-0.04 0.014 -0.022000000000000002 0.04 0.014 -0.022000000000000002" group="3" rgba="0.2 0.6 0.2 0.3" contype="1" conaffinity="1" condim="3" priority="1" friction="0.6" />
+            <geom name="left_foot5_collision" type="capsule" size="0.012" fromto="-0.04 0.028 -0.022000000000000002 0.04 0.028 -0.022000000000000002" group="3" rgba="0.2 0.6 0.2 0.3" contype="1" conaffinity="1" condim="3" priority="1" friction="0.6" />
+                            </body>
+                        </body>
+                        <body name="left_knee_up_link" pos="-0.0688891 0 0.0462957" quat="0.95423 0 -0.299074 0">
+                            <inertial pos="-0.0144445 -0.000199894 -0.0207869" quat="0.675033 0.212255 0.210554 0.674496" mass="0.0563674" diaginertia="2.76721e-05 2.38324e-05 8.90785e-06" />
+                            <!--所有knee关节中只有knee up为驱动关节 ，其他为被动关节（knee_joint,knee_mid_joint）-->
+                            <joint name="left_knee_up_joint" pos="0 0 0" axis="0 1 0" range="-0.52 1.22" limited="true" />
+                            <geom name="left_knee_up_link_visual" type="mesh" contype="0" conaffinity="0" group="2" rgba="0.792157 0.819608 0.933333 1" mesh="left_knee_up_link" />
+                            <geom name="left_knee_up_link_collision" type="mesh" group="3" rgba="0.792157 0.819608 0.933333 1" mesh="left_knee_up_link" />
+                            <body name="left_knee_mid_link" pos="-0.0239724 0 -0.0344866" quat="0.982785 0 -0.184755 0">
+                                <inertial pos="0 0.0001 -0.0415" mass="0.0494964" diaginertia="4.95413e-05 4.90398e-05 5.9947e-06" />
+                                <joint name="left_knee_mid_joint" pos="0 0 0" axis="0 1 0" />
+                                <geom name="left_knee_mid_link_visual" type="mesh" contype="0" conaffinity="0" group="2" rgba="0.792157 0.819608 0.933333 1" mesh="left_knee_mid_link" />
+                                <geom name="left_knee_mid_link_collision" type="mesh" group="3" rgba="0.792157 0.819608 0.933333 1" mesh="left_knee_mid_link" />
+                                <site name="left_knee_mid_closure" pos="0 0 -0.084" type="sphere" size="0.01" rgba="0 0.4 1 1" group="2" />
+
+                            </body>
+                        </body>
+                    </body>
+                </body>
+            </body>
+        </body>
+    </worldbody>
+
+    <contact>
+    <exclude body1="base_link"              body2="right_hip_pitch_link"/>
+    <exclude body1="base_link"              body2="left_hip_pitch_link"/>
+    <exclude body1="right_knee_link"        body2="right_knee_mid_link"/>
+    <exclude body1="left_knee_link"         body2="left_knee_mid_link"/>
+    <exclude body1="right_hip_yaw_link"     body2="right_knee_mid_link"/>
+    <exclude body1="left_hip_yaw_link"      body2="left_knee_mid_link"/>
+    <!-- 下面 4 条是扫掠全部行程后新发现的浅穿透（mesh 建模公差，非真实干涉）：
+         ankle_link <-> knee_mid_link：knee_up 在 -15.5°~-5.5° 时穿透，最深 1.8 mm
+             —— 正好落在正常屈膝范围内，不加会持续产生虚假接触力，必须排除。
+         knee_link  <-> knee_up_link ：knee_up 在 +34° 以上穿透，最深 4.4 mm
+             —— 在 knee_up 行程（-70°~+30°）之外，本来也走不到；
+                排除它是为了万一限位被顶穿时不产生假力。
+         实测确认：排除前后 knee_up 的跟得上区间完全一致（伸展 +30°、屈曲 -70°），
+         所以这些接触不是行程边界的原因 —— 伸展侧的边界是四杆机构力臂趋零。 -->
+    <exclude body1="right_ankle_link"       body2="right_knee_mid_link"/>
+    <exclude body1="left_ankle_link"        body2="left_knee_mid_link"/>
+    <exclude body1="right_knee_link"        body2="right_knee_up_link"/>
+    <exclude body1="left_knee_link"         body2="left_knee_up_link"/>
+    </contact>
+
+
+    <equality>
+      <connect site1="right_knee_mid_closure" site2="right_knee_mid" solref="0.0001 1"/>
+        <connect site1="left_knee_mid_closure" site2="left_knee_mid" solref="0.0001 1"/>
+    </equality>
+
+
+    <sensor>
+        <framequat name="imu_quat" objtype="site" objname="imu" />
+        <gyro name="imu_ang_vel" site="imu" />
+        <velocimeter name="imu_lin_vel" site="imu" />
+        <accelerometer name="imu_acc" site="imu" />
+        <framepos name="frame_pos" objtype="site" objname="imu" />
+        <framelinvel name="frame_vel" objtype="site" objname="imu" />
+        <!-- 整机绕基座质心的角动量，angular_momentum 奖励用 -->
+        <subtreeangmom name="root_angmom" body="base_link" />
+    </sensor>
+</mujoco>

@@ -63,9 +63,15 @@ _ACTUATOR_GROUPS: tuple[tuple[str, ElectricActuator], ...] = (
 )
 
 
-def _actuator_spec(joint_name: str) -> tuple[float, float]:
-  """Return ``(velocity_limit, effort_limit)`` for a Pikachu joint."""
-  for pattern, actuator in _ACTUATOR_GROUPS:
+def _actuator_spec(
+  joint_name: str,
+  groups: tuple[tuple[str, ElectricActuator], ...] = _ACTUATOR_GROUPS,
+) -> tuple[float, float]:
+  """Return ``(velocity_limit, effort_limit)`` for a Pikachu joint.
+
+  ``groups`` 可换成别的机型（如 v03 并联四杆膝），默认是 14dof V025 的分组。
+  """
+  for pattern, actuator in groups:
     if re.fullmatch(pattern, joint_name):
       return actuator.velocity_limit, actuator.effort_limit
   msg = f"No actuator spec for joint {joint_name}"
@@ -163,36 +169,46 @@ def joint_target(
 def actuator_spec_violation(
   env: ManagerBasedRlEnv,
   asset_cfg: SceneEntityCfg,
+  specs: tuple[tuple[float, float], ...] | None = None,
 ) -> torch.Tensor:
   """该步是否有任一关节扭矩或角速度超电机规格（二值 0/1）。
 
   ``reduce="mean"`` 时聚合为"整段 episode 中超规格步的占比"，配合逐关节的
   ``joint_torque_ratio`` / ``joint_velocity_ratio`` 峰值，判断策略是否可部署。
+
+  ``specs`` 是与 ``asset_cfg.joint_names`` 同序的 ``(velocity_limit,
+  effort_limit)`` 列表；省略时按 14dof V025 的关节表回退。
   """
   asset: Entity = env.scene[asset_cfg.name]
   torque = asset.data.qfrc_actuator[:, asset_cfg.joint_ids]  # [B, N]
   vel = asset.data.joint_vel[:, asset_cfg.joint_ids]  # [B, N]
+  if specs is None:
+    specs = tuple(_actuator_spec(name) for name in PIKACHU_JOINT_NAMES)
   torque_limits = torch.tensor(
-    [_actuator_spec(name)[1] for name in PIKACHU_JOINT_NAMES],
-    dtype=torch.float,
-    device=torque.device,
+    [s[1] for s in specs], dtype=torch.float, device=torque.device
   )
   velocity_limits = torch.tensor(
-    [_actuator_spec(name)[0] for name in PIKACHU_JOINT_NAMES],
-    dtype=torch.float,
-    device=torque.device,
+    [s[0] for s in specs], dtype=torch.float, device=torque.device
   )
   over_torque = torch.abs(torque) > torque_limits
   over_velocity = torch.abs(vel) > velocity_limits
   return (over_torque | over_velocity).any(dim=1).float()
 
 
-def add_pikachu_telemetry_metrics(cfg: ManagerBasedRlEnvCfg) -> None:
+def add_pikachu_telemetry_metrics(
+  cfg: ManagerBasedRlEnvCfg,
+  joint_names: tuple[str, ...] = PIKACHU_JOINT_NAMES,
+  actuator_groups: tuple[tuple[str, ElectricActuator], ...] = _ACTUATOR_GROUPS,
+) -> None:
   """Add physical joint and base telemetry shared by every Pikachu task.
 
   The live Viser values remain signed. Episode summaries use the absolute peak,
   which is more useful when comparing actuator requirements across runs.
+
+  ``joint_names`` / ``actuator_groups`` 默认是 14dof V025；v03（并联四杆膝、
+  无手臂、驱动关节是 ``knee_up``）传入自己的关节表与电机分组。
   """
+  specs = tuple(_actuator_spec(n, actuator_groups) for n in joint_names)
   cfg.metrics["base_height_m"] = MetricsTermCfg(func=envs_mdp.root_height)
 
   # 脚底接地传感器：velocity 任务已定义，tracking 任务补一个（guard 防重名）。
@@ -234,11 +250,10 @@ def add_pikachu_telemetry_metrics(cfg: ManagerBasedRlEnvCfg) -> None:
 
   # 逐关节：位置/速度/扭矩 + 相对电机 spec 的峰值占用比。
   all_joint_cfg = SceneEntityCfg(
-    "robot", joint_names=PIKACHU_JOINT_NAMES, preserve_order=True
+    "robot", joint_names=joint_names, preserve_order=True
   )
-  for joint_name in PIKACHU_JOINT_NAMES:
+  for joint_name, (velocity_limit, effort_limit) in zip(joint_names, specs):
     asset_cfg = SceneEntityCfg("robot", joint_names=(joint_name,))
-    velocity_limit, effort_limit = _actuator_spec(joint_name)
     cfg.metrics[f"joint_position_rad/{joint_name}"] = MetricsTermCfg(
       func=envs_mdp.joint_position,
       params={"asset_cfg": asset_cfg},
@@ -273,6 +288,6 @@ def add_pikachu_telemetry_metrics(cfg: ManagerBasedRlEnvCfg) -> None:
   # 全关节超规格占比：任一关节扭矩或角速度超 spec 的步数占比（0~1）。
   cfg.metrics["actuator_spec_violation"] = MetricsTermCfg(
     func=actuator_spec_violation,
-    params={"asset_cfg": all_joint_cfg},
+    params={"asset_cfg": all_joint_cfg, "specs": specs},
     reduce="mean",
   )
