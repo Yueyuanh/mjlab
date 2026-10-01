@@ -99,6 +99,13 @@ def main() -> int:
     cfg.episode_length_s = 1e9
     cfg.observations["actor"].enable_corruption = False
     cfg.events.pop("push_robot", None)
+    # ⚠️ **必须弹掉 command_vel 课程项**，否则下面设的 ranges 会被它冲掉。
+    # `tasks/velocity/mdp/curriculums.py::commands_vel` 每一步都用 stage 配置
+    # 覆写 `cfg.ranges.*`；stage 0 的 `step=0` 恒满足，于是构造 env 前设的
+    # `(vx, vx)` 在第一次 `_resample_command` 之前就被改回 `(-0.4, 0.5)`。
+    # 症状极具迷惑性：**五个档位跑出完全相同的结果**（因为命令其实一直是
+    # 同一个默认范围的随机抽样），看起来像「策略忽略命令」，实则是命令没设进去。
+    cfg.curriculum.pop("command_vel", None)
     cfg.seed = args.seed
     twist = cfg.commands["twist"]
     twist.ranges.lin_vel_x = (vx, vx)

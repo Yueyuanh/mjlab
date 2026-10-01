@@ -113,6 +113,12 @@ def main() -> int:
     env_cfg.episode_length_s = 1.0e9
     env_cfg.observations["actor"].enable_corruption = False
     env_cfg.events.pop("push_robot", None)
+    # ⚠️ **必须弹掉 command_vel 课程项**，否则下面设的 ranges 会被它冲掉。
+    # `tasks/velocity/mdp/curriculums.py::commands_vel` 每一步都用 stage 配置
+    # 覆写 `cfg.ranges.*`；stage 0 的 `step=0` 恒满足，于是构造 env 前收成点的
+    # ranges 在第一次 `_resample_command` 之前就被改回默认范围 —— 六个档位会
+    # 录出六段**一模一样**的片子。
+    env_cfg.curriculum.pop("command_vel", None)
     env_cfg.seed = args.seed  # base_com 是 startup 事件，构造时就抽完了
     env_cfg.viewer.width = args.width
     env_cfg.viewer.height = args.height

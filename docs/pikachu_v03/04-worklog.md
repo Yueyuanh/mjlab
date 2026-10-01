@@ -279,3 +279,81 @@ reward = exp(-lin_vel_error / std²)        # weight 2.0
 杀掉录像进程后训练立刻恢复（45 秒走 54 个迭代 = 0.83 s/迭代）。
 
 **规矩**：录像、评测这类要再建仿真环境的活，一律等训练**停下来**再做。
+
+---
+
+## 2026-10-01 · ⚠️ 抓到一个极隐蔽的 bug：命令固定**根本没生效**
+
+### 症状
+
+修好配置后停训练、跑 `eval_v03_velocity.py` 评 `model_2500.pt`，五个档位
+输出**一模一样**：
+
+```
+stand    0.00  0.00  0.00 | -0.062  0.033  0.232 |  nan  5.2  -0.9  0  0.15
+fwd      0.40  0.00  0.00 | -0.062  0.033  0.232 | 0.18  5.2  -0.9  0  0.15
+back    -0.30  0.00  0.00 | -0.062  0.033  0.232 | 0.23  5.2  -0.9  0  0.15
+lat      0.00  0.25  0.00 | -0.062  0.033  0.232 | 0.28  5.2  -0.9  0  0.15
+turn     0.00  0.00  0.30 | -0.062  0.033  0.232 |  nan  5.2  -0.9  0  0.15
+```
+
+**这个形态极具误导性** —— 看起来像「策略完全忽略命令」，实际上是我把命令
+写进去的那一步失败了。
+
+### 排查路径（值得记，因为每一步的结论都曾看起来"没问题"）
+
+1. 先怀疑 `ranges` 是只读属性 → 打印 `type(term.cfg.ranges)`，是普通
+   dataclass，赋值能读回来 ✓
+2. 怀疑 env 拿的不是我改的那个对象 → 打印 `id()`，`term.cfg is t` → **True** ✓
+3. 怀疑 `_resample_command` 被子类重写 → 打印 `__qualname__`，就是
+   `UniformVelocityCommand._resample_command`，且全文只用 `self.cfg.ranges` ✓
+4. **打桩**：包一层 `_resample_command`，在**调用时刻**打印 `self.cfg.ranges`
+
+```
+打桩前 term.cfg.ranges.lin_vel_x = (0.4, 0.4)
+>>> INSIDE self.cfg.ranges.lin_vel_x = (-0.4, 0.5)   ← 变回默认值了！
+```
+
+### 根因
+
+`cfg.curriculum["command_vel"]`（`tasks/velocity/mdp/curriculums.py::commands_vel`）
+**每一步都用 stage 配置覆写 `cfg.ranges.*`**：
+
+```python
+for stage in velocity_stages:
+    if env.common_step_counter >= stage["step"]:
+        cfg.ranges.lin_vel_x = stage["lin_vel_x"]   # ← 直接写
+```
+
+stage 0 的 `step=0` **恒满足**，所以在第一次 `_resample_command` 之前，
+我构造 env 前设的 `(vx, vx)` 就被改回 `(-0.4, 0.5)`。
+五个档位于是全都用同一个默认范围抽样（seed 固定 → 同一个命令
+`[0.072, -0.121, -0.072]`），结果当然一模一样。
+
+### 修复
+
+`eval_v03_velocity.py` 和 `record_v03_video.py` 里都要加：
+
+```python
+cfg.curriculum.pop("command_vel", None)
+```
+
+修完验证：
+
+```
+设定 vx=+0.40 -> env 命令 = [0.4, 0.0, 0.0]
+设定 vx=-0.30 -> env 命令 = [-0.3, 0.0, 0.0]
+设定 vx=+0.00 -> env 命令 = [0.0, 0.0, 0.0]
+```
+
+### 连带影响
+
+**r01 那张「五档全 0.001 m/s」的表，命令列是错的** —— 那五档实际跑的都是
+同一个命令 `[0.072, -0.121, -0.072]`（vx = +0.072，不是我写的 0.40）。
+但**结论不受影响**：机器人被命令前进 0.072 m/s，实测 0.001 m/s，
+依然是「一动不动」。只是「跟踪比 0.00」的分母得改成 0.072。
+修复后已重跑 r01 基线，见下一节。
+
+> **教训**：脚本里「构造 env 前改 cfg」这种做法，必须确认**没有任何 manager
+> 会在运行期回写同一个 cfg 字段**。课程项就是这样一个回写者，而且它写的是
+> 默认值，所以症状表现为「我设的值被静默丢弃」而不是报错。
