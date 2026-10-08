@@ -73,7 +73,10 @@ CLIP_LABEL = {
 RUN_PATTERNS = [
   ("r04", r".*_v03-flat-r04$", "r04（无站姿项，跑满 30k）"),
   ("r05", r".*_v03-flat-r05$", "r05（站姿项无门控）"),
-  ("r06", r".*_v03-flat-r06$", "r06（站姿项带门控）"),
+  # ``b?`` 同时匹配测试段 ``..._v03-flat-r06`` 与全量续训 ``..._v03-flat-r06b``；
+  # 两个目录的曲线会被**按时间顺序拼接**（见 read_curves），所以 r06 那条线是
+  # 连续的 29999 → 59999，不会在 30000 处断掉。
+  ("r06", r".*_v03-flat-r06b?$", "r06（站姿项带门控，热启动自 r04@29999）"),
 ]
 
 CURVE_TAGS = [
@@ -444,18 +447,27 @@ def read_curves(log_root: Path, cache: Path) -> dict[str, dict[str, list]]:
     if not dirs:
       print(f"  [curves] 跳过 {run}：没有匹配 {pattern} 的目录", file=sys.stderr)
       continue
-    evs = sorted(dirs[-1].glob("events.out.tfevents.*"))
-    if not evs:
-      continue
-    t0 = time.time()
-    acc = EventAccumulator(str(evs[0]), size_guidance={"scalars": 0})
-    acc.Reload()
-    present = set(acc.Tags()["scalars"])
+    # **把匹配到的所有目录按时间顺序拼起来**，而不是只取最后一个：
+    # r06 的微调是「测试段 r06（29999→34999）+ 全量续训 r06b（34999→59999）」
+    # 两个目录，只取最后一个会在 30000 处断掉 5000 个迭代的曲线。
+    # 目录名以时间戳开头，sorted 即为时间序。
     series: dict[str, list] = {}
-    for tag in want & present:
-      series[tag] = [[s.step, s.value] for s in acc.Scalars(tag)]
+    t0 = time.time()
+    n_dirs = 0
+    for d in dirs:
+      evs = sorted(d.glob("events.out.tfevents.*"))
+      if not evs:
+        continue
+      acc = EventAccumulator(str(evs[0]), size_guidance={"scalars": 0})
+      acc.Reload()
+      present = set(acc.Tags()["scalars"])
+      for tag in want & present:
+        series.setdefault(tag, []).extend([s.step, s.value] for s in acc.Scalars(tag))
+      n_dirs += 1
+    if not n_dirs:
+      continue
     out[run] = series
-    print(f"  [curves] {run}: {dirs[-1].name} -> " +
+    print(f"  [curves] {run}: {n_dirs} 个目录（{dirs[0].name} … {dirs[-1].name}）-> " +
           ", ".join(f"{t.split('/')[-1]}={len(v)}" for t, v in series.items() if v) +
           f"  ({time.time() - t0:.0f}s)")
   cache.parent.mkdir(parents=True, exist_ok=True)
