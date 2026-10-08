@@ -11,7 +11,7 @@ from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import BuiltinSensor, ContactSensor
 from mjlab.sensor.terrain_height_sensor import TerrainHeightSensor
 from mjlab.tasks.velocity.mdp.terrain_utils import terrain_normal_from_sensors
-from mjlab.utils.lab_api.math import quat_apply, quat_apply_inverse
+from mjlab.utils.lab_api.math import quat_apply, quat_apply_inverse, yaw_quat
 from mjlab.utils.lab_api.string import (
   resolve_matching_names_values,
 )
@@ -456,6 +456,48 @@ def feet_slip(
   )
   env.extras["log"]["Metrics/slip_velocity_mean"] = mean_slip_vel
   return cost
+
+
+def feet_lateral_distance(
+  env: ManagerBasedRlEnv,
+  target_distance: float,
+  std: float,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  """Penalize deviation of the left-right foot separation from a target.
+
+  Use as a **penalty** (negative weight) to hold a stance width. ``asset_cfg``
+  must resolve to exactly two foot sites.
+
+  **Measured in the base heading frame, not world.** The world-frame y
+  separation shrinks by ``cos(yaw)`` as the robot turns, so a world-frame term
+  would silently loosen as the robot rotates — and would read near-zero when
+  the robot faces sideways.
+
+  **Why not just tighten ``pose``?** ``variable_posture`` is
+  ``exp(-mean(err²/std²))``, which saturates: once a joint is a few std off,
+  the term is ~0 and its gradient with it. A stance width that is wrong by
+  2x the std is exactly that regime — the reward has already given up. This
+  term is the unbounded quadratic ``(err/std)²`` instead, so the gradient keeps
+  growing with the error.
+
+  Uses ``|Δy|`` rather than a signed difference so the result does not depend
+  on which site resolves first. The cost of that choice: legs fully crossed
+  (left foot at the right foot's nominal spot and vice versa) reads as a
+  correct separation. That posture is already penalized by ``self_collisions``.
+  """
+  asset: Entity = env.scene[asset_cfg.name]
+  assert len(asset_cfg.site_ids) == 2, (
+    f"feet_lateral_distance needs exactly 2 foot sites, got {len(asset_cfg.site_ids)}"
+  )
+  pos_w = asset.data.site_pos_w[:, asset_cfg.site_ids, :]  # [B, 2, 3]
+  root_quat_w = asset.data.root_link_pose_w[:, 3:7]  # [B, 4] wxyz
+  # 只去 yaw：俯仰/横滚会让 base 的 y 轴倾斜，但「双脚张开多少」是水平面上的量。
+  delta_b = quat_apply_inverse(yaw_quat(root_quat_w), pos_w[:, 0] - pos_w[:, 1])
+  separation = torch.abs(delta_b[:, 1])
+  error = (separation - target_distance) / std
+  env.extras["log"]["Metrics/foot_separation"] = separation.mean()
+  return torch.square(error)
 
 
 def soft_landing(

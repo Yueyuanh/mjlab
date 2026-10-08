@@ -47,6 +47,7 @@ from mjlab.envs import mdp as envs_mdp
 from mjlab.envs.mdp.actions import JointPositionActionCfg
 from mjlab.managers.event_manager import EventTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
+from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import (
   ContactMatch,
   ContactSensorCfg,
@@ -302,6 +303,38 @@ def pikachu_v03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     weight=-0.2,
     # v03 微屈膝站姿 base_link 高 0.26879 m；目标比站姿低约 1.9 cm。
     params={"target_height": 0.25, "std": 0.02},
+  )
+
+  # --- 站姿横向开度（r05 新增）---------------------------------------------
+  # 症状：策略把两个 hip_roll 都顶到硬限位（left +0.254 / right -0.261，
+  # 限位 ±0.26），把双脚并到 **9.2 cm**，而默认 keyframe 是 **20.0 cm**。
+  # 而且不只是站立 —— 实测每一档都窄：
+  #
+  #     档位    间距均值   比默认窄
+  #     stand    9.23 cm   10.77 cm
+  #     fwd      9.67 cm   10.33 cm
+  #     back     9.29 cm   10.71 cm
+  #     lat     12.94 cm    7.06 cm
+  #     turn     9.67 cm   10.33 cm
+  #
+  # **为什么现成的 `pose` 没管住**：`variable_posture` 是
+  # `exp(-mean(err²/std²))`，站立档 `std_standing = 0.05`，而 hip_roll 偏差
+  # 0.254 → `(0.254/0.05)² = 25.8`，该项实测已经 **≈0**。奖励一旦饱和，
+  # 梯度也归零 —— 策略早就不看它了，剩下各项的合力恰好偏好窄站姿。
+  #
+  # 所以这里用**无界二次罚** `(err/std)²`：误差越大梯度越大，不会饱和。
+  # target 取默认 keyframe 的 20 cm（左右脚心各 ±10 cm）。
+  # std 0.05 下，站立时的 10.8 cm 偏差 → `(0.108/0.05)² = 4.67`，
+  # 配 weight -0.25 约 **-1.17**，与 `pose`（权重 1.0）同量级，压得住。
+  # 步态内的自然波动 std 只有 ~1 cm → 该项只罚 ~0.04，不干扰正常迈步。
+  cfg.rewards["feet_lateral_distance"] = RewardTermCfg(
+    func=mdp.feet_lateral_distance,
+    weight=-0.25,
+    params={
+      "target_distance": 0.20,
+      "std": 0.05,
+      "asset_cfg": SceneEntityCfg("robot", site_names=SITE_NAMES),
+    },
   )
 
   cfg.rewards["foot_clearance"].params["target_height"] = 0.04
