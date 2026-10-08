@@ -150,34 +150,62 @@ def main() -> int:
     obs, _ = env.reset()
 
     t0 = time.time()
-    frames: list[np.ndarray] = []
     ended_at = None
-    for step in range(steps):
-      with torch.no_grad():
-        action = policy(obs)
-      obs, _, terminated, truncated, _ = env.step(action)
-      frames.append(np.asarray(env.render()))
-      if bool(terminated[0]) or bool(truncated[0]):
-        ended_at = step
-        break
-
-    if not frames:
-      print(f"[record_v03] {name}: 没采到帧，跳过", flush=True)
-      env.close()
-      continue
-
-    imageio.mimsave(
+    # ⚠️ **边采边写，不要先把帧攒在内存里**。旧版用 ``imageio.mimsave(frames, ...)``，
+    # 300 帧 720P = 300 × 1280 × 720 × 3 ≈ **830 MB** 常驻内存。本机 swap 已满，
+    # 实测某一档的编码因此从 6 s 涨到 **517 s**（同一批其它档只要 6.4 s），
+    # 而且 `t_step`/`t_render` 都是正常的 11 ms / 6 ms —— 时间全在编码那一步，
+    # 只看总耗时根本定位不到。流式写入把峰值内存降到 1 帧。
+    #
+    # 正常基准：step ~11 ms、render ~6 ms、编码 ~10 ms/帧（合计 ~30 ms/帧）。
+    writer = imageio.get_writer(
       dest,
-      frames,
       fps=int(1.0 / step_dt),
       codec="libx264",
       quality=8,
       macro_block_size=None,
     )
+    t_step = 0.0
+    t_render = 0.0
+    t_write = 0.0
+    n_frames = 0
+    slow = 0
+    try:
+      for step in range(steps):
+        with torch.no_grad():
+          action = policy(obs)
+        _a = time.time()
+        obs, _, terminated, truncated, _ = env.step(action)
+        _b = time.time()
+        frame = np.asarray(env.render())
+        _c = time.time()
+        writer.append_data(frame)
+        _d = time.time()
+        t_step += _b - _a
+        t_render += _c - _b
+        t_write += _d - _c
+        n_frames += 1
+        if (_d - _a) > 1.0:
+          slow += 1
+        if bool(terminated[0]) or bool(truncated[0]):
+          ended_at = step
+          break
+    finally:
+      writer.close()
+
+    if n_frames == 0:
+      print(f"[record_v03] {name}: 没采到帧，跳过", flush=True)
+      env.close()
+      continue
+
     note = f"，第 {ended_at} 步被终止" if ended_at is not None else ""
+    # 每帧平均耗时超过 0.2 s 就值得怀疑（正常 ~30 ms），标出来。
+    warn = "  ⚠️ 帧耗时异常" if (t_step + t_render + t_write) / n_frames > 0.2 else ""
     print(
-      f"[record_v03] ok {dest.name}  {len(frames)} 帧 "
-      f"{dest.stat().st_size // 1024} KiB  用时 {time.time() - t0:.1f}s{note}",
+      f"[record_v03] ok {dest.name}  {n_frames} 帧 "
+      f"{dest.stat().st_size // 1024} KiB  用时 {time.time() - t0:.1f}s{note}"
+      f"  [step {t_step / n_frames * 1e3:.0f} + render {t_render / n_frames * 1e3:.0f}"
+      f" + write {t_write / n_frames * 1e3:.0f} ms/帧, >1s 的帧 {slow}]{warn}",
       flush=True,
     )
     env.close()

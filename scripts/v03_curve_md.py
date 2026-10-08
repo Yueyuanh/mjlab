@@ -30,6 +30,7 @@ RUNS: dict[str, str] = {
   "r01": "2026-10-01_12-17-25_v03-flat-r01",
   "r02": "2026-10-01_12-36-03_v03-flat-r02",
   "r03": "2026-10-01_14-11-08_v03-flat-r03",
+  "r04": "2026-10-01_14-48-28_v03-flat-r04",
 }
 
 # 展示名 -> tensorboard tag。
@@ -38,6 +39,8 @@ KEYS: dict[str, str] = {
   "ep_len": "Train/mean_episode_length",
   "err_xy": "Metrics/twist/error_vel_xy",
   "err_yaw": "Metrics/twist/error_vel_yaw",
+  "track_lin": "Episode_Reward/track_linear_velocity",
+  "track_ang": "Episode_Reward/track_angular_velocity",
   "air_time": "Episode_Reward/air_time",
   "alt_air_time": "Episode_Reward/alternating_air_time",
   "fell_over": "Episode_Termination/fell_over",
