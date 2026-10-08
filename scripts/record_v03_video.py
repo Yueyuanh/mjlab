@@ -35,6 +35,13 @@
     转身，而不是整个世界在转；
   - 跟质心比跟 ``xpos`` 平滑，走路时的上下起伏不会让画面抖。
 
+⚠️ **换成 tracking 之后 ``viewer.entity_name`` 也必须显式给**。``AUTO`` 在查
+entity **之前**就 return -1 了，所以那条路径一直没被走过；一旦真的去查，
+``_get_camera_body_id`` 只在场景**恰好一个** entity 时才肯自动检测，否则抛
+``ValueError: Cannot auto-detect entity: scene has 2 entities``。flat 任务里
+terrain 也是一个 entity（``Scene._add_terrain`` 会 ``self._entities["terrain"]
+= terrain``），所以确实是 2 个。全仓没有别的任务设过这个字段。
+
 取景档位（``--view``，数字是上面那套投影算出来的画面占比）::
 
     side           az=90  el=-15  d=1.1  占高 58%  走路档默认，机器人朝画面右走
@@ -173,6 +180,14 @@ def main() -> int:
       env_cfg.viewer.height = args.height
       # 相机：AUTO 会被离屏渲染器当自由相机（钉在世界原点、5 m 外），见 docstring。
       env_cfg.viewer.origin_type = ViewerConfig.OriginType.ASSET_ROOT
+      # ⚠️ **`entity_name` 必须显式给**。`_get_camera_body_id` 在 entity_name 为
+      # None 时会「自动检测」，但只在场景**恰好一个** entity 时才成立，否则抛
+      # `ValueError: Cannot auto-detect entity: scene has 2 entities`。
+      # flat 任务里 terrain 也是一个 entity（`Scene._add_terrain` 会
+      # `self._entities["terrain"] = terrain`），所以实际有 2 个。
+      # 全仓没有别的任务设过这个字段 —— 它们都用默认 AUTO，而 AUTO 在查 entity
+      # 之前就 return -1 了，所以这条路径一直没被走过。
+      env_cfg.viewer.entity_name = "robot"
       env_cfg.viewer.azimuth = az
       env_cfg.viewer.elevation = el
       env_cfg.viewer.distance = dist

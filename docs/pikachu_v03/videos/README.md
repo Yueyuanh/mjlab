@@ -37,6 +37,25 @@
 > 不是左右间距。r05 专门加了 `feet_lateral_distance` 奖励（见
 > [../03-task-design.md](../03-task-design.md)），要验证它就必须看 `front` 档。
 
+### ⚠️ 换成 tracking 之后，`viewer.entity_name` 也必须显式给
+
+`AUTO` 在查 entity **之前**就 `return -1` 了，所以下面这段一直没被执行过；
+一旦真的去查，`_get_camera_body_id` 只在场景**恰好一个** entity 时才肯自动检测：
+
+```python
+if entity_name is None:
+    if len(entities) != 1:
+        raise ValueError(f"Cannot auto-detect entity: scene has {len(entities)} entities ...")
+```
+
+flat 任务里 terrain 也是一个 entity（`Scene._add_terrain` 会
+`self._entities["terrain"] = terrain`），所以 `scene.entities` 实际是
+`{"robot", "terrain"}` —— **2 个**，必抛。必须写
+`env_cfg.viewer.entity_name = "robot"`。
+
+> 全仓**没有**别的任务设过这个字段（`g1`/`go1`/`pikachu*` 都只设 `body_name`
+> 且用默认 `AUTO`）—— 也就是说这条路径在本仓库是第一次被走到。
+
 ## 文件
 
 全部 **11 个 mp4**，`ffprobe` 逐个校验为 `1280×720 / 50 fps / 300 帧`，合计 15 MB。
