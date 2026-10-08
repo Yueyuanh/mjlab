@@ -24,15 +24,10 @@ import csv
 import math
 from pathlib import Path
 
-CLIP_ORDER = ("stand", "fwd", "fwd_fast", "back", "lat", "turn")
-CLIP_LABEL = {
-  "stand": "站立",
-  "fwd": "前进 0.4",
-  "fwd_fast": "快走 0.8",
-  "back": "后退 0.4",
-  "lat": "侧移 0.3",
-  "turn": "转向 0.8",
-}
+# 档位顺序与中文标签**从报告脚本 import**，不复制 —— 同一个理由：
+# 命令值改过一次（fwd_fast 0.5 / back −0.3 / lat 0.25 / turn 0.3），
+# 两份标签一旦漂移，对比表和报告就会对不上号。
+from v03_velocity_report import CLIP_LABEL, CLIP_ORDER
 
 
 def _mean(xs: list[float]) -> float:
