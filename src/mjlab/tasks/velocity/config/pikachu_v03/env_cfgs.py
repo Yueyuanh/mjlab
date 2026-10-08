@@ -387,6 +387,12 @@ def pikachu_v03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     actuator_groups=PIKACHU_V03_ACTUATOR_GROUPS,
   )
 
+  # 速度追踪主线：命令/实测/误差逐分量（vel/ 前缀）。metrics_csv_dashboard.html
+  # 只认关节与基座那几族列，追踪精度这条主线它没有 —— 补上后 record_metrics_cli
+  # 写出的 CSV 自带该主线，报告不用再另外跑一遍仿真去量速度。
+  # 这几项**只观测不影响训练**（不进 reward、不进 observation）。
+  mdp.add_velocity_tracking_metrics(cfg, command_name="twist")
+
   cfg.rewards["self_collisions"] = RewardTermCfg(
     func=mdp.self_collision_cost,
     weight=-1.0,

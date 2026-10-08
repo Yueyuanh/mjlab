@@ -25,6 +25,7 @@ from mjlab.managers.metrics_manager import MetricsTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import ContactMatch, ContactSensor, ContactSensorCfg
 from mjlab.utils.actuator import ElectricActuator
+from mjlab.utils.lab_api.math import quat_apply_inverse, yaw_quat
 
 if TYPE_CHECKING:
   from mjlab.envs import ManagerBasedRlEnv
@@ -95,6 +96,34 @@ def _contact_foot_speed(
   foot_vel_xy = asset.data.site_lin_vel_w[:, asset_cfg.site_ids, :2]  # [B, N, 2]
   foot_speed = torch.norm(foot_vel_xy, dim=-1)  # [B, N]
   return in_contact, foot_speed
+
+
+def foot_lateral_separation_m(
+  env: ManagerBasedRlEnv,
+  asset_cfg: SceneEntityCfg,
+) -> torch.Tensor:
+  """双脚在 **base 朝向系** 下的横向间距（米）[B]。
+
+  与 ``tasks/velocity/mdp/rewards.py::feet_lateral_distance`` **同一套算法**
+  （那里的公式就是「base 朝向系下 |Δy|」），这里只是把它作为指标录出来。
+  两份实现刻意分开：奖励那条路径是实验的自变量，不想为了出报告去动它。
+
+  ⚠️ 为什么必须去 yaw 而不是直接取世界系 y 差：世界系 y 间距会随转身按
+  ``cos(yaw)`` 缩水，机器人侧身时读数趋近 0 —— 那是假象，不是脚并拢了。
+
+  为什么要这个指标：r05/r06 的整个自变量就是「站立时双脚张多开」，而这个量
+  在奖励侧只以 ``env.extras["log"]["Metrics/foot_separation"]`` 的形式存在
+  （且**只在门控生效时**才写），CSV 里没有。逐帧录进 CSV 之后，
+  报告可以直接看「走路时开度是多少」—— 那正是门控该不该生效的证据。
+  """
+  asset: Entity = env.scene[asset_cfg.name]
+  assert len(asset_cfg.site_ids) == 2, (
+    f"foot_lateral_separation_m 需要恰好 2 个足部 site，实得 {len(asset_cfg.site_ids)}"
+  )
+  pos_w = asset.data.site_pos_w[:, asset_cfg.site_ids, :]  # [B, 2, 3]
+  root_quat_w = asset.data.root_link_pose_w[:, 3:7]  # [B, 4] wxyz
+  delta_b = quat_apply_inverse(yaw_quat(root_quat_w), pos_w[:, 0] - pos_w[:, 1])
+  return torch.abs(delta_b[:, 1])
 
 
 def foot_slip_velocity(
@@ -241,6 +270,14 @@ def add_pikachu_telemetry_metrics(
     reduce="mean",
   )
 
+  # 双脚横向间距（base 朝向系）。reduce="mean" 只是 episode 摘要口径；
+  # 逐帧 CSV 拿到的是当帧真实值，与 reduce 无关。
+  cfg.metrics["foot_lateral_separation_m"] = MetricsTermCfg(
+    func=foot_lateral_separation_m,
+    params={"asset_cfg": foot_site_cfg},
+    reduce="mean",
+  )
+
   # 动作平滑度：action 二阶差分（a_t - 2 a_{t-1} + a_{t-2}）的均值，
   # 越小越平滑；高频抖动的策略此值会显著抬升，不能上实机。
   cfg.metrics["action_acc"] = MetricsTermCfg(
@@ -252,7 +289,9 @@ def add_pikachu_telemetry_metrics(
   all_joint_cfg = SceneEntityCfg(
     "robot", joint_names=joint_names, preserve_order=True
   )
-  for joint_name, (velocity_limit, effort_limit) in zip(joint_names, specs):
+  for joint_name, (velocity_limit, effort_limit) in zip(
+    joint_names, specs, strict=True
+  ):
     asset_cfg = SceneEntityCfg("robot", joint_names=(joint_name,))
     cfg.metrics[f"joint_position_rad/{joint_name}"] = MetricsTermCfg(
       func=envs_mdp.joint_position,
