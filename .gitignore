@@ -31,3 +31,8 @@ pre_train/**/model_*.pt
 # Exception: allow final deploy checkpoints via git add -f if needed.
 # Policy: only promote final model + onnx + metrics (see pre_train/README.md).
 **/MUJOCO_LOG.TXT
+
+# v03 速度报告的曲线缓存：7.5 MB，每次重跑都会重建，不是交付物。
+# 它是 read_curves() 的中间产物（从 tensorboard event 里抽出来的曲线），
+# 提交它只会在仓库里堆一个没人 review 的二进制。
+docs/pikachu_v03/reports/.curve-cache.json

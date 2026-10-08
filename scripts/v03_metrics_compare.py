@@ -166,7 +166,7 @@ def main() -> int:
   # 全档汇总：站姿开度 + 打滑 + 峰值占用。
   L.append("**全档汇总**")
   L.append("")
-  L.append("| 检查点 | 站立档开度 (cm) | 走路档开度 (cm) | 站立门控占比 | 支撑相滑移 (m/s) | 滑移帧占比 | 峰值扭矩占用 |")
+  L.append("| 检查点 | 站立档开度 (cm) | 走路档开度 (cm) | 命令≈0 快照 站档/走档 | 支撑相滑移 (m/s) | 滑移帧占比 | 峰值扭矩占用 |")
   L.append("|---|---|---|---|---|---|---|")
   for t in tags:
     pc = data[t]
@@ -175,12 +175,23 @@ def main() -> int:
     stand_sep = pc["stand"]["sep_cm"] if "stand" in pc else float("nan")
     walk = [pc[c]["sep_cm"] for c in CLIP_ORDER if c != "stand" and c in pc]
     walk_sep = _mean(walk)
-    gate = pc["stand"]["standing"] if "stand" in pc else float("nan")
+    # `vel/standing` 是「命令≈0」的 1/0 标志（录制时 `rel_standing_envs` 已置 0，
+    # 所以它只反映我们外部固定的命令，不反映奖励项怎么配）。
+    # ⚠️ 因此这列**不能**用来对比 r04/r05/r06 的门控 —— r05 根本没有门控，
+    # 走档同样报 0.00。它的用处是**录制自检**：站档 1.00 / 走档 0.00 说明
+    # 命令确实被钉死在了目标档位，而不是被课程项冲回默认值（那是踩过的坑）。
+    # 门控的真实证据在**开度**上：走路档开度 r04 10.1 / r05 18.7 / r06 10.9，
+    # 只有 r06 让「站档被推开」和「走档不受影响」同时成立。
+    gate_stand = pc["stand"]["standing"] if "stand" in pc else float("nan")
+    gate_walk = _mean(
+      [pc[c]["standing"] for c in CLIP_ORDER if c != "stand" and c in pc]
+    )
     slips = [pc[c]["slip"] for c in CLIP_ORDER if c in pc]
     fracs = [pc[c]["slide_frac"] for c in CLIP_ORDER if c in pc]
     peak_tr = max((pc[c]["peak_torque_ratio"] for c in pc), default=float("nan"))
     L.append(
-      f"| `{t}` | {_f(stand_sep, 1)} | {_f(walk_sep, 1)} | {_f(gate)} "
+      f"| `{t}` | {_f(stand_sep, 1)} | {_f(walk_sep, 1)} "
+      f"| {_f(gate_stand)}/{_f(gate_walk)} "
       f"| {_f(_mean(slips), 3)} | {_f(_mean(fracs), 3)} | {_f(peak_tr)} |"
     )
   L.append("")
