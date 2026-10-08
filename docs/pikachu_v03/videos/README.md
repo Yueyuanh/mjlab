@@ -1,6 +1,6 @@
 # Pikachu v03 录像
 
-720P（1280×720 @ 50 fps，6 秒 = 300 帧）无头离线渲染，由
+720P（1280×720 @ 50 fps，**5 秒 = 250 帧**）无头离线渲染，由
 `scripts/record_v03_video.py` 生成。
 
 > **命令是「构造 env 之前把 `twist.ranges` 收成一个点」固定的**，
@@ -9,9 +9,40 @@
 > ⚠️ 必须 `cfg.curriculum.pop("command_vel", None)`，否则课程项每步把
 > ranges 覆写回默认值（见 [../04-worklog.md](../04-worklog.md)）。
 
+## 相机：`AUTO` 不是「自动跟踪」，是「自由相机」
+
+「看不清效果」的根因是**取景**，不是分辨率（一直就是 720P）。
+`ViewerConfig` 默认 `origin_type=AUTO`，而 `offscreen_renderer.py::_get_camera_body_id`
+把 `AUTO` 和 `WORLD` **都**返回 `-1`，于是相机被钉在世界原点上：
+`lookat=(0,0,0)`、`distance=5.0`、`elevation=-45`。把默认站姿的 mesh 顶点
+投影到 1280×720 上实测，机器人只占 **12% 画面高、2% 画面宽**；而且相机不动，
+机器人以 0.4 m/s 走 6 s（2.4 m）就飘出画面中心。
+
+改成 `ASSET_ROOT` 得到 **tracking 相机**，实测两件事：
+
+| 实测 | 结果 | 含义 |
+|---|---|---|
+| 相机 `lookat` vs `data.subtree_com[root]` | **逐位相等** | 跟的是**整机质心**，不是 `xpos`；走路时画面平滑不抖 |
+| 机器人平移 2 m + 绕 z 转 90° 后的 `scn.camera[0].forward` | **一字未变** | **只跟位置、不跟朝向** → `turn` 档看到的是机器人原地转身，而不是整个世界在转 |
+
+取景档位由投影占比定（`--views`）：
+
+| 档位 | azimuth | elevation | distance | 占画面高 | 占宽 | 用途 |
+|---|---|---|---|---|---|---|
+| `side` | 90° | −15° | 1.1 m | 58% | 10% | 默认；机器人朝画面**右**走 |
+| `front` | 0° | −15° | 0.9 m | 64% | 29% | **唯一能看清双脚横向间距的档** |
+| `three_quarter` | 45° | −15° | 1.1 m | 57% | 19% | 折中 |
+
+> ⚠️ **站姿横向开度在 `side` 档里根本看不见** —— 侧视看到的是脚的前后深度，
+> 不是左右间距。r05 专门加了 `feet_lateral_distance` 奖励（见
+> [../03-task-design.md](../03-task-design.md)），要验证它就必须看 `front` 档。
+
 ## 文件
 
 全部 **11 个 mp4**，`ffprobe` 逐个校验为 `1280×720 / 50 fps / 300 帧`，合计 15 MB。
+
+> ⚠️ **下表是旧规格（自由相机、6 秒）的产物**，正按上面的新规格（跟踪相机、
+> 5 秒、文件名带取景档 `{档位}__{取景}__{tag}.mp4`）重录，录完会整表替换。
 
 | 文件 | 检查点 | 档位（命令） | 大小 |
 |---|---|---|---|
@@ -77,11 +108,24 @@ cd pikachu_playground/mjlab
 # ⚠️ 必须等训练停下来 —— 训练期间起第二个仿真进程会换页到 7 s/帧（内存不够）
 MUJOCO_GL=egl CUDA_VISIBLE_DEVICES=0 uv run python scripts/record_v03_video.py \
   --checkpoint logs/rsl_rl/pikachu_v03_velocity/<run>/model_29999.pt \
-  --out docs/pikachu_v03/videos --tag r04-best \
-  --clips stand,fwd,fwd_fast,back,lat,turn --seconds 6
+  --out docs/pikachu_v03/videos --tag r05-best \
+  --clips stand,fwd,fwd_fast,back,lat,turn --views side --seconds 5
+# 站姿开度必须单独跑一趟 front（side 档看不见左右间距）
+MUJOCO_GL=egl CUDA_VISIBLE_DEVICES=0 uv run python scripts/record_v03_video.py \
+  --checkpoint logs/rsl_rl/pikachu_v03_velocity/<run>/model_29999.pt \
+  --out docs/pikachu_v03/videos --tag r05-best \
+  --clips stand,lat --views front --seconds 5
 ```
+
+一个 `(档位, 取景)` 组合建一个 env —— 相机是在 `OffscreenRenderer.__init__`
+里一次定死的，换取景只能重建 env（事后改 `env._offline_renderer._cam` 是捅私有属性）。
 
 每档打印 `step / render / write` 分项耗时。正常基准
 **~12 + 6 + 2 ms/帧**；若某一档突然几百秒，先看分项 ——
 实测踩过一次「把 300 帧 720P（~830 MB）攒在内存里再 `mimsave`」，
 在 swap 已满的机器上编码从 6 s 涨到 **517 s**（已改为流式写入）。
+
+取景数字怎么来的：`geom_aabb` 是 geom **局部系**的包围盒，旋转后取角点会放大
+（hip 的 mesh 转了 35°，量出来宽 0.458 m，真实只有 0.362 m）。要准就得拿
+`mesh_vert` 的真实顶点变换到世界系，再手工投影 —— 全程只用
+`mjv_updateCamera`，不建 GL 上下文、不步进物理，内存几十 MB。

@@ -111,6 +111,10 @@ r04 @ iter 29999：**前进跟踪比 0.99、方向余弦 1.00、单脚支撑 0.9
 - 2026-10-08 收尾整理记录库，改回一条**从未被现实反驳过**的错误归因
   （模型转换期以为「源模型自己发散」，其实一直是 mjlab 默认的 `implicitfast`
   积分器在挡），见 [01-model-conversion.md](01-model-conversion.md) 坑 5。
+- 2026-10-08 r05 启动（新增 `feet_lateral_distance`，治「站立时双脚挨太近」）。
+- 2026-10-08 录像改**跟踪相机** + 5 秒，加 `--views {side,front}`；查出「看不清」
+  的真根因是取景（旧自由相机只占 12% 画面高），见
+  [videos/README.md](videos/README.md)。
 
 ## 三句话能讲完的坑
 
@@ -122,3 +126,8 @@ r04 @ iter 29999：**前进跟踪比 0.99、方向余弦 1.00、单脚支撑 0.9
    `cfg.curriculum.pop("command_vel", None)`。见报告 §6.5。
 3. **训练期间不能再起第二个仿真进程** —— 不是 GPU 争用，是内存（swap 已满），
    实测慢 600 倍。见报告 §6.1。
+4. **默认值会掩盖你的归因** —— 两次栽在同一个模式上：mjlab 默认的
+   `implicitfast` 积分器掩盖了源模型的稳定性问题（坑 5），`ViewerConfig` 默认的
+   `origin_type=AUTO` 掩盖了「相机根本没跟踪」（它长得就像「自动跟踪」，
+   实际被离屏渲染器当自由相机）。读默认值要读**消费它的那段代码**。
+   见 [videos/README.md](videos/README.md)。
