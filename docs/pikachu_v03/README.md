@@ -11,12 +11,12 @@ Pikachu **v03**（并联四杆膝，10 驱动关节 / 14 关节）在 mjlab 上�
 
 | 文档 | 内容 |
 |---|---|
-| [01-model-conversion.md](01-model-conversion.md) | 源 MJCF → 训练 MJCF 的转换，含 4 个必踩的坑 |
+| [01-model-conversion.md](01-model-conversion.md) | 源 MJCF → 训练 MJCF 的转换，含 5 个必踩的坑 |
 | [02-stand-keyframe.md](02-stand-keyframe.md) | 站立 keyframe 标定：从「脚在髋下」到「质心在脚心上方」 |
 | [03-task-design.md](03-task-design.md) | velocity 任务设计：动作缩放、奖励、命令空间、课程 |
-| [04-worklog.md](04-worklog.md) | 工作日志（按时间倒序） |
+| [04-worklog.md](04-worklog.md) | 工作日志（按时间**正序**；被推翻的结论保留原文并就地标注） |
 | [reports/](reports/) | 训练报告 + [曲线文本快照](reports/training-curve.md) |
-| [videos/](videos/) | 最优模型 720P 录像 |
+| [videos/](videos/) | 最优模型 720P 录像（r04-best 六档 + r01-before 对照） |
 
 ## 快速上手
 
@@ -33,6 +33,9 @@ uv run python scripts/refine_v03_keyframe.py     # 固定点迭代：脚心挪�
 # 开训前的冒烟测试（分两个进程跑，本机内存不够同时建两个环境）
 uv run python scripts/smoke_v03_velocity.py --quiet   # 零动作开环站立，必须过
 uv run python scripts/smoke_v03_velocity.py --noisy   # 带 push 扰动，看难度
+
+# 关节等效惯量 / 执行器稳定性排查（见 01-model-conversion.md 坑 5）
+uv run python scripts/diag_v03_stability.py
 
 # 训练
 CUDA_VISIBLE_DEVICES=0 uv run train Mjlab-Velocity-Flat-Pikachu-V03 \
@@ -102,7 +105,12 @@ r04 @ iter 29999：**前进跟踪比 0.99、方向余弦 1.00、单脚支撑 0.9
 - 2026-10-01 r04 启动（方向桶全恢复 + `rel_heading_envs=1.0`）→ **跑满 30000 迭代**。
 - 2026-10-01 修正 `单脚支撑` 指标（原版量的是接触点数不是脚数）。
 - 2026-10-08 r04 终评 + 检查点扫描 + 转向测试（发现前后两次转向评测**都问错了
-  问题**，见报告 §5.7）。
+  问题**，见报告 §5.8）。
+- 2026-10-08 交付 720P 录像（11 个 mp4，r04-best 六档 + r01-before 对照），
+  见 [videos/README.md](videos/README.md)。
+- 2026-10-08 收尾整理记录库，改回一条**从未被现实反驳过**的错误归因
+  （模型转换期以为「源模型自己发散」，其实一直是 mjlab 默认的 `implicitfast`
+  积分器在挡），见 [01-model-conversion.md](01-model-conversion.md) 坑 5。
 
 ## 三句话能讲完的坑
 

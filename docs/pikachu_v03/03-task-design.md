@@ -99,7 +99,7 @@ ranges.heading   = (-3.14, 3.14)   # heading_command=True
 > `_update_command` 里 `ang_vel_z = clip(0.5 × heading_error, ±0.3)` ——
 > 策略学的是「**转到目标朝向就停**」，**从来没见过「一直转」这种命令**。
 > 拿恒定角速度去评测是分布外输入，会得到假的低分
-> （见报告 §5.7 与 `scripts/eval_v03_turn.py`）。
+> （见报告 §5.8 与 `scripts/eval_v03_turn.py`）。
 >
 > 另一个后果：heading 环境**同时抽随机线速度**，所以训练分布里
 > **没有「纯转向」环境** —— 实测 r04 边走边转 90° 收敛 0.98，
