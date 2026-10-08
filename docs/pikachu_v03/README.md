@@ -66,6 +66,11 @@ uv run python scripts/v03_velocity_report.py \
   --metrics-dir docs/pikachu_v03/metrics --tag <run> \
   --checkpoint logs/rsl_rl/pikachu_v03_velocity/<run>/model_29999.pt \
   --out docs/pikachu_v03/reports/velocity-report.html
+
+# 多轮次对比表（Markdown，可直接贴进报告 §7 的分析）
+uv run python scripts/v03_metrics_compare.py \
+  --metrics-dir docs/pikachu_v03/metrics \
+  --tags r04-best,r05-15000,r06-test --out /tmp/v03_compare.md
 ```
 
 ## 关键常量速查
