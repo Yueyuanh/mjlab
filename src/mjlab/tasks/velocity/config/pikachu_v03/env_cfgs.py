@@ -305,7 +305,7 @@ def pikachu_v03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     params={"target_height": 0.25, "std": 0.02},
   )
 
-  # --- 站姿横向开度（r05 新增）---------------------------------------------
+  # --- 站姿横向开度（r05 新增，r06 加命令门控）-----------------------------
   # 症状：策略把两个 hip_roll 都顶到硬限位（left +0.254 / right -0.261，
   # 限位 ±0.26），把双脚并到 **9.2 cm**，而默认 keyframe 是 **20.0 cm**。
   # 而且不只是站立 —— 实测每一档都窄：
@@ -324,15 +324,47 @@ def pikachu_v03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   #
   # 所以这里用**无界二次罚** `(err/std)²`：误差越大梯度越大，不会饱和。
   # target 取默认 keyframe 的 20 cm（左右脚心各 ±10 cm）。
-  # std 0.05 下，站立时的 10.8 cm 偏差 → `(0.108/0.05)² = 4.67`，
-  # 配 weight -0.25 约 **-1.17**，与 `pose`（权重 1.0）同量级，压得住。
-  # 步态内的自然波动 std 只有 ~1 cm → 该项只罚 ~0.04，不干扰正常迈步。
+  #
+  # --- r06：必须加命令门控 ------------------------------------------------
+  #
+  # ⚠️ **下面这句原本写的是「步态内的自然波动 std 只有 ~1 cm → 该项只罚
+  # ~0.04，不干扰正常迈步」—— 已被 r05 实测证伪。** 那句话只看了「站立时
+  # 双脚并拢」这一个自由度，漏掉了这一项同时在推 `hip_roll`，而 `hip_roll`
+  # 也是平衡控制器做侧向支撑和转向的执行器。恒定外推的力和步态**直接对撞**。
+  #
+  # r05（无门控，15320 迭代）vs r04（无此项，30000 迭代）的现场：
+  #
+  #     指标                               r04       r05      变化
+  #     Episode_Reward/alternating_air_time  0.0910   0.1548   ↑ 抬脚更卖力
+  #     Episode_Reward/track_linear_velocity 0.7206   0.3845   ↓ 47%
+  #     Metrics/twist/error_vel_xy           0.6345   1.0610   ↑ 67%
+  #     Metrics/twist/error_vel_y            0.4960   0.7070   ↑ 42%
+  #     Episode_Reward/track_angular_velocity 0.8270  1.1101   ↑ 34%
+  #     Metrics/twist/error_vel_yaw          0.7658   0.3903   ↓ 49%
+  #
+  # 读法：**脚抬得很勤（抬脚奖励涨），净位移却垮了（线速度跟踪掉一半）**
+  # —— 典型的原地踏步。而且它拿线速度换了角速度：只剩原地转是好的。
+  # `error_vel_y` 涨最凶也不意外，这一项量的就是 Δy，被罚得最直接。
+  #
+  # 门控后走路 env 的这一项**恒为 0**，与「压根没加这一项」逐位等价；
+  # 只有命令≈0 的 env（`rel_standing_envs=0.05`）吃罚。站姿该挪的照挪
+  # （r05 无门控时已经把 9.23 → 16.41 cm，机制本身是对的）。
+  #
+  # 命令范数用 `‖v_xy‖ + |wz|`（与 `feet_flight_time` 同一套），阈值 0.1。
+  # ⚠️ 方向与 `feet_flight_time` **相反**：那里命令是**开启**代价的条件，
+  # 这里命令是**关闭**代价的条件。站着才罚。
+  #
+  # 若 r06 站姿挪不到位，下一个旋钮是 `rel_standing_envs`（0.05 → 0.10，
+  # 门控后它是唯一携带该项的 env，值得多给一点样本；代价是 yaw 暴露面
+  # 23.75% → 22.5%，可忽略），**不要**再去加 weight。
   cfg.rewards["feet_lateral_distance"] = RewardTermCfg(
     func=mdp.feet_lateral_distance,
     weight=-0.25,
     params={
       "target_distance": 0.20,
       "std": 0.05,
+      "command_name": "twist",
+      "command_threshold": 0.1,
       "asset_cfg": SceneEntityCfg("robot", site_names=SITE_NAMES),
     },
   )

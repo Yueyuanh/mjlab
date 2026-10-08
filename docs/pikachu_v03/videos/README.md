@@ -58,27 +58,66 @@ flat 任务里 terrain 也是一个 entity（`Scene._add_terrain` 会
 
 ## 文件
 
-全部 **11 个 mp4**，`ffprobe` 逐个校验为 `1280×720 / 50 fps / 300 帧`，合计 15 MB。
+全部 **17 个 mp4**，`ffprobe` 逐个校验为 `1280×720 / 50 fps / 250 帧`（5 秒），
+合计 49 MB。文件名是 `{档位}__{取景}__{tag}.mp4`。
 
-> ⚠️ **下表是旧规格（自由相机、6 秒）的产物**，正按上面的新规格（跟踪相机、
-> 5 秒、文件名带取景档 `{档位}__{取景}__{tag}.mp4`）重录，录完会整表替换。
+### `r04-best`（7 个）—— 稳定行走的基线
 
-| 文件 | 检查点 | 档位（命令） | 大小 |
-|---|---|---|---|
-| `stand__r04-best.mp4` | r04 @29999 | 站立（0, 0, 0） | 616 KiB |
-| `fwd__r04-best.mp4` | r04 @29999 | 前进 0.40 m/s | 2768 KiB |
-| `fwd_fast__r04-best.mp4` | r04 @29999 | 前进 0.50 m/s（命令上限） | 2859 KiB |
-| `back__r04-best.mp4` | r04 @29999 | 后退 0.30 m/s | 2586 KiB |
-| `lat__r04-best.mp4` | r04 @29999 | 侧移 0.25 m/s | 2465 KiB |
-| `turn__r04-best.mp4` | r04 @29999 | 转向 0.30 rad/s（⚠️ 分布外，见下） | 968 KiB |
-| `stand__r01-before.mp4` | r01 @500 | 站立（对照） | 697 KiB |
-| `fwd__r01-before.mp4` | r01 @500 | 前进 0.40 m/s（对照） | 643 KiB |
-| `back__r01-before.mp4` | r01 @500 | 后退 0.30 m/s（对照） | 367 KiB |
-| `lat__r01-before.mp4` | r01 @500 | 侧移 0.25 m/s（对照） | 488 KiB |
-| `turn__r01-before.mp4` | r01 @500 | 转向 0.30 rad/s（对照） | 834 KiB |
+检查点 `logs/rsl_rl/pikachu_v03_velocity/2026-10-01_14-48-28_v03-flat-r04/model_29999.pt`
 
-**最优检查点**：
-`logs/rsl_rl/pikachu_v03_velocity/2026-10-01_14-48-28_v03-flat-r04/model_29999.pt`
+| 文件 | 档位（命令） | 大小 |
+|---|---|---|
+| `stand__side__r04-best.mp4` | 站立（0, 0, 0） | 1265 KiB |
+| `stand__front__r04-best.mp4` | 站立 —— **看站姿开度用这个** | 1480 KiB |
+| `fwd__side__r04-best.mp4` | 前进 0.40 m/s | 4971 KiB |
+| `back__side__r04-best.mp4` | 后退 0.30 m/s | 4690 KiB |
+| `lat__side__r04-best.mp4` | 侧移 0.25 m/s | 4547 KiB |
+| `lat__front__r04-best.mp4` | 侧移 | 4299 KiB |
+| `turn__side__r04-best.mp4` | 转向 0.30 rad/s（⚠️ 分布外，见下） | 1977 KiB |
+
+### `r05-15000`（8 个）—— 加了站姿奖励、**但没有门控**的那一轮
+
+检查点 `logs/rsl_rl/pikachu_v03_velocity/2026-10-08_19-45-08_v03-flat-r05/model_15000.pt`
+
+| 文件 | 档位 | 大小 |
+|---|---|---|
+| `stand__side__r05-15000.mp4` | 站立 | 1495 KiB |
+| `stand__front__r05-15000.mp4` | 站立 —— 与 r04 的 front 并排看，开度差一眼可见 | 1785 KiB |
+| `fwd__side__r05-15000.mp4` | 前进 0.40 m/s | 4855 KiB |
+| `fwd_fast__side__r05-15000.mp4` | 前进 0.50 m/s | 1364 KiB |
+| `back__side__r05-15000.mp4` | 后退 0.30 m/s | 4515 KiB |
+| `lat__side__r05-15000.mp4` | 侧移 | 4439 KiB |
+| `lat__front__r05-15000.mp4` | 侧移 | 4574 KiB |
+| `turn__side__r05-15000.mp4` | 转向 | 1379 KiB |
+
+> `fwd_fast` 只有 r05 有（上一轮中断的录像留下的，规格相同），r04 无对照。
+
+### `r01-before`（2 个）—— 修奖励之前的失败形态
+
+检查点 `logs/rsl_rl/pikachu_v03_velocity/2026-10-01_12-17-25_v03-flat-r01/model_500.pt`
+
+| 文件 | 档位 | 大小 |
+|---|---|---|
+| `stand__side__r01-before.mp4` | 站立（对照） | 632 KiB |
+| `fwd__side__r01-before.mp4` | 前进 0.40 m/s（对照） | 1327 KiB |
+
+## 怎么看这三组
+
+**r01 vs r04**：`r01-before` 是**修奖励之前的失败形态** —— 命令前进 0.40 m/s，
+机器人原地不动（实测 0.001 m/s）。两组并排看，能一眼看出「站着不动」和
+「真的在走」的区别。这比看奖励曲线可靠（`Episode_Reward/track_*` 会因为
+Jensen 不等式骗人，见 [../reports/training-report.md](../reports/training-report.md) §3.4）。
+
+**r04 vs r05（本轮重点）**：并排看 `stand__front__*` 两个文件。
+r04 站立时双脚间距 **9.23 cm**，r05 是 **16.41 cm**（默认 keyframe 20.00 cm）
+—— 奖励确实起作用了。但再看 `fwd__side__*`：r05 的**原地踏步**很明显，
+脚抬得比 r04 勤，身体却不往前走。逐项数据在
+[../04-worklog.md](../04-worklog.md)（`track_linear_velocity` 0.72→0.38，
+而 `error_vel_yaw` 反而 0.77→0.39）。
+
+**文件大小本身就是旁证**：r01 的 `fwd` 是 **1327 KiB**，r04 的 `fwd` 是
+**4971 KiB** —— 机器人不动时画面几乎静止，H.264 压缩率自然高。注意这只能当
+旁证不能当判据（`turn` 档 r01 反而更大，因为 r01 在乱晃而 r04 稳定）。
 
 > 仓库根的 `.gitignore` 有一条 `videos/`，会连目录一起排除。本目录是**显式
 > 开的口子**（`.gitignore` 里 `!docs/pikachu_v03/videos/`），目的是让录像跟
@@ -125,22 +164,24 @@ ang_vel_z = clip(heading_control_stiffness(0.5) × heading_error, ±0.3)
 ```bash
 cd pikachu_playground/mjlab
 # ⚠️ 必须等训练停下来 —— 训练期间起第二个仿真进程会换页到 7 s/帧（内存不够）
-MUJOCO_GL=egl CUDA_VISIBLE_DEVICES=0 uv run python scripts/record_v03_video.py \
-  --checkpoint logs/rsl_rl/pikachu_v03_velocity/<run>/model_29999.pt \
-  --out docs/pikachu_v03/videos --tag r05-best \
-  --clips stand,fwd,fwd_fast,back,lat,turn --views side --seconds 5
-# 站姿开度必须单独跑一趟 front（side 档看不见左右间距）
-MUJOCO_GL=egl CUDA_VISIBLE_DEVICES=0 uv run python scripts/record_v03_video.py \
-  --checkpoint logs/rsl_rl/pikachu_v03_velocity/<run>/model_29999.pt \
-  --out docs/pikachu_v03/videos --tag r05-best \
-  --clips stand,lat --views front --seconds 5
+# 一组 = 一个模型；side 档录步态，front 档单独录（站姿开度只在 front 看得见）
+for V in side front; do
+  [ "$V" = side ] && CLIPS=stand,fwd,back,lat,turn || CLIPS=stand,lat
+  MUJOCO_GL=egl CUDA_VISIBLE_DEVICES=0 uv run python scripts/record_v03_video.py \
+    --checkpoint logs/rsl_rl/pikachu_v03_velocity/<run>/model_29999.pt \
+    --out docs/pikachu_v03/videos --tag r06-best \
+    --clips "$CLIPS" --views "$V" --seconds 5
+done
 ```
+
+一组 7 个文件约 **50 秒**（实测 6.2–7.3 s/档，含建 env）。换模型就改
+`--checkpoint` 和 `--tag`。
 
 一个 `(档位, 取景)` 组合建一个 env —— 相机是在 `OffscreenRenderer.__init__`
 里一次定死的，换取景只能重建 env（事后改 `env._offline_renderer._cam` 是捅私有属性）。
 
 每档打印 `step / render / write` 分项耗时。正常基准
-**~12 + 6 + 2 ms/帧**；若某一档突然几百秒，先看分项 ——
+**~16 + 6 + 2 ms/帧**；若某一档突然几百秒，先看分项 ——
 实测踩过一次「把 300 帧 720P（~830 MB）攒在内存里再 `mimsave`」，
 在 swap 已满的机器上编码从 6 s 涨到 **517 s**（已改为流式写入）。
 
@@ -148,3 +189,7 @@ MUJOCO_GL=egl CUDA_VISIBLE_DEVICES=0 uv run python scripts/record_v03_video.py \
 （hip 的 mesh 转了 35°，量出来宽 0.458 m，真实只有 0.362 m）。要准就得拿
 `mesh_vert` 的真实顶点变换到世界系，再手工投影 —— 全程只用
 `mjv_updateCamera`，不建 GL 上下文、不步进物理，内存几十 MB。
+
+**站姿开度的数值**不要从录像里目测 —— 用
+`scripts/measure_v03_stance.py --clips stand`，它直接打 base 系 y 的间距均值
+和左右 `hip_roll` 角。录像只用来**看**「原地踏步」这类时间上的形态。

@@ -462,6 +462,8 @@ def feet_lateral_distance(
   env: ManagerBasedRlEnv,
   target_distance: float,
   std: float,
+  command_name: str | None = None,
+  command_threshold: float = 0.1,
   asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
 ) -> torch.Tensor:
   """Penalize deviation of the left-right foot separation from a target.
@@ -485,6 +487,22 @@ def feet_lateral_distance(
   on which site resolves first. The cost of that choice: legs fully crossed
   (left foot at the right foot's nominal spot and vice versa) reads as a
   correct separation. That posture is already penalized by ``self_collisions``.
+
+  ⚠️ **Gate on the command — this term must not be applied while walking.**
+  Pass ``command_name`` and only the near-zero-command envs pay it. The gate is
+  **inverted** relative to ``feet_flight_time``: there the command *enables*
+  the cost, here it *disables* it.
+
+  Why the gate is not optional: a walk cycle needs the feet to pass close
+  together (the swing leg travels under the body), and ``hip_roll`` is also
+  what the balance controller uses for lateral support and turning. An
+  ungated constant outward push on ``hip_roll`` fights the gait directly, and
+  the policy's way out is to stiffen into a march — feet lift on schedule but
+  the body stops translating. Measured on v03 (r05, ungated, 15.3k iters vs
+  r04, no term, 30k iters): ``alternating_air_time`` 0.091 → 0.155 (lifts
+  *more*) while ``track_linear_velocity`` 0.72 → 0.38 and
+  ``Metrics/twist/error_vel_xy`` 0.63 → 1.06. Net displacement collapses.
+  Gated, the walking envs are bit-identical to having no term at all.
   """
   asset: Entity = env.scene[asset_cfg.name]
   assert len(asset_cfg.site_ids) == 2, (
@@ -495,9 +513,25 @@ def feet_lateral_distance(
   # 只去 yaw：俯仰/横滚会让 base 的 y 轴倾斜，但「双脚张开多少」是水平面上的量。
   delta_b = quat_apply_inverse(yaw_quat(root_quat_w), pos_w[:, 0] - pos_w[:, 1])
   separation = torch.abs(delta_b[:, 1])
-  error = (separation - target_distance) / std
+  cost = torch.square((separation - target_distance) / std)
+
+  if command_name is not None:
+    command = env.command_manager.get_command(command_name)
+    if command is not None:
+      total_command = torch.norm(command[:, :2], dim=1) + torch.abs(command[:, 2])
+      standing = (total_command < command_threshold).float()
+      cost = cost * standing
+      # 门控后的指标才有意义：混着走路 env 的均值会被步态周期污染，
+      # 看不出站姿到底挪没挪（r05 就是靠这个才发现「开度涨了但没到位」）。
+      n_standing = standing.sum().clamp(min=1.0)
+      env.extras["log"]["Metrics/foot_separation"] = (
+        separation * standing
+      ).sum() / n_standing
+      env.extras["log"]["Metrics/stance_gate_frac"] = standing.mean()
+      return cost
+
   env.extras["log"]["Metrics/foot_separation"] = separation.mean()
-  return torch.square(error)
+  return cost
 
 
 def soft_landing(
