@@ -120,6 +120,65 @@ conaffinity=0`），否则会和胶囊双重接触。
 
 ---
 
+## 坑 5 · 踝关节等效惯量只有 9.2e-5，刚性执行器要靠 `implicitfast` 才稳
+
+`scripts/diag_v03_stability.py` 打印 `mj_fullM` 的对角元：
+
+| 关节 | `M[dof,dof]` |
+|---|---|
+| `hip_pitch` | 1.80e-2 |
+| `hip_roll` | 1.24e-2 |
+| `hip_yaw` | 1.06e-3 |
+| `knee` / `knee_up` | 1.46e-3 / 3.82e-4 |
+| **`ankle`** | **9.21e-5** |
+
+踝关节比 `hip_pitch` 小**两个数量级**。给它挂刚性 `position` 执行器
+（kp=150），显式积分下 MuJoCo 第 ~21 步就报：
+
+```
+WARNING: Nan, Inf or huge value in QACC at DOF 5. The simulation is unstable. Time = 0.1040.
+```
+
+（DOF 5 = `right_ankle_joint`，t=0.104 s ≈ 21 步 × 0.005 s。）
+
+**真正把它救活的是积分器，不是 `armature`**。同一套 kp=150 跑 2000 步
+（`diag_v03_stability.py` 最后一组，可直接复现）：
+
+| 积分器 | `armature` | `max\|qvel\|` |
+|---|---|---|
+| `euler` | 无 | 3.11e+00（振铃） |
+| `euler` | +J3507 | 9.80e+00（更差） |
+| **`implicitfast`** | 无 | **6.3e-11** |
+| **`implicitfast`** | +J3507 | **3.1e-11** |
+
+mjlab 的默认就是 `implicitfast`（`src/mjlab/sim/sim.py:103`），v03 任务没有覆盖它
+—— 所以**这个坑在训练里是被默认值挡掉的**，换 `euler` 就会踩。
+
+那 `armature` 干什么？**管的是物理保真度，不是数值稳定**：
+
+```python
+# pikachu_v03_constants.py
+ROTOR_INERTIAS_J3507 = 6.69169e-6 ; GEARS_J3507 = (1, 7.0, 3.0)   # 7×3 = 21
+ARMATURE_J3507 = reflected_inertia(6.69169e-6, 21)   # = 2.95e-3
+STIFFNESS_J3507 = ARMATURE_J3507 * NATURAL_FREQ**2   # 刚度由 armature 反推
+```
+
+`2.95e-3` 是踝关节连杆惯量（9.2e-5）的 **32 倍** —— 真机上电机转子反射回来的
+惯量本来就该主导这个关节。刚度 `kp` 也是从它按 `ARMATURE × ω²` 反推的，
+不是拍脑袋填的数。
+
+> ⚠️ **`armature` 不在 XML 里**。它在 `pikachu_v03_constants.py` 的
+> `ElectricActuator(reflected_inertia=...)`，由 mjlab 运行时注入。
+> `grep armature` 训练 XML 是**空的** —— 我第一次就是这么找错的。
+
+> **这个脚本最初的假设是错的**，留在这里当教训：原 docstring 写「源模型本身在
+> `mj_step` 下发散」，重跑后证伪 —— 源模型（base 焊死在世界、无执行器）
+> **开着重力和关着重力都能稳跑 2000 步**（`max|qvel| = 2.2e-2`）。
+> 唯一不稳的组合是「刚性执行器 + 显式积分」。
+> **先跑最小复现，再写归因。**
+
+---
+
 ## 其它改造
 
 1. **`base_link` 加 `<freejoint name="floating_base"/>`** —— 否则机器人不能移动。

@@ -825,3 +825,44 @@ r02 只训到 2500 就停了，不确定 `model_2500.pt` 是不是最优。回�
 排除的是**目录**，所以只写 `!docs/pikachu_v03/videos/*.mp4` 是没用的 ——
 git 不会走进被排除的目录，必须先 `!docs/pikachu_v03/videos/` 把目录本身捞回来。
 其它任何位置的 `videos/` 仍然照旧忽略（已用 `git check-ignore` 验证）。
+
+---
+
+## 2026-10-08 · 补：把模型转换期的一个错误归因改回来（坑 5）
+
+收尾整理记录库时发现 `scripts/diag_v03_stability.py` 一直**没进库**（当时写完
+就搁下了），而且它的 docstring 写的是一条**我没验证过、事后看是错的**结论：
+「源模型本身在 `mj_step` 下发散，~5 步内 QACC NaN」。
+
+重跑证伪：
+
+- 源模型（base 焊死在世界、无执行器）**开重力 / 关重力都能稳跑 2000 步**，
+  `max|qvel| = 2.2e-2`。它根本不发散。
+- 唯一不稳的组合是**刚性 `position` 执行器 + 显式 `euler` 积分**。根因是
+  踝关节的等效惯量只有 **9.21e-5**（`mj_fullM` 对角元，比 hip_pitch 的 1.80e-2
+  小两个数量级），kp=150 时第 ~21 步就报
+  `Nan, Inf or huge value in QACC at DOF 5`（DOF 5 = `right_ankle_joint`）。
+- **救活它的是积分器，不是 `armature`**。分离两者：
+
+  | 积分器 | armature | `max\|qvel\|` |
+  |---|---|---|
+  | `euler` | 无 | 3.11e+00 |
+  | `euler` | +J3507 | 9.80e+00（**更差**） |
+  | `implicitfast` | 无 | 6.3e-11 |
+  | `implicitfast` | +J3507 | 3.1e-11 |
+
+  mjlab 默认就是 `implicitfast`（`src/mjlab/sim/sim.py:103`），v03 任务没覆盖它
+  —— **这个坑在训练里一直是被默认值挡掉的**，我从没真正踩到，却在文档里
+  写了一条错的归因。
+
+`armature` 的真实作用是**物理保真度**：`ARMATURE_J3507 = 6.69e-6 × 21² = 2.95e-3`，
+是踝关节连杆惯量的 **32 倍**（真机上转子反射惯量本来就该主导这个关节），
+刚度 `kp` 也是从它按 `STIFFNESS = ARMATURE × ω²` 反推的。
+
+**改动**：`diag_v03_stability.py` 加了一组「euler × implicitfast」对照
+（`trial()` 新增 `integrator=` 参数），让结论能被脚本本身复现而不是靠我敲的
+一次性命令；docstring 改成正确结论并保留原错误假设作为教训；脚本进库。
+详细写入 [01-model-conversion.md](01-model-conversion.md) 坑 5。
+
+> 教训跟 §5.8 那次是同一个：**先跑最小复现，再写归因**。
+> 这次错得更隐蔽 —— 错误结论从没被现实反驳过，因为真正生效的是别人设的默认值。
