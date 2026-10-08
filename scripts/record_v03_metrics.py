@@ -158,6 +158,51 @@ def record_clip(
     env.close()
 
 
+# dashboard 契约里、本任务应当录到的 8 族关节列。缺任何一族都说明
+# cfg.metrics 没挂上（不是「这族本来就没有」），要立刻报出来。
+_EXPECTED_FAMILIES = (
+  "joint_position_rad/",
+  "joint_target_rad/",
+  "joint_velocity_rad_s/",
+  "joint_torque_nm/",
+  "joint_torque_ratio/",
+  "joint_velocity_ratio/",
+  "joint_accel_rad_s2/",
+  "joint_power_w/",
+)
+
+
+def check_columns(rec: dict) -> str | None:
+  """扫一遍刚写出的 CSV，把**整列全空/全 NaN** 与**缺族**的指标报出来。
+
+  为什么值得单独一步：一个写错的指标函数（取错字段、形状不对）不会让录制
+  崩掉，只会安静地写一整列 ``nan``；而一个没挂上的指标干脆连列都不出现。
+  两种都不会让脚本报错，却都会让这份 CSV 被当成「有效数据」一路送进报告。
+  这里在**写完之后立刻**自检，把问题暴露在终端里。
+
+  返回一句警告（没问题则 None）。
+  """
+  with rec["path"].open(encoding="utf-8") as f:
+    rows = list(csv.DictReader(f))
+  if not rows:
+    return f"{rec['clip']}: CSV 没有数据行"
+  bad: list[str] = []
+  for name in rec["metric_names"]:
+    vals = [r.get(name) for r in rows]
+    if all(v in (None, "", "nan") for v in vals):
+      bad.append(name)
+  missing = [
+    p for p in _EXPECTED_FAMILIES if not any(n.startswith(p) for n in rec["metric_names"])
+  ]
+  msgs = []
+  if bad:
+    head = ", ".join(bad[:6]) + (" …" if len(bad) > 6 else "")
+    msgs.append(f"{len(bad)} 列整列无值 —— {head}")
+  if missing:
+    msgs.append(f"缺 {len(missing)} 族 —— {', '.join(missing)}")
+  return f"{rec['clip']}: " + "；".join(msgs) if msgs else None
+
+
 def summarize(rec: dict) -> str:
   """从刚写出的 CSV 里算该档的追踪摘要（不看奖励，只看物理量）。"""
   with rec["path"].open(encoding="utf-8") as f:
@@ -231,6 +276,9 @@ def main() -> int:
     print(f"[record_v03_metrics] {summarize(rec)}  "
           f"({rec['path'].name}, {rec['path'].stat().st_size // 1024} KiB, "
           f"{time.time() - t0:.1f}s)", flush=True)
+    warn = check_columns(rec)
+    if warn:
+      print(f"[record_v03_metrics] ⚠️ 空列告警 {warn}", flush=True)
 
   print(f"\n[record_v03_metrics] 完成 {len(results)} 档 -> {out_dir}")
 

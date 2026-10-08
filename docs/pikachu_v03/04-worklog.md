@@ -1115,3 +1115,193 @@ r05 把左腿松回了（−0.0612），右腿还在限位上。
 门控后它是唯一携带该项的 env，值得多给样本（代价是 yaw 暴露面
 23.75% → 22.5%，可忽略）。r06 先不动它，是为了**保持归因干净** ——
 这轮只改一个东西。
+
+---
+
+## 2026-10-09 · 交付工具链：把「速度追踪」这条主线补进 metrics CSV
+
+### 起因：dashboard 的列契约里没有「追踪精度」
+
+报告要回答的核心问题是「速度跟得准不准」，但
+`scripts/plot_logs/metrics_csv_dashboard.html` 的列契约（`META_COLUMNS` +
+`PREFIXES`）只认**关节与基座**那几族：
+
+```
+joint_position_rad/  joint_target_rad/  joint_velocity_rad_s/  joint_torque_nm/
+joint_torque_ratio/  joint_velocity_ratio/  joint_accel_rad_s2/
+joint_inertia_torque_nm/  joint_power_w/
+```
+
+命令 vs 实测**一格都没有**。而 `Episode_Reward/track_*` 又不能当进度指标
+（Jensen 不等式，站桩也能拿 72% 的分，见报告 §3.4）—— 所以报告不能只靠
+「关节录进 CSV」这一件事，必须自己补一条主线。
+
+### 补了什么
+
+**1. `tasks/velocity/mdp/metrics.py`（新）—— `vel/` 前缀的 14 项**
+
+| 列 | 含义 |
+|---|---|
+| `vel/cmd_x` `vel/cmd_y` `vel/cmd_yaw` | 命令（base 系，与 `vel_command_b` 同系） |
+| `vel/act_x` `vel/act_y` `vel/act_yaw` | 实测（base 系） |
+| `vel/err_x` `vel/err_y` `vel/err_yaw` | **带符号**误差 = cmd − act |
+| `vel/err_xy_norm` | 平面线速度误差模，与 `Metrics/twist/error_vel_xy` 同口径 |
+| `vel/pos_x_w` `vel/pos_y_w` | 世界系基座坐标 —— 首尾相减即**净位移** |
+| `vel/yaw_w` | 世界系偏航角（解卷绕用） |
+| `vel/standing` | 命令≈0 标志，**就是 `feet_lateral_distance` 门控的逐帧快照** |
+
+前缀刻意选 `vel/`：它**不匹配 dashboard 的任何 prefix**，所以 dashboard
+加载这些 CSV 时会把这几列原样跳过（它的循环是「遍历 prefix，再看 header」），
+不会干扰关节分类，也不会撞上 `joint_*` 的左/右侧识别。
+
+两个口径上的讲究：
+
+- **误差带符号，不取绝对值。** 符号里带着「追不上（负）/ 冲过头（正）」；
+  先取绝对值再平均会把这个信息抹掉。要幅度在分析脚本里取 `abs` 即可。
+- **命令与实测都在 base 系。** `heading_command=True` 时命令第 3 维是
+  「朝向误差 × 刚度」压出来的角速度，只有放在 base 系才和
+  `ang_vel_b[:, 2]` 可比 —— 这与 `UniformVelocityCommand._update_metrics`
+  的口径逐字一致，误差可以直接相减，不需要任何旋转。
+
+**2. `foot_lateral_separation_m`（`pikachu_metrics.py`）**
+
+r05/r06 的整个自变量是「站立时双脚张多开」，但这个量原本只以
+`env.extras["log"]["Metrics/foot_separation"]` 的形式存在，
+而且**只在门控生效时才写** —— CSV 里没有。逐帧录出来之后，报告才能直接看
+「走路时开度是多少」，那正是门控该不该生效的证据。
+
+算法与 `feet_lateral_distance` 逐字相同（base 朝向系下的 `|Δy|`），
+但**刻意分成两份实现**：奖励那条路径是实验的自变量，不想为了出报告去动它。
+
+**3. `scripts/record_v03_metrics.py`（新）**
+
+固定命令的做法与 `record_v03_video.py` / `eval_v03_velocity.py`
+**共用同一份 `CLIPS`**（直接 `import`，不复制），保证三者的档位数字可以
+互相印证：**在构造 env 之前**把 `twist.ranges` 收成一个点 + 所有
+`rel_*_envs` 归零 + `curriculum.pop("command_vel")`。
+观测噪声关掉 —— 报告要报的是**部署时会看到**的精度，不是训练时的带噪条件。
+
+旁挂一份 `metrics_v03_<tag>_index.json`：终止步、步数、检查点这些
+**整档常量**。不写进 CSV 是因为列契约要留给 dashboard，
+而逐行重复 400 遍同一个常量是噪声。
+
+**4. `scripts/v03_velocity_report.py`（新）** —— CSV → HTML → PDF
+
+### 两个实测出来的坑
+
+**坑 1：tensorboard 流式读**比全量读**更慢**，而且取不到值。**
+
+本想「只留 6 个 tag，省掉 114 个」，用
+`EventFileLoader` 逐个事件过滤。实测：
+
+| 做法 | 耗时 | 结果 |
+|---|---|---|
+| `EventFileLoader` 流式过滤 | **122 s** | **0 点** —— `v.HasField("simple_value")` 恒为 False |
+| `EventAccumulator` 全量 `Reload` | **73 s** | 正确（30000 点，末值 0.7206） |
+
+原因：mjlab 写的是 **tensor proto** 不是 `simple_value`；而 r04 有
+**348 万个事件**，逐个 Python 迭代本身的开销就超过了 Accumulator 的
+批量解析。所以用 Accumulator，代价靠 **JSON 缓存**摊掉 —— 第二次出报告
+是毫秒级。
+
+> 教训与坑 4 同源：**「省一点」的直觉要先量一遍**。流式过滤看起来更省，
+> 实际两个维度都更差。
+
+**坑 2：宽表在 A4 竖版里会裂行。**
+
+10~11 列的表在 12 mm 页边距下，「跟踪比」被折成「跟踪 / 比」，
+「前进 0.40」被折成两行 —— 比缩小字号更难读。修法是给宽表单独一档
+（`table.wide`：10.5px + 全部 `white-space:nowrap`），让列自己撑开，
+同时把数字写成紧凑形 `+0.40/+0.00/+0.00`（去掉斜杠两侧空格）。
+
+### 本机 HTML→PDF 通路
+
+`weasyprint` / `wkhtmltopdf` / `pandoc` **都没有**，`reportlab` 也没有。
+装好的是 **`google-chrome`**：
+
+```bash
+google-chrome --headless=new --disable-gpu --no-sandbox \
+  --no-pdf-header-footer --print-to-pdf=out.pdf file:///abs/path.html
+```
+
+`--no-pdf-header-footer` 是必须的 —— 默认页眉页脚会印出 `file://` 路径和日期。
+图表用 matplotlib 渲成 PNG 后 base64 内联，报告因此**零外部依赖、零网络**，
+换台机器打开也一样。
+
+中文字体走 `Noto Sans CJK JP`（本机 matplotlib 可见，覆盖汉字），
+回退 `Droid Sans Fallback`；`axes.unicode_minus=False` 否则负号是方框。
+
+### 补记：用「合成夹具」在烧 GPU 之前把链路验完
+
+`record_v03_metrics.py` 从写下到第一次真跑，中间隔着一段**不能碰仿真**的
+时间（训练占着内存，见坑 3）。而它是整条交付链的第一环：它写出的列名
+不对，后面 HTML / PDF 全白做。
+
+所以在等训练的空档里造了一份**列名与真实录制器逐字一致**的合成 CSV
+（`/tmp/make_v03_fixture.py`）：5 个基数列 + 6 个标量 + **10 个 v03 驱动关节
+× 6 族** + 14 个 `vel/` 列 = **85 列**，六个档位各 400 行，数值按 r04 的
+已知追踪比（前进 0.99 / 后退 0.81 / 侧移 0.26）捏出来。
+
+拿它跑 `v03_velocity_report.py --no-curves`：8 页 PDF、中文正常、
+§1–§6 全部有内容、`velocity_stages` 课程表正确导出、关节表用
+`L·hip_pitch` 这种短标签。
+
+**这一步抓不到的东西要说清楚**：它只能证明「列名对得上、渲染不炸」，
+证明不了「数值算得对」—— 夹具的数值是我自己按预期写的。所以真跑之后
+仍要用真实 CSV 复核一遍 §1 的追踪比是否与 `eval_v03_velocity.py`
+（另一套独立实现）对得上。
+
+> 教训：**契约类的 bug 不必用真数据才发现**。列名、单位、前缀归属这些
+> 都是纯字符串契约，合成一份就能验；把真数据留给「算得对不对」。
+
+### 空窗利用：测试段结束 → 全量训练开始，这 10 分钟是独占的
+
+r06 测试段（5000 迭代）跑完后要接全量训练（再 25000 迭代，约 6.6 小时）。
+这两个进程之间有一段**没有任何仿真进程**的空窗，而下一段一开始就再也
+录不了东西了。
+
+原计划只在这段里跑一个 3 秒 × 6 档的**探针**验证录制器。改成把三份
+**完整 8 秒 × 6 档**的 metrics 一次录完：
+
+| tag | 检查点 | 用途 |
+|---|---|---|
+| `r04-best` | `v03-flat-r04/model_29999.pt` | 基线：站姿开度 9.23 cm、动态好 |
+| `r05-15000` | `v03-flat-r05/model_15000.pt` | 无门控版：开度修好但动态垮 |
+| `r06-test` | `v03-flat-r06/model_34999.pt` | 本次测试段：加门控 |
+
+外加用 `r06-test` 直接生成一份**真数据**的 HTML+PDF —— 此时训练还没起，
+chrome 的内存开销是安全的。这样即使 6.6 小时后的收尾出岔子，
+交付目录里也已经躺着一份跑通的报告。
+
+每份录制都用 `timeout` 包住且**失败不阻断**：录制器和训练互不依赖，
+不该为了一份 CSV 丢掉 6.6 小时训练窗口。
+
+### 补记：把 dashboard 认的 9 族列补齐到 8 族（加速度 + 功率）
+
+上面那份契约里有 **9 族**关节列，而 `add_pikachu_telemetry_metrics` 原本只录
+**6 族**。差的正是 `joint_accel_rad_s2/`、`joint_inertia_torque_nm/`、
+`joint_power_w/` —— dashboard 画得出来，但 mjlab 的 `envs.mdp` 里
+**压根没有对应函数**（只有 `joint_position` / `joint_velocity` / `joint_torque`
+/ `root_height` / `mean_action_acc`）。
+
+补了两族进 `envs/mdp/metrics.py`：
+
+- `joint_acceleration` = `data.joint_acc`（MuJoCo 的 `qacc`）。对并联四杆膝
+  这点很重要：`qacc` 是**含约束力与接触力**的步后加速度，是物理上有意义的
+  那个数，而不是「指令角度的变化率」。
+- `joint_power` = `qfrc_actuator × qvel`，带符号（驱动为正、制动为负）。
+
+**为什么功率值得单独一列**：前面所有指标回答的都是「跟得准不准 / 电机够不够」，
+只有功率峰值直接回答**「这台机器能不能上实机」** —— 选电池、选驱动看的就是它。
+峰值与均值并排画（均值反映发热，峰值反映选型）。
+
+**第三族 `joint_inertia_torque_nm/` 故意不录**：它要 `M(q)·q̈`，也就是每个控制步
+为每个 env 算一次完整质量矩阵（`mj_fullM`）。2048 env × 25000 迭代下这个开销
+是实打实的，而它承载的信息（惯性项占多少）基本能从扭矩与加速度两条曲线推出来。
+这是**写进报告 §8 的已知缺口**，不是悄悄省掉 —— 「无声的裁剪会被读成『全覆盖』」。
+
+顺带把 §4 拆成两张 6 列表（运动学 / 负载与功率）：13 列的表在 A4 竖版里会裂行，
+和坑 2 同源。原来表里的「速度额定」「扭矩额定」两列被删掉了 —— 它们是常量，
+写在 `03-task-design.md §2` 的电机分组表里，表内只需由「峰值 ÷ 占用率」自洽校验。
+
+列数：**5 + 101 = 106**（原来 85）。

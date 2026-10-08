@@ -206,7 +206,9 @@ def analyze_joints(clips: dict[str, dict[str, np.ndarray]]) -> list[dict]:
     pos_lo = pos_hi = float("nan")
     peak_v = peak_t = 0.0
     peak_vr = peak_tr = 0.0
+    peak_p = peak_a = 0.0
     mean_abs_t: list[float] = []
+    mean_abs_p: list[float] = []
     for c in clips.values():
       p = c.get(f"joint_position_rad/{j}")
       if p is not None and p.size:
@@ -228,6 +230,14 @@ def analyze_joints(clips: dict[str, dict[str, np.ndarray]]) -> list[dict]:
       x = c.get(f"joint_torque_ratio/{j}")
       if x is not None and x.size:
         peak_tr = max(peak_tr, float(np.nanmax(np.abs(x))))
+      # 机械功率：峰值是选电池/选驱动的依据，均值反映发热。
+      x = c.get(f"joint_power_w/{j}")
+      if x is not None and x.size:
+        peak_p = max(peak_p, float(np.nanmax(np.abs(x))))
+        mean_abs_p.append(float(np.nanmean(np.abs(x))))
+      x = c.get(f"joint_accel_rad_s2/{j}")
+      if x is not None and x.size:
+        peak_a = max(peak_a, float(np.nanmax(np.abs(x))))
 
     # 从占用比反推电机限值：ratio = 实测 / 限值，两个口径应当自洽。
     v_limit = peak_v / peak_vr if peak_vr > 1e-9 else float("nan")
@@ -247,6 +257,9 @@ def analyze_joints(clips: dict[str, dict[str, np.ndarray]]) -> list[dict]:
         peak_t_ratio=peak_tr,
         t_limit=t_limit,
         mean_abs_t=float(np.mean(mean_abs_t)) if mean_abs_t else float("nan"),
+        peak_p=peak_p if mean_abs_p else float("nan"),
+        mean_abs_p=float(np.mean(mean_abs_p)) if mean_abs_p else float("nan"),
+        peak_a=peak_a,
       )
     )
   return rows
@@ -312,10 +325,10 @@ def chart_separation(clips: dict[str, dict[str, np.ndarray]]) -> str | None:
 
 
 def chart_joints(jrows: list[dict]) -> str:
-  """关节 ROM + 峰值占用率两张横条图。"""
+  """关节 ROM + 峰值占用率 + 机械功率三张横条图。"""
   names = [f"{r['side']}·{r['short']}" for r in jrows]
   y = np.arange(len(jrows))
-  fig, axes = plt.subplots(1, 3, figsize=(11.5, 4.2))
+  fig, axes = plt.subplots(1, 4, figsize=(13.0, 4.2))
 
   ax = axes[0]
   lo = [r["pos_lo_rad"] * 180 / math.pi for r in jrows]
@@ -345,6 +358,19 @@ def chart_joints(jrows: list[dict]) -> str:
   ax.set_xlabel("峰值角速度 / 额定", fontsize=8)
   ax.set_title("速度占用率", fontsize=9)
   ax.grid(alpha=0.25, lw=0.5, axis="x")
+  ax.tick_params(labelsize=7)
+
+  # 机械功率：选电池/选驱动的依据。峰值（实心）与均值（描边）并排。
+  ax = axes[3]
+  ax.barh(y + 0.18, [r["peak_p"] for r in jrows], height=0.34,
+          color="#198754", alpha=0.9, label="峰值")
+  ax.barh(y - 0.18, [r["mean_abs_p"] for r in jrows], height=0.34,
+          color="#198754", alpha=0.35, label="均值")
+  ax.set_yticks(y, ["" for _ in jrows])
+  ax.set_xlabel("|机械功率| (W)", fontsize=8)
+  ax.set_title("关节功率", fontsize=9)
+  ax.grid(alpha=0.25, lw=0.5, axis="x")
+  ax.legend(fontsize=7)
   ax.tick_params(labelsize=7)
 
   fig.suptitle("逐关节负载（所有档位的最大值）", fontsize=10, y=1.02)
@@ -746,31 +772,45 @@ def build_html(
   P.append(
     "<p>峰值取<strong>所有档位的最大值</strong>（报告要回答的是「电机够不够用」，"
     "所以看最恶劣的那一帧）。占用率 = 实测 / 电机额定，"
-    "<strong>&gt; 1.0 表示该帧超规格</strong>。</p>"
+    "<strong>&gt; 1.0 表示该帧超规格</strong>。"
+    "额定值（速度 / 扭矩）是常量，写在 "
+    "<a href='../03-task-design.md'>03-task-design.md §2</a> 的电机分组表里，"
+    "表内不再重复，只由「峰值 ÷ 占用率」自洽校验。</p>"
+    "<p>拆成两张表是为了排得下：13 列的表在 A4 竖版里会裂行。</p>"
   )
-  jrows_html = []
+  kin_rows = []
+  load_rows = []
   for r in jrows:
-    jrows_html.append([
-      f"{r['side']} {esc(r['short'])}",
+    label = f"{r['side']} {esc(r['short'])}"
+    kin_rows.append([
+      label,
       f"{r['pos_lo_rad']:+.3f} … {r['pos_hi_rad']:+.3f}",
       fmt(r["rom_deg"], 1),
       fmt(r["peak_v"], 2),
       f"<span class='{cls_for_ratio(r['peak_v_ratio'])}'>{fmt(r['peak_v_ratio'], 2)}</span>",
-      fmt(r["v_limit"], 1),
+      fmt(r["peak_a"], 1),
+    ])
+    load_rows.append([
+      label,
       fmt(r["peak_t"], 2),
       f"<span class='{cls_for_ratio(r['peak_t_ratio'])}'>{fmt(r['peak_t_ratio'], 2)}</span>",
-      fmt(r["t_limit"], 1),
       fmt(r["mean_abs_t"], 2),
+      fmt(r["peak_p"], 2),
+      fmt(r["mean_abs_p"], 2),
     ])
+  P.append("<h3>4.1 运动学</h3>")
   P.append(table(
-    ["关节", "位置范围 (rad)", "ROM (°)", "峰值速度 (rad/s)", "速度占用",
-     "速度额定", "峰值扭矩 (N·m)", "扭矩占用", "扭矩额定", "均|扭矩| (N·m)"],
-    jrows_html,
-    table_class="wide",
+    ["关节", "位置范围 (rad)", "ROM (°)", "峰值速度 (rad/s)", "速度占用", "峰值加速度 (rad/s²)"],
+    kin_rows,
+  ))
+  P.append("<h3>4.2 负载与功率</h3>")
+  P.append(table(
+    ["关节", "峰值扭矩 (N·m)", "扭矩占用", "均|扭矩| (N·m)", "峰值功率 (W)", "均|功率| (W)"],
+    load_rows,
   ))
   if charts.get("joints"):
     P.append(f"<figure><img src='{charts['joints']}' alt='关节负载'>"
-             f"<figcaption>逐关节活动范围与电机占用率</figcaption></figure>")
+             f"<figcaption>逐关节活动范围、电机占用率与机械功率</figcaption></figure>")
 
   # ---- §5 训练曲线 ----
   P.append("<h2>5. 训练曲线对比</h2>")
@@ -855,10 +895,17 @@ def build_html(
   P.append(
     "<ul>"
     "<li><code>time_s</code> 必须存在且<strong>单调递增</strong>（dashboard 会校验）；</li>"
-    "<li>指标列按前缀被 dashboard 归类：<code>joint_position_rad/</code>、"
+    "<li>指标列按前缀被 dashboard 归类，本报告录了其中 8 族："
+    "<code>joint_position_rad/</code>、"
     "<code>joint_target_rad/</code>、<code>joint_velocity_rad_s/</code>、"
     "<code>joint_torque_nm/</code>、<code>joint_torque_ratio/</code>、"
-    "<code>joint_velocity_ratio/</code>；</li>"
+    "<code>joint_velocity_ratio/</code>、<code>joint_accel_rad_s2/</code>、"
+    "<code>joint_power_w/</code>；</li>"
+    "<li>dashboard 还认第 9 族 <code>joint_inertia_torque_nm/</code>，"
+    "<strong>本报告故意没录</strong>：它要每个控制步为每个 env 算一次完整质量矩阵"
+    "（<code>mj_fullM</code>），2048 env × 25000 迭代下开销实打实，"
+    "而它承载的信息基本能从扭矩与加速度两条曲线推出来。"
+    "这是<strong>已知的缺口</strong>，不是遗漏。</li>"
     "<li><code>vel/</code> 开头的列是<strong>本报告专用的速度追踪主线</strong>"
     "（<code>vel/cmd_*</code> 命令、<code>vel/act_*</code> 实测、"
     "<code>vel/err_*</code> 带符号误差、<code>vel/pos_*_w</code> 世界坐标、"

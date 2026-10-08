@@ -48,6 +48,29 @@ actuator_groups=PIKACHU_V03_ACTUATOR_GROUPS)` —— `pikachu_metrics.py` 已参
 `knee` / `knee_mid`** —— 它们的「目标值」由四杆约束决定，不由策略决定，
 进超规格统计没有意义。
 
+### 遥测列（交付给 `scripts/plot_logs/metrics_csv_dashboard.html`）
+
+逐关节录 **8 族**（`record_v03_metrics.py` 写出的 CSV 共 `5 + 101 = 106` 列）：
+
+| 族 | 前缀 | 来源 |
+|---|---|---|
+| 位置 | `joint_position_rad/` | `envs.mdp.joint_position` |
+| 目标 | `joint_target_rad/` | `pikachu_metrics.joint_target`（内环 PD 设定值） |
+| 速度 | `joint_velocity_rad_s/` | `envs.mdp.joint_velocity` |
+| 扭矩 | `joint_torque_nm/` | `envs.mdp.joint_torque`（`qfrc_actuator`） |
+| 扭矩占用 | `joint_torque_ratio/` | 实测 ÷ 电机力矩上限 |
+| 速度占用 | `joint_velocity_ratio/` | 实测 ÷ 电机速度上限 |
+| 加速度 | `joint_accel_rad_s2/` | `envs.mdp.joint_acceleration`（`qacc`，含约束/接触力） |
+| 功率 | `joint_power_w/` | `envs.mdp.joint_power`（`qfrc_actuator × qvel`，带符号） |
+
+dashboard 契约里的第 9 族 `joint_inertia_torque_nm/` **故意不录**：需要每个控制步
+每个 env 算一次完整质量矩阵（`mj_fullM`），2048 env × 25000 迭代下
+开销实打实，而信息基本能从扭矩 + 加速度两条曲线推出。见
+[04-worklog.md](04-worklog.md) 的「把 dashboard 认的 9 族列补齐到 8 族」。
+
+另外还有一条 dashboard **不认**的主线 `vel/`（14 列，命令/实测/误差/世界坐标/
+门控快照），供速度追踪报告使用；dashboard 会原样忽略它，两者互不干扰。
+
 ---
 
 ## 3 · 命令空间

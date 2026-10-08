@@ -323,6 +323,26 @@ def add_pikachu_telemetry_metrics(
       params={"asset_cfg": asset_cfg, "velocity_limit": velocity_limit},
       reduce="max_abs",
     )
+    # 加速度与机械功率：dashboard（plot_logs/metrics_csv_dashboard.html）的
+    # PREFIXES 里本来就有这两族，但 mjlab 的 envs.mdp 之前没提供对应函数。
+    # 补上之后 CSV 在 dashboard 里能多出两张图，而且**功率峰值是「能不能上
+    # 实机」唯一直接的答案**（选电池/选驱动看的就是它）。
+    # 代价极低：都是逐关节的一次张量乘/取列，与 2048 个 env 的物理步相比可忽略。
+    #
+    # ⚠️ dashboard 还认第三族 ``joint_inertia_torque_nm/``，这里**故意不录**：
+    # 它要 M(q)·q̈，也就是每个控制步为每个 env 算一次完整质量矩阵（mj_fullM）。
+    # 2048 个 env × 25000 迭代下这个开销是实打实的，而它承载的信息
+    # （惯性项占多少）基本能从 torque 与 accel 两条曲线推出来。
+    cfg.metrics[f"joint_accel_rad_s2/{joint_name}"] = MetricsTermCfg(
+      func=envs_mdp.joint_acceleration,
+      params={"asset_cfg": asset_cfg},
+      reduce="max_abs",
+    )
+    cfg.metrics[f"joint_power_w/{joint_name}"] = MetricsTermCfg(
+      func=envs_mdp.joint_power,
+      params={"asset_cfg": asset_cfg},
+      reduce="max_abs",
+    )
 
   # 全关节超规格占比：任一关节扭矩或角速度超 spec 的步数占比（0~1）。
   cfg.metrics["actuator_spec_violation"] = MetricsTermCfg(

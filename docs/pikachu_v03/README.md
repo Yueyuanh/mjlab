@@ -15,8 +15,9 @@ Pikachu **v03**（并联四杆膝，10 驱动关节 / 14 关节）在 mjlab 上�
 | [02-stand-keyframe.md](02-stand-keyframe.md) | 站立 keyframe 标定：从「脚在髋下」到「质心在脚心上方」 |
 | [03-task-design.md](03-task-design.md) | velocity 任务设计：动作缩放、奖励、命令空间、课程 |
 | [04-worklog.md](04-worklog.md) | 工作日志（按时间**正序**；被推翻的结论保留原文并就地标注） |
-| [reports/](reports/) | 训练报告 + [曲线文本快照](reports/training-curve.md) |
+| [reports/](reports/) | 训练报告 + [曲线文本快照](reports/training-curve.md) + [速度追踪报告](reports/velocity-report.html)（HTML/PDF） |
 | [videos/](videos/) | 720P 跟踪相机录像（r04-best / r05-15000 / r01-before 三组） |
+| [metrics/](metrics/) | 逐档逐关节 metrics CSV（dashboard 可直接加载） |
 
 ## 快速上手
 
@@ -54,6 +55,17 @@ uv run python scripts/eval_v03_velocity.py \
 uv run python scripts/record_v03_video.py \
   --checkpoint logs/rsl_rl/pikachu_v03_velocity/<run>/model_2500.pt \
   --out docs/pikachu_v03/videos --tag <run> --clips stand,fwd,back,lat,turn
+
+# 逐档逐关节遥测 -> CSV（列契约与 plot_logs dashboard 一致，可直接拖进去看）
+uv run python scripts/record_v03_metrics.py \
+  --checkpoint logs/rsl_rl/pikachu_v03_velocity/<run>/model_29999.pt \
+  --out docs/pikachu_v03/metrics --tag <run> --seconds 8
+
+# CSV -> HTML 报告 + PDF（headless Chrome；图表 base64 内联，零外部依赖）
+uv run python scripts/v03_velocity_report.py \
+  --metrics-dir docs/pikachu_v03/metrics --tag <run> \
+  --checkpoint logs/rsl_rl/pikachu_v03_velocity/<run>/model_29999.pt \
+  --out docs/pikachu_v03/reports/velocity-report.html
 ```
 
 ## 关键常量速查

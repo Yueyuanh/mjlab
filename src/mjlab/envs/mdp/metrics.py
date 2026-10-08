@@ -58,6 +58,37 @@ def joint_torque(
   return _single_joint_value(asset.data.qfrc_actuator, asset_cfg, "joint_torque")
 
 
+def joint_acceleration(
+  env: ManagerBasedRlEnv,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  """Return one joint's signed acceleration in radians per second squared.
+
+  ``qacc`` is MuJoCo's post-step joint acceleration, i.e. the value that already
+  includes constraint and contact forces -- for a parallel-linkage knee that is
+  the physically meaningful number, not the actuator's commanded rate of change.
+  """
+  asset: Entity = env.scene[asset_cfg.name]
+  return _single_joint_value(asset.data.joint_acc, asset_cfg, "joint_acceleration")
+
+
+def joint_power(
+  env: ManagerBasedRlEnv,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  """Return one joint's signed mechanical power in watts.
+
+  ``qfrc_actuator * qvel``: positive while the actuator drives the joint in the
+  direction it is already moving, negative while it brakes. The peak of this
+  quantity over a gait cycle is what sizes the battery and the driver, so it is
+  the one telemetry channel that answers "can this run on the real robot".
+  """
+  asset: Entity = env.scene[asset_cfg.name]
+  torque = _single_joint_value(asset.data.qfrc_actuator, asset_cfg, "joint_power")
+  velocity = _single_joint_value(asset.data.joint_vel, asset_cfg, "joint_power")
+  return torque * velocity
+
+
 def root_height(
   env: ManagerBasedRlEnv,
   asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
