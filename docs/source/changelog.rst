@@ -31,21 +31,24 @@ Added
   while the snapped command gives 0.172 m/s over 0.130 m. A checkbox disables
   snapping for side-by-side comparison, and the panel always shows both the
   requested and the executed command.
-- Added a **direction pad** to the ``play --viewer velocity-joystick`` panel:
-  three rows of arrow buttons (a 3x3 pad) that set ``(vx, vy)`` to the measured
-  command of a real reference in that direction, plus a row of turn buttons for
-  ``wz``. The three sliders stay — they are the only way to request an
-  in-between command. Each key's target is read out of the library's own
-  ``clip_command`` rather than hard-coded, and the key picks the clip whose
-  **heading** is closest to the direction rather than the largest projection:
-  the library's straight-ahead clips measure 0.189 m/s against 0.133 m/s for
-  the diagonals, so a projection match sends forward-left to the straight-ahead
-  clip. A draggable analogue stick is not possible — viser 1.0.27 has no 2D pad
-  widget and no custom-component API, and JS injected into the client has no
-  back-channel (the websocket lives in a Web Worker and speaks msgpack). It
-  would also add nothing: with snapping on (the default) every command
-  collapses onto the same 25 discrete references, which the eight directions
-  plus centre already cover.
+- Added a **2D joystick** to the ``play --viewer velocity-joystick`` panel,
+  replacing the previous direction pad. It is a circle with a knob that can be
+  dragged in any direction, drawn as an SVG injected into the panel with
+  ``RunJavascriptMessage`` — viser 1.0.27 has no 2D pad widget and no
+  custom-component API. The outer ring is each axis' maximum command (the
+  fastest reference in the library, read from ``clip_command`` rather than
+  hard-coded), the dashed inner circle is a dead zone (inside it the command is
+  exactly zero), and pushing past the ring clips to the maximum. The three
+  sliders stay, and remain the only way to request an in-between command; the
+  knob writes to them by dispatching synthetic mouse events, so the joystick
+  and the sliders always carry the same command. The ``wz`` button group
+  (left / stop / right) is unchanged. Both axes are emitted one per client
+  throttle window: the client's GUI updates pass through a **shared** 50 ms
+  leading/trailing throttle with a single ``latestMessage`` slot, so updating
+  two sliders back to back silently drops one of them (measured: the slider
+  read 0 while Python still held the first drag step's 0.13). Alternating the
+  axes 55 ms apart keeps each message first in its own window, at the cost of
+  ~110 ms per axis.
 - Added ``play --weld``: constructs a **true rigid monolith** for the most basic
   static standing on GPU/warp. The scene MjSpec has every internal hinge/ball
   joint replaced by an ``mjEQ_WELD`` equality and all actuators removed, yielding

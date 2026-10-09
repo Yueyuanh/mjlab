@@ -8,10 +8,10 @@
 tracking 任务的 ``MotionCommand.create_gui``(``tracking/mdp/commands.py``)只提供
 "拖帧"控件,没有速度摇杆,本文件补上这一块。
 
-面板上有两套等价控件:**方向键摇杆**(点一下 = 发一条真实参考的命令)与
-**三根滑条**(连续取值)。滑条保留是因为要能试"格与格之间"的命令;摇杆更好用
-是因为吸附开启时(默认)连续取值最终也会落到那 25 条离散参考上,点方向键与拖
-滑条到格心完全等价。为什么不做可拖的模拟摇杆见 ``_add_pad_gui``。
+面板上有两套控件:**二维摇杆**(中间一个圆点,可全向拖)与**三根滑条**。两者写
+的是同一个命令 —— 摇杆拖动时是**对着滑条**派发合成鼠标事件(见 ``_add_pad_gui``),
+所以命令与滑条永远一致,滑条也能反过来当微调。摇杆的外圈 = 该轴的最大命令(库内
+最快的那条参考),小圈 = 死区(圈内命令为 0),打到圈外一律裁到最大。
 
 三个必须处理的点
 ----------------
@@ -48,9 +48,11 @@ tracking 任务的 ``MotionCommand.create_gui``(``tracking/mdp/commands.py``)只
 
 from __future__ import annotations
 
+import json
 from typing import Any, cast
 
 import torch
+from viser import _messages
 
 from mjlab.tasks.tracking.mdp.multi_motion import MultiMotionLoader
 from mjlab.tasks.tracking.mdp.velocity_match import VelocityMatchMotionCommand
@@ -59,38 +61,337 @@ from mjlab.viewer.viser.viewer import ViserPlayViewer
 # 滑条范围在库跨度上的外扩系数 —— 留一点余量,好让用户试到"格与格之间"。
 _SLIDER_MARGIN = 1.05
 
-# 摇杆键位(3x3)与每个方向在 (vx, vy) 平面上的朝向。约定 y 轴正向是机器人
-# **左侧**(x 前 / y 左 / z 上,右手系),与 npz 里 command 字段的约定一致。
-_PAD_ROWS: tuple[tuple[str, ...], ...] = (
-  ("↖", "↑", "↗"),
-  ("←", "■", "→"),
-  ("↙", "↓", "↘"),
-)
-_PAD_CENTER = "■"
-_PAD_XY: dict[str, tuple[float, float]] = {
-  "↑": (1.0, 0.0),
-  "↓": (-1.0, 0.0),
-  "←": (0.0, 1.0),
-  "→": (0.0, -1.0),
-  "↖": (1.0, 1.0),
-  "↗": (1.0, -1.0),
-  "↙": (-1.0, 1.0),
-  "↘": (-1.0, -1.0),
-}
+# 滑条步长。摇杆也走滑条,所以这也是摇杆的分辨率 —— 对本库够用,学生本来就只在
+# 25 条离散参考上训练过(见模块 docstring 第 4 点)。
+_SLIDER_STEP = 0.01
 
-# 转向键。左转 = wz 正(npz 约定)。
+# 摇杆容器在页面里的 id:``add_html`` 建出这个空壳,注入的脚本往里画 SVG。
+_PAD_ID = "pikachu-joy-pad"
+
+# 死区(面板上那个小圈)半径,占摇杆最大行程的比例。圈内命令为 0,圈外按
+# ``(mag - dead) / (1 - dead)`` 重标到 0..1,这样出圈时命令是连续的。
+_PAD_DEADZONE = 0.16
+
+# 转向键。左转 = wz 正(npz 约定)。转向与平移互不影响,所以单独一组按钮。
 _TURN_LEFT = "⟲ 左转"
 _TURN_STOP = "■ 停"
 _TURN_RIGHT = "⟳ 右转"
 _TURN_OPTIONS = (_TURN_LEFT, _TURN_STOP, _TURN_RIGHT)
 
-# 判定"这条参考基本不转 / 基本不平移"的阈值 —— 摇杆选参考时用,见 _pad_table。
+# 判定"这条参考基本不转 / 基本不平移"的阈值 —— 选转向档时用,见 _turn_table。
 _PAD_STILL_WZ = 0.05  # rad/s
 _PAD_STILL_V = 0.05  # m/s
-# 方向键只在"速度 ≥ 库内最大速度的这么多倍"的参考里挑,免得选到近静止档的噪声朝向。
-_PAD_MIN_SPEED_RATIO = 0.5
-# 选中的参考与目标方向的夹角必须小于 60°(cos > 0.5),否则该键留空。
-_PAD_MIN_ALIGN = 0.5
+
+# 摇杆空壳。注入脚本会用 SVG 覆盖里面的内容;脚本没跑起来时这行提示就是兜底。
+_PAD_HTML = (
+  f"<div id='{_PAD_ID}' style='padding:0 1em 0.4em;'>"
+  "<div style='font-size:0.78em;line-height:1.35;opacity:0.7;'>"
+  "摇杆加载中…(若一直是这一行,说明浏览器没有执行注入脚本;下面的滑条仍可用)"
+  "</div></div>"
+)
+
+_PAD_HINT_HTML = (
+  "<div style='font-size:0.78em;line-height:1.35;opacity:0.75;"
+  "padding:0 1em 0.5em;'>"
+  "拖圆点发命令:上=前进,下=后退,左=向左平移,右=向右平移。<br/>"
+  "打到外圈 = 该轴最大命令(库内最快的那条参考),小圈内是死区(命令 0)。<br/>"
+  "双击摇杆回中;松手后命令保持。转向键只改 wz,与平移互不影响。"
+  "</div>"
+)
+
+# 摇杆脚本。经 ``RunJavascriptMessage`` 注入到页面主线程 —— 这正是 viser 自己发
+# plotly.min.js 用的那条通道(``viser/_gui_api.py``)。脚本自己会重试挂载(见
+# ``mount``/``WATCHDOG_MS``):客户端连上来时面板 DOM 可能还没渲染完。
+_PAD_JS = """
+(function () {
+  "use strict";
+  var CFG = __CFG__;
+  // 盘面几何,单位就是 SVG 的 viewBox 坐标(0..S)。
+  var S = 200, C = 100, R = 78, KNOB_R = 16;
+  var DR = R * CFG.dead;
+  var WATCHDOG_MS = 400;
+  // 每根轴最快多久发一次。见 tick() 的注释 —— 必须大于 viser 的 50ms 节流窗口。
+  var SEND_MS = 55;
+
+  var state = {
+    host: null, svg: null, knob: null, readout: null,
+    dragging: false, nx: 0, ny: 0,
+    target: {}, sent: {}, order: 0
+  };
+
+  function norm(s) {
+    return String(s == null ? "" : s).replace(/\\s+/g, " ").trim();
+  }
+
+  // 用 <label> 的 for 反查滑条根节点:viser 的 handle 不暴露 uuid,但 DOM 里
+  // LabeledInput 就是这么把标签与控件关联起来的。
+  function findSlider(label) {
+    var labels = document.querySelectorAll("label");
+    for (var i = 0; i < labels.length; i++) {
+      if (norm(labels[i].textContent).indexOf(label) === 0) {
+        var id = labels[i].getAttribute("for");
+        if (id) {
+          var el = document.getElementById(id);
+          if (el) return el;
+        }
+      }
+    }
+    return null;
+  }
+
+  var rootCache = {};
+  function sliderRoot(axis) {
+    var hit = rootCache[axis.key];
+    if (!hit || !document.contains(hit)) {
+      hit = findSlider(axis.label);
+      rootCache[axis.key] = hit;
+    }
+    return hit;
+  }
+
+  // 读滑条当前值。Mantine 的滑块把值写在 role=slider 的 aria-valuenow 上。
+  function readAxis(axis) {
+    var root = sliderRoot(axis);
+    if (!root) return null;
+    var th = root.querySelector('[role="slider"]');
+    if (!th) return null;
+    var v = parseFloat(th.getAttribute("aria-valuenow"));
+    return isNaN(v) ? null : v;
+  }
+
+  function quant(axis, value) {
+    var step = axis.step > 0 ? axis.step : 1e-6;
+    var q = Math.round(value / step) * step;
+    q = Math.min(Math.max(q, axis.min), axis.max);
+    return Math.round(q * 1e6) / 1e6;
+  }
+
+  // 把 q 写进**真实的滑条**:对着 trackContainer 派发合成 mousedown,再在
+  // document 上补一个 mouseup 收尾。Mantine 的 use-move 只认 MouseEvent
+  // (PointerEvent 派下去值不动),而且没有 input[type=range] 可以走原生 setter。
+  // 绕这一圈是为了复用 viser 支持的更新路径:滑条 onChange -> GuiUpdateMessage
+  // -> Python on_update,于是命令与滑条显示天然同步。
+  function emit(axis, q) {
+    var root = sliderRoot(axis);
+    if (!root) return;
+    var tc = root.querySelector(".mantine-Slider-trackContainer") || root;
+    var r = tc.getBoundingClientRect();
+    if (!(r.width > 0)) return;
+    var f = (q - axis.min) / (axis.max - axis.min);
+    var x = r.left + f * r.width;
+    var y = r.top + r.height / 2;
+    tc.dispatchEvent(new MouseEvent("mousedown",
+      { bubbles: true, cancelable: true, view: window,
+        clientX: x, clientY: y, button: 0, buttons: 1 }));
+    document.dispatchEvent(new MouseEvent("mouseup",
+      { bubbles: true, cancelable: true, view: window,
+        clientX: x, clientY: y, button: 0, buttons: 0 }));
+    state.sent[axis.key] = q;
+  }
+
+  // 一次只发**一根**轴,两根轮流。
+  //
+  // 不能一次把两根都发出去:viser 客户端的 GUI 更新走的是
+  // ``WebsocketUtils.makeThrottledMessageSender``,50ms 节流,而且**整个面板共用
+  // 一个 ``latestMessage`` 槽位**(``ControlPanel/Generated.tsx`` 只建一个 sender
+  // 塞进 context)。窗口内只有第一条会立刻出去、最后一条会在窗口末尾补发,中间的
+  // 全被覆盖 —— 连发两根时必有一根丢。实测:摇杆拖到最左,滑条显示 vx=0,服务端
+  // 的 handle 却还停在拖动第一帧的 0.13。
+  //
+  // 所以这里自己排队:55ms > 50ms,保证每次 emit 都落在一个**空**窗口的第一条上,
+  // 立刻发出去、不参与节流。代价是每根轴约 110ms 更新一次 —— 对速度命令足够。
+  function tick() {
+    var axes = CFG.axes;
+    for (var n = 0; n < axes.length; n++) {
+      var i = (state.order + n) % axes.length;
+      var ax = axes[i];
+      var q = state.target[ax.key];
+      if (q === undefined || q === state.sent[ax.key]) continue;
+      emit(ax, q);
+      state.order = (i + 1) % axes.length;
+      return;
+    }
+  }
+
+  // 盘面坐标 -> 命令。屏幕右 = -vy(y 轴正向是机器人**左侧**),屏幕上 = +vx。
+  function command() {
+    var hyp = Math.sqrt(state.nx * state.nx + state.ny * state.ny);
+    var t = hyp <= CFG.dead ? 0 : (hyp - CFG.dead) / (1 - CFG.dead);
+    if (t > 1) t = 1;
+    return [-state.ny * t * CFG.max[0], -state.nx * t * CFG.max[1]];
+  }
+
+  function fmt(x) {
+    return (x >= 0 ? "+" : "-") + Math.abs(x).toFixed(3);
+  }
+
+  function paint() {
+    if (state.knob) {
+      state.knob.setAttribute("cx", (C + state.nx * R).toFixed(1));
+      state.knob.setAttribute("cy", (C + state.ny * R).toFixed(1));
+    }
+    if (state.readout) {
+      var v = command();
+      state.readout.textContent = "vx=" + fmt(v[0]) + " vy=" + fmt(v[1]);
+    }
+  }
+
+  // 只登记目标值,真正发送交给 tick() —— 在 pointermove 里直接发的话,两次移动
+  // 会挤进同一个节流窗口,又回到互相覆盖的老问题。
+  function commit() {
+    var v = command();
+    for (var i = 0; i < CFG.axes.length; i++) {
+      state.target[CFG.axes[i].key] = quant(CFG.axes[i], v[i]);
+    }
+  }
+
+  function drag(ev) {
+    var r = state.svg.getBoundingClientRect();
+    if (!(r.width > 0)) return;
+    var nx = ((ev.clientX - r.left) / r.width * S - C) / R;
+    var ny = ((ev.clientY - r.top) / r.height * S - C) / R;
+    // 裁到单位圆:拖出圈外时旋钮贴边,命令停在该轴最大值。
+    var hyp = Math.sqrt(nx * nx + ny * ny);
+    if (hyp > 1) { nx /= hyp; ny /= hyp; }
+    state.nx = nx;
+    state.ny = ny;
+    commit();
+    paint();
+  }
+
+  function wire() {
+    var svg = state.svg;
+    if (!svg) return;
+    svg.addEventListener("pointerdown", function (ev) {
+      if (ev.button !== 0) return;
+      ev.preventDefault();
+      state.dragging = true;
+      state.sent = {};
+      try { svg.setPointerCapture(ev.pointerId); } catch (e) {}
+      svg.style.cursor = "grabbing";
+      drag(ev);
+    });
+    svg.addEventListener("pointermove", function (ev) {
+      if (!state.dragging) return;
+      ev.preventDefault();
+      drag(ev);
+    });
+    var stop = function (ev) {
+      if (!state.dragging) return;
+      state.dragging = false;
+      svg.style.cursor = "grab";
+      try { svg.releasePointerCapture(ev.pointerId); } catch (e) {}
+    };
+    svg.addEventListener("pointerup", stop);
+    svg.addEventListener("pointercancel", stop);
+    svg.addEventListener("dblclick", function (ev) {
+      ev.preventDefault();
+      state.nx = 0;
+      state.ny = 0;
+      state.sent = {};
+      commit();
+      paint();
+    });
+  }
+
+  function build(host) {
+    host.innerHTML =
+      '<div style="display:flex;flex-direction:column;align-items:center;' +
+             'gap:2px;">' +
+        '<svg viewBox="0 0 200 200" width="176" height="176" ' +
+             'style="touch-action:none;cursor:grab;display:block;' +
+             'user-select:none;">' +
+          '<circle cx="100" cy="100" r="78" fill="none" stroke="currentColor" ' +
+                  'stroke-width="1.5" opacity="0.35"/>' +
+          '<circle cx="100" cy="100" r="' + DR.toFixed(1) + '" fill="none" ' +
+                  'stroke="currentColor" stroke-width="1.2" opacity="0.4" ' +
+                  'stroke-dasharray="3 3"/>' +
+          '<line x1="26" y1="100" x2="174" y2="100" stroke="currentColor" ' +
+                'stroke-width="1" opacity="0.18"/>' +
+          '<line x1="100" y1="26" x2="100" y2="174" stroke="currentColor" ' +
+                'stroke-width="1" opacity="0.18"/>' +
+          '<text x="100" y="18" fill="currentColor" opacity="0.55" ' +
+                'font-size="12" text-anchor="middle">\\u524d</text>' +
+          '<text x="100" y="194" fill="currentColor" opacity="0.55" ' +
+                'font-size="12" text-anchor="middle">\\u540e</text>' +
+          '<text x="10" y="105" fill="currentColor" opacity="0.55" ' +
+                'font-size="12" text-anchor="middle">\\u5de6</text>' +
+          '<text x="190" y="105" fill="currentColor" opacity="0.55" ' +
+                'font-size="12" text-anchor="middle">\\u53f3</text>' +
+          '<circle class="pk-knob" cx="100" cy="100" r="16" ' +
+                  'fill="currentColor" fill-opacity="0.18" ' +
+                  'stroke="currentColor" stroke-width="2"/>' +
+        '</svg>' +
+        '<div class="pk-read" style="font-size:0.8em;opacity:0.8;' +
+             'font-variant-numeric:tabular-nums;">vx=+0.000 vy=+0.000</div>' +
+      '</div>';
+    state.host = host;
+    state.svg = host.querySelector("svg");
+    state.knob = host.querySelector(".pk-knob");
+    state.readout = host.querySelector(".pk-read");
+    host.__pkSvg = state.svg;
+    wire();
+    paint();
+  }
+
+  // 面板 DOM 由 React 管,注入的内容可能被重渲染冲掉;每次挂载失败或节点被换掉
+  // 就重建一次。客户端刚连上时 DOM 还没渲染,也靠它兜住。
+  function mount() {
+    var host = document.getElementById(CFG.padId);
+    if (!host) return;
+    var svg = host.querySelector("svg");
+    if (svg && host.__pkSvg === svg) return;
+    build(host);
+  }
+
+  // 反过来把滑条的值同步到旋钮上 —— 「归零」按钮与转向键都是 Python 侧直接写
+  // 滑条的,旋钮得跟着回中,否则盘面显示与实际命令对不上。
+  //
+  // 同时**认账**:别人写进去的值就等于服务端已经有了,记进 target/sent,免得
+  // 调度器以为还欠一次发送、把刚归零的命令又推回去。但只在没有待发值时才认
+  // (``target === sent``)—— 否则会把摇杆刚拖出来、还没发出去的值抹掉。
+  function sync() {
+    if (state.dragging || !state.knob) return;
+    var vx = readAxis(CFG.axes[0]);
+    var vy = readAxis(CFG.axes[1]);
+    if (vx === null || vy === null) return;
+    for (var i = 0; i < CFG.axes.length; i++) {
+      var ax = CFG.axes[i];
+      var v = i === 0 ? vx : vy;
+      if (state.target[ax.key] === state.sent[ax.key]) {
+        state.target[ax.key] = v;
+        state.sent[ax.key] = v;
+      }
+    }
+    var a = CFG.max[0] ? -vx / CFG.max[0] : 0;  // ny * t
+    var b = CFG.max[1] ? -vy / CFG.max[1] : 0;  // nx * t
+    var t = Math.sqrt(a * a + b * b);
+    if (t < 1e-4) {
+      state.nx = 0;
+      state.ny = 0;
+    } else {
+      var hyp = CFG.dead + Math.min(t, 1) * (1 - CFG.dead);
+      state.nx = b / t * hyp;
+      state.ny = a / t * hyp;
+    }
+    paint();
+  }
+
+  if (window.__pikachuJoyPad) {
+    window.__pikachuJoyPad.mount();
+    window.__pikachuJoyPad.sync();
+    return;
+  }
+  window.__pikachuJoyPad = { mount: mount, sync: sync, state: state };
+  mount();
+  sync();
+  setInterval(tick, SEND_MS);
+  setInterval(function () {
+    mount();
+    sync();
+  }, WATCHDOG_MS);
+})();
+"""
 
 
 class VelocityJoystickViewer(ViserPlayViewer):
@@ -162,8 +463,6 @@ class VelocityJoystickViewer(ViserPlayViewer):
         self._enabled = bool(enabled.value)
 
       # 摇杆排在滑条**前面**:创建顺序就是面板里的显示顺序,摇杆是主控件。
-      # 它的回调写 self._sliders,而那要到下面才填 —— 回调只在浏览器发来点击
-      # 时才跑,那时 setup() 早已返回,不会有空窗。
       self._add_pad_gui(server)
 
       sliders: dict[str, Any] = {}
@@ -174,7 +473,7 @@ class VelocityJoystickViewer(ViserPlayViewer):
       ):
         a, b = self._slider_bounds(lo, hi, idx)
         slider = server.gui.add_slider(
-          label, min=a, max=b, step=0.01, initial_value=0.0
+          label, min=a, max=b, step=_SLIDER_STEP, initial_value=0.0
         )
         sliders[axis] = slider
         self._slider_range[axis] = (a, b)
@@ -184,6 +483,8 @@ class VelocityJoystickViewer(ViserPlayViewer):
           setattr(self, f"_{_axis}", float(_s.value))
 
       self._sliders = sliders
+      # 注入摇杆脚本必须在**滑条建好之后** —— 它要把每根滑条的范围写进 CFG。
+      self._install_pad_js()
 
       zero = server.gui.add_button("归零")
 
@@ -216,81 +517,74 @@ class VelocityJoystickViewer(ViserPlayViewer):
   # -- 摇杆 -------------------------------------------------------------------
 
   def _add_pad_gui(self, server: Any) -> None:
-    """方向键式摇杆:每个键发一条**库里真实存在**的参考动作的命令。
+    """二维摇杆面板:一个空壳 + 一组转向键,真正画摇杆的是注入的脚本。
 
-    为什么不是可拖动的模拟摇杆:viser 1.0.27 既没有二维摇杆控件,也没有自定义
-    组件接口 —— 客户端组件是打包好的 React,要加新控件只能改 viser 源码;往页面
-    注入 JS 的路子(``RunJavascriptMessage``)没有回传通道(websocket 跑在 Web
-    Worker 里、走 msgpack,Python 侧拿不到)。而这里也用不上连续取值:吸附开启时
-    (默认)命令最终会落到那 25 条离散参考上,8 个方向 + 回中已覆盖库里的全部
-    平移档,连续摇杆不会多出可用命令。
+    viser 1.0.27 既没有二维摇杆控件,也没有自定义组件接口 —— 客户端组件是打包好
+    的 React,加新控件只能改 viser 源码。这里走 viser **自己**用的那条注入通道:
+    ``RunJavascriptMessage``(``viser/_gui_api.py`` 发 plotly.min.js 就是它),
+    在页面主线程里建一个 SVG 摇杆,拖动时对着**真实的滑条**派发合成 ``mousedown``。
 
-    每个键的目标**取自** ``clip_command``(各档实测速度),不是写死的常数,换库
-    自动跟着变。
+    为什么绕道滑条、而不是另开一条回传通道:websocket 跑在 Web Worker 里、走
+    msgpack,Python 侧拿不到页面变量;viser 的 HTTP 服务又只发静态文件,没有自定义
+    路由,``fetch()`` 也回不来。合成鼠标事件让摇杆**复用 viser 支持的更新路径**
+    (滑条 onChange -> GuiUpdateMessage -> Python on_update),代价只是分辨率被滑条
+    的 ``step`` 吃掉,而这对本库无所谓。
+
+    转向单独一组按钮、不占摇杆:摇杆只发 (vx, vy),让"走"与"转"互不干扰。
     """
-    pad = self._pad_table()
-    turn = self._turn_table()
-
     with server.gui.add_folder("摇杆"):
-      server.gui.add_html(
-        "<div style='font-size:0.78em;line-height:1.3;opacity:0.75;"
-        "padding:0 1em 0.25em;'>点方向键 = 把 (vx, vy) 设成该方向上最靠前的"
-        "**真实参考**的实测速度,■ 回中;转向键只改 wz,与平移互不影响。"
-        "需先勾 Enable。</div>"
-      )
-      for row in _PAD_ROWS:
-        # 空 label:LabeledInput 会给 label 留固定宽度,三行都留同样的宽度才
-        # 对得齐,看起来才像个方向键盘。
-        group = server.gui.add_button_group("", list(row))
-
-        def _on_pad_click(_ev, _g=group, _t=pad) -> None:
-          self._on_pad(str(_g.value), _t)
-
-        group.on_click(_on_pad_click)
-
+      server.gui.add_html(_PAD_HTML)
       turn_group = server.gui.add_button_group("转向", list(_TURN_OPTIONS))
 
       def _on_turn_click(_ev) -> None:
-        self._on_turn(str(turn_group.value), turn)
+        self._on_turn(str(turn_group.value), self._turn_table())
 
       turn_group.on_click(_on_turn_click)
+      server.gui.add_html(_PAD_HINT_HTML)
 
-  def _pad_table(self) -> dict[str, tuple[float, float]]:
-    """每个方向键该发什么命令:在**几乎不转**的参考里,取朝向最接近该方向的一条。
+  def _install_pad_js(self) -> None:
+    """把摇杆脚本发给浏览器。
 
-    两个筛选条件:
-
-    - **几乎不转**(``|wz| < _PAD_STILL_WZ``):让"前"不会匹配到"边走边转"的档,
-      转向由转向键单独管。
-    - **真的在走**(速度 ≥ 库内最大速度的 ``_PAD_MIN_SPEED_RATIO``):低速档的朝向
-      是噪声 —— ``stand`` 的 (0.0003, 0.0009) 归一化后指向哪纯属巧合,按方向匹配
-      会把它选中。
-
-    再要求选中的朝向与目标方向夹角小于 60°(``cos > _PAD_MIN_ALIGN``):库里没有
-    该方向的参考时宁可不给这个键,也不要发一条方向都不对的命令。返回空表的键,
-    回调会直接忽略。
+    连上来的客户端才需要脚本,所以走 ``on_client_connect`` —— 它也会对**已经连上**
+    的客户端补跑一次(见 ``ViserServer.on_client_connect``),面板刚建好时就生效。
+    那一刻面板 DOM 可能还没渲染完,脚本自己的重试挂载兜住这个窗口。
     """
-    cmd = self._lib.clip_command.cpu()
-    xy = cmd[:, :2]
-    speed = xy.norm(dim=1)
-    top = float(speed.max())
-    if top <= 0.0:
-      return {}
-    usable = (cmd[:, 2].abs() < _PAD_STILL_WZ) & (speed >= _PAD_MIN_SPEED_RATIO * top)
+    cfg = {
+      "padId": _PAD_ID,
+      "dead": _PAD_DEADZONE,
+      "axes": [
+        {
+          "key": axis,
+          "label": axis,
+          "min": self._slider_range[axis][0],
+          "max": self._slider_range[axis][1],
+          "step": _SLIDER_STEP,
+        }
+        for axis in ("vx", "vy")
+      ],
+      "max": [self._pad_axis_max("vx"), self._pad_axis_max("vy")],
+    }
+    message = _messages.RunJavascriptMessage(
+      source=_PAD_JS.replace("__CFG__", json.dumps(cfg))
+    )
 
-    table: dict[str, tuple[float, float]] = {}
-    for key, (dx, dy) in _PAD_XY.items():
-      u = torch.tensor([dx, dy], dtype=xy.dtype)
-      u = u / u.norm()
-      # 比**朝向**而不是比投影:库里"正前"的实测速度(0.189)比斜向档(0.133)
-      # 大一截,按投影取最大的话"斜前"会选中"正前"。
-      cos = (xy @ u) / speed.clamp(min=1e-6)
-      cos = torch.where(usable, cos, torch.full_like(cos, float("-inf")))
-      i = int(torch.argmax(cos))
-      if float(cos[i]) < _PAD_MIN_ALIGN:
-        continue
-      table[key] = (float(xy[i, 0]), float(xy[i, 1]))
-    return table
+    def _send(client: Any) -> None:
+      # ``_websock_connection`` 是 viser 的私有属性,但没有公开的"给单个客户端发
+      # 消息"入口;取不到就放弃 —— 摇杆没装上时滑条仍然能用。
+      conn = getattr(client, "_websock_connection", None)
+      if conn is not None:
+        conn.queue_message(message)
+
+    self._server.on_client_connect(_send)
+
+  def _pad_axis_max(self, axis: str) -> float:
+    """摇杆打到外圈时该轴发多大命令 —— 库内该轴的最大绝对值。
+
+    再往外没有参考可选(最近邻还是那一条),所以"裁切到最大值"就裁在这里。取
+    绝对值是为了让盘面左右对称;``wz`` 不在盘面上,库内本来也不对称。
+    """
+    idx = {"vx": 0, "vy": 1}[axis]
+    return float(self._lib.clip_command[:, idx].abs().max())
 
   def _turn_table(self) -> tuple[float, float]:
     """(左转, 右转) 用多大角速度:取**几乎不平移**的参考里 |wz| 最大的两条。"""
@@ -299,15 +593,6 @@ class VelocityJoystickViewer(ViserPlayViewer):
     still = cmd[:, :2].norm(dim=1) < _PAD_STILL_V
     wz = torch.where(still, wz, torch.zeros_like(wz))
     return float(wz.max()), float(wz.min())
-
-  def _on_pad(self, key: str, table: dict[str, tuple[float, float]]) -> None:
-    if key == _PAD_CENTER:
-      self._set_command(vx=0.0, vy=0.0)
-      return
-    target = table.get(key)
-    if target is None:
-      return
-    self._set_command(vx=target[0], vy=target[1])
 
   def _on_turn(self, key: str, table: tuple[float, float]) -> None:
     wz = {_TURN_LEFT: table[0], _TURN_STOP: 0.0, _TURN_RIGHT: table[1]}.get(key)
