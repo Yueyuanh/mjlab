@@ -264,6 +264,12 @@ Fixed
   ``knee_up``, not ``knee``, and previously vanished from all three. An
   alias table (``JOINT_ALIASES``, currently ``knee_up -> knee``) lets a renamed
   joint reuse a known joint's actuator spec and inertia defaults.
+- ``play --viewer velocity-joystick``: the panel's 归零 button zeroed the
+  command handed to the policy but left the three sliders where they were, so
+  "滑条请求" and "实际执行" disagreed the moment it was pressed. A slider's
+  position is owned by its viser handle, so the handler now writes ``0.0`` back
+  to the handles; that fires their ``on_update`` callbacks, which zero the
+  Python-side command too.
 
 Version 1.6.0 (August 8, 2026)
 ------------------------------

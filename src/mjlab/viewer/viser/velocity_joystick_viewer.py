@@ -119,6 +119,7 @@ class VelocityJoystickViewer(ViserPlayViewer):
       def _(_ev) -> None:
         self._enabled = bool(enabled.value)
 
+      sliders: dict[str, Any] = {}
       for axis, idx, label in (
         ("vx", 0, "vx / (m/s)"),
         ("vy", 1, "vy / (m/s)"),
@@ -128,6 +129,7 @@ class VelocityJoystickViewer(ViserPlayViewer):
         slider = server.gui.add_slider(
           label, min=a, max=b, step=0.01, initial_value=0.0
         )
+        sliders[axis] = slider
 
         @slider.on_update
         def _(_ev, _s=slider, _axis=axis) -> None:
@@ -137,8 +139,13 @@ class VelocityJoystickViewer(ViserPlayViewer):
 
       @zero.on_click
       def _(_ev) -> None:
-        for name in ("vx", "vy", "wz"):
-          setattr(self, f"_{name}", 0.0)
+        # 必须写回**滑条**本身,不能只改 self._vx:滑条的位置由 viser 的 handle
+        # 持有并同步给浏览器,只改 Python 属性的话命令归零了、滑条还停在原处
+        # (面板上"滑条请求"与"实际执行"当场对不上)。
+        # 给 handle 赋值会同步触发上面的 on_update,顺带把 self._vx 也置零,
+        # 所以这里不需要再 setattr 一次。
+        for s in sliders.values():
+          s.value = 0.0
 
       snap = server.gui.add_checkbox("命令吸附到档实测速度", initial_value=self._snap)
 
