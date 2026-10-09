@@ -35,20 +35,30 @@ Added
   replacing the previous direction pad. It is a circle with a knob that can be
   dragged in any direction, drawn as an SVG injected into the panel with
   ``RunJavascriptMessage`` — viser 1.0.27 has no 2D pad widget and no
-  custom-component API. The outer ring is each axis' maximum command (the
-  fastest reference in the library, read from ``clip_command`` rather than
-  hard-coded), the dashed inner circle is a dead zone (inside it the command is
-  exactly zero), and pushing past the ring clips to the maximum. The three
-  sliders stay, and remain the only way to request an in-between command; the
-  knob writes to them by dispatching synthetic mouse events, so the joystick
-  and the sliders always carry the same command. The ``wz`` button group
-  (left / stop / right) is unchanged. Both axes are emitted one per client
+  custom-component API. The vertical axis is ``vx`` (up = forward) and the
+  horizontal axis is ``wz`` (right = turn right, so the sign is flipped —
+  positive ``wz`` is a left turn); ``vy`` stays off the pad and is only
+  reachable through its own slider. The outer ring is each axis' maximum
+  command (the fastest reference in the library, read from ``clip_command``
+  rather than hard-coded), the dashed inner circle is a dead zone (inside it the
+  command is exactly zero), and pushing past the ring clips to the maximum.
+  **Releasing the knob recenters it and zeroes both axes**, making the pad a
+  hold-to-move control; pointer cancel and double click recenter the same way.
+  The three sliders stay, and remain the only way to request an in-between
+  command; the knob writes to them by dispatching synthetic mouse events, so the
+  joystick and the sliders always carry the same command. The ``wz`` button
+  group (left / stop / right) is unchanged and still latches — that is how to
+  keep turning without holding the pad. Both axes are emitted one per client
   throttle window: the client's GUI updates pass through a **shared** 50 ms
   leading/trailing throttle with a single ``latestMessage`` slot, so updating
   two sliders back to back silently drops one of them (measured: the slider
   read 0 while Python still held the first drag step's 0.13). Alternating the
   axes 55 ms apart keeps each message first in its own window, at the cost of
-  ~110 ms per axis.
+  ~110 ms per axis. Move and release listeners are bound to ``window`` rather
+  than to the SVG: once the pointer leaves the pad the element stops receiving
+  ``pointermove``, and ``setPointerCapture`` did not survive the first move in
+  testing, which silently froze "drag past the ring clips to maximum" at
+  whatever value it had when the pointer left.
 - Added ``play --weld``: constructs a **true rigid monolith** for the most basic
   static standing on GPU/warp. The scene MjSpec has every internal hinge/ball
   joint replaced by an ``mjEQ_WELD`` equality and all actuators removed, yielding

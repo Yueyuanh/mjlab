@@ -10,8 +10,11 @@ tracking 任务的 ``MotionCommand.create_gui``(``tracking/mdp/commands.py``)只
 
 面板上有两套控件:**二维摇杆**(中间一个圆点,可全向拖)与**三根滑条**。两者写
 的是同一个命令 —— 摇杆拖动时是**对着滑条**派发合成鼠标事件(见 ``_add_pad_gui``),
-所以命令与滑条永远一致,滑条也能反过来当微调。摇杆的外圈 = 该轴的最大命令(库内
-最快的那条参考),小圈 = 死区(圈内命令为 0),打到圈外一律裁到最大。
+所以命令与滑条永远一致,滑条也能反过来当微调。摇杆的竖轴是 ``vx``(上=前进)、
+横轴是 ``wz``(右=右转),``vy`` 不在盘面上、只能用滑条。外圈 = 该轴的最大命令
+(库内最快的那条参考),小圈 = 死区(圈内命令为 0),打到圈外一律裁到最大。
+**松手自动回中**:摇杆是「按住才走」的开关式控件,``pointerup`` 会把 ``vx`` 与
+``wz`` 一起归零(横向平移想保持就用滑条,持续转向用那排锁定式转向键)。
 
 三个必须处理的点
 ----------------
@@ -93,9 +96,10 @@ _PAD_HTML = (
 _PAD_HINT_HTML = (
   "<div style='font-size:0.78em;line-height:1.35;opacity:0.75;"
   "padding:0 1em 0.5em;'>"
-  "拖圆点发命令:上=前进,下=后退,左=向左平移,右=向右平移。<br/>"
+  "拖圆点发命令:上=前进,下=后退,左=左转,右=右转。<br/>"
   "打到外圈 = 该轴最大命令(库内最快的那条参考),小圈内是死区(命令 0)。<br/>"
-  "双击摇杆回中;松手后命令保持。转向键只改 wz,与平移互不影响。"
+  "<b>松手自动回中</b>(vx 与 wz 一起归零),所以它是「按住才走」的开关式摇杆。<br/>"
+  "横向平移 vy 不在盘面上,只能用滑条。转向键是<b>锁定式</b>的,用来持续原地转。"
   "</div>"
 )
 
@@ -213,7 +217,8 @@ _PAD_JS = """
     }
   }
 
-  // 盘面坐标 -> 命令。屏幕右 = -vy(y 轴正向是机器人**左侧**),屏幕上 = +vx。
+  // 盘面坐标 -> 命令。竖轴 = vx(屏幕上 = 前进),横轴 = wz(屏幕右 = 右转,
+  // 而 wz 正方向是左转,所以取负)。vy 不在盘面上。
   function command() {
     var hyp = Math.sqrt(state.nx * state.nx + state.ny * state.ny);
     var t = hyp <= CFG.dead ? 0 : (hyp - CFG.dead) / (1 - CFG.dead);
@@ -232,7 +237,7 @@ _PAD_JS = """
     }
     if (state.readout) {
       var v = command();
-      state.readout.textContent = "vx=" + fmt(v[0]) + " vy=" + fmt(v[1]);
+      state.readout.textContent = "vx=" + fmt(v[0]) + " wz=" + fmt(v[1]);
     }
   }
 
@@ -259,6 +264,41 @@ _PAD_JS = """
     paint();
   }
 
+  // 松手 = 回中。摇杆是**开关式**的(按住才走),所以 pointerup/pointercancel 都要
+  // 把旋钮和命令一起归零,否则松手后机器人会一直按最后一帧的命令走下去。
+  function recenter() {
+    state.nx = 0;
+    state.ny = 0;
+    state.sent = {};
+    commit();
+    paint();
+  }
+
+  function stop(ev) {
+    if (!state.dragging) return;
+    state.dragging = false;
+    if (state.svg) state.svg.style.cursor = "grab";
+    try { state.svg.releasePointerCapture(ev.pointerId); } catch (e) {}
+    recenter();
+  }
+
+  // 移动与抬手挂在 window 上,而不是挂在 svg 上:指针一旦拖出盘面,svg 就再也收
+  // 不到 pointermove 了。``setPointerCapture`` 本该兜住这件事,但实测(无头
+  // Chrome)它在按下后的第一个 move 就已经失效,于是「拖出圈外裁到最大」当场失灵
+  // —— 命令停在刚出界那一刻的值。挂 window 不依赖 capture,出界照跟。
+  //
+  // 这两个监听器**只能注册一次**:mount() 在 React 重渲染后会重建 svg 并再调
+  // wire(),挂进 wire() 里就会越积越多。
+  function wireWindow() {
+    window.addEventListener("pointermove", function (ev) {
+      if (!state.dragging) return;
+      ev.preventDefault();
+      drag(ev);
+    });
+    window.addEventListener("pointerup", stop);
+    window.addEventListener("pointercancel", stop);
+  }
+
   function wire() {
     var svg = state.svg;
     if (!svg) return;
@@ -271,26 +311,9 @@ _PAD_JS = """
       svg.style.cursor = "grabbing";
       drag(ev);
     });
-    svg.addEventListener("pointermove", function (ev) {
-      if (!state.dragging) return;
-      ev.preventDefault();
-      drag(ev);
-    });
-    var stop = function (ev) {
-      if (!state.dragging) return;
-      state.dragging = false;
-      svg.style.cursor = "grab";
-      try { svg.releasePointerCapture(ev.pointerId); } catch (e) {}
-    };
-    svg.addEventListener("pointerup", stop);
-    svg.addEventListener("pointercancel", stop);
     svg.addEventListener("dblclick", function (ev) {
       ev.preventDefault();
-      state.nx = 0;
-      state.ny = 0;
-      state.sent = {};
-      commit();
-      paint();
+      recenter();
     });
   }
 
@@ -314,16 +337,16 @@ _PAD_JS = """
                 'font-size="12" text-anchor="middle">\\u524d</text>' +
           '<text x="100" y="194" fill="currentColor" opacity="0.55" ' +
                 'font-size="12" text-anchor="middle">\\u540e</text>' +
-          '<text x="10" y="105" fill="currentColor" opacity="0.55" ' +
-                'font-size="12" text-anchor="middle">\\u5de6</text>' +
-          '<text x="190" y="105" fill="currentColor" opacity="0.55" ' +
-                'font-size="12" text-anchor="middle">\\u53f3</text>' +
+          '<text x="18" y="104" fill="currentColor" opacity="0.55" ' +
+                'font-size="11" text-anchor="middle">\\u5de6\\u8f6c</text>' +
+          '<text x="182" y="104" fill="currentColor" opacity="0.55" ' +
+                'font-size="11" text-anchor="middle">\\u53f3\\u8f6c</text>' +
           '<circle class="pk-knob" cx="100" cy="100" r="16" ' +
                   'fill="currentColor" fill-opacity="0.18" ' +
                   'stroke="currentColor" stroke-width="2"/>' +
         '</svg>' +
         '<div class="pk-read" style="font-size:0.8em;opacity:0.8;' +
-             'font-variant-numeric:tabular-nums;">vx=+0.000 vy=+0.000</div>' +
+             'font-variant-numeric:tabular-nums;">vx=+0.000 wz=+0.000</div>' +
       '</div>';
     state.host = host;
     state.svg = host.querySelector("svg");
@@ -345,7 +368,8 @@ _PAD_JS = """
   }
 
   // 反过来把滑条的值同步到旋钮上 —— 「归零」按钮与转向键都是 Python 侧直接写
-  // 滑条的,旋钮得跟着回中,否则盘面显示与实际命令对不上。
+  // 滑条的,旋钮得跟着走,否则盘面显示与实际命令对不上。不变量:**旋钮永远画的是
+  // 当前 (vx, wz) 命令**,所以转向键锁定一个 wz 时旋钮会停在边上。
   //
   // 同时**认账**:别人写进去的值就等于服务端已经有了,记进 target/sent,免得
   // 调度器以为还欠一次发送、把刚归零的命令又推回去。但只在没有待发值时才认
@@ -353,18 +377,18 @@ _PAD_JS = """
   function sync() {
     if (state.dragging || !state.knob) return;
     var vx = readAxis(CFG.axes[0]);
-    var vy = readAxis(CFG.axes[1]);
-    if (vx === null || vy === null) return;
+    var wz = readAxis(CFG.axes[1]);
+    if (vx === null || wz === null) return;
     for (var i = 0; i < CFG.axes.length; i++) {
       var ax = CFG.axes[i];
-      var v = i === 0 ? vx : vy;
+      var v = i === 0 ? vx : wz;
       if (state.target[ax.key] === state.sent[ax.key]) {
         state.target[ax.key] = v;
         state.sent[ax.key] = v;
       }
     }
     var a = CFG.max[0] ? -vx / CFG.max[0] : 0;  // ny * t
-    var b = CFG.max[1] ? -vy / CFG.max[1] : 0;  // nx * t
+    var b = CFG.max[1] ? -wz / CFG.max[1] : 0;  // nx * t
     var t = Math.sqrt(a * a + b * b);
     if (t < 1e-4) {
       state.nx = 0;
@@ -383,6 +407,7 @@ _PAD_JS = """
     return;
   }
   window.__pikachuJoyPad = { mount: mount, sync: sync, state: state };
+  wireWindow();
   mount();
   sync();
   setInterval(tick, SEND_MS);
@@ -530,7 +555,8 @@ class VelocityJoystickViewer(ViserPlayViewer):
     (滑条 onChange -> GuiUpdateMessage -> Python on_update),代价只是分辨率被滑条
     的 ``step`` 吃掉,而这对本库无所谓。
 
-    转向单独一组按钮、不占摇杆:摇杆只发 (vx, vy),让"走"与"转"互不干扰。
+    转向另给一组**锁定式**按钮:摇杆是"按住才走"的,松手就回中,所以持续原地转
+    得靠按钮保持;横向平移 ``vy`` 同理,只能走滑条。
     """
     with server.gui.add_folder("摇杆"):
       server.gui.add_html(_PAD_HTML)
@@ -560,9 +586,9 @@ class VelocityJoystickViewer(ViserPlayViewer):
           "max": self._slider_range[axis][1],
           "step": _SLIDER_STEP,
         }
-        for axis in ("vx", "vy")
+        for axis in ("vx", "wz")
       ],
-      "max": [self._pad_axis_max("vx"), self._pad_axis_max("vy")],
+      "max": [self._pad_axis_max("vx"), self._pad_axis_max("wz")],
     }
     message = _messages.RunJavascriptMessage(
       source=_PAD_JS.replace("__CFG__", json.dumps(cfg))
@@ -581,10 +607,13 @@ class VelocityJoystickViewer(ViserPlayViewer):
     """摇杆打到外圈时该轴发多大命令 —— 库内该轴的最大绝对值。
 
     再往外没有参考可选(最近邻还是那一条),所以"裁切到最大值"就裁在这里。取
-    绝对值是为了让盘面左右对称;``wz`` 不在盘面上,库内本来也不对称。
+    绝对值是为了让盘面左右/上下对称;库内 ``wz`` 与 ``vx`` 本来都不对称。再和滑条
+    范围取交,保证这个值一定写得进去(``_slider_bounds`` 已对称化,正常不会触发)。
     """
-    idx = {"vx": 0, "vy": 1}[axis]
-    return float(self._lib.clip_command[:, idx].abs().max())
+    idx = {"vx": 0, "vy": 1, "wz": 2}[axis]
+    lib = float(self._lib.clip_command[:, idx].abs().max())
+    lo, hi = self._slider_range[axis]
+    return min(lib, abs(lo), abs(hi))
 
   def _turn_table(self) -> tuple[float, float]:
     """(左转, 右转) 用多大角速度:取**几乎不平移**的参考里 |wz| 最大的两条。"""
@@ -622,11 +651,17 @@ class VelocityJoystickViewer(ViserPlayViewer):
   def _slider_bounds(
     lo: torch.Tensor, hi: torch.Tensor, idx: int
   ) -> tuple[float, float]:
-    """该轴的滑条范围:库跨度外扩一点;库在该轴上无变化时给个默认窗口。"""
+    """该轴的滑条范围:库跨度外扩一点,并**左右对称**。
+
+    库在 ``wz`` 上是不对称的(约 -0.332 .. +0.366),直接按库跨度取范围的话,摇杆
+    横轴往右打到外圈会被滑条下界裁掉、够不到库里的极值。对称化之后盘面两个方向
+    都能顶到该轴的 ``max|·|``,滑条两端刻度也一样。
+    """
     a, b = float(lo[idx]) * _SLIDER_MARGIN, float(hi[idx]) * _SLIDER_MARGIN
     if b - a < 1e-3:
       return -0.5, 0.5
-    return a, b
+    m = max(abs(a), abs(b))
+    return -m, m
 
   # -- 每步注入 ---------------------------------------------------------------
 
