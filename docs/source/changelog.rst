@@ -251,6 +251,19 @@ Fixed
   resolves to a **pre-left-leg-sign-fix** teacher once the fixed run gets its
   own top-level directory (``pikachu_lite_tracking_signfix``). It now globs
   ``pikachu_lite_tracking*``, matching ``scripts/train_student.sh``.
+- ``scripts/plot_logs/metrics_csv_dashboard.html`` no longer requires a
+  ``time_s`` column. The time axis is the first **numeric and non-decreasing**
+  of ``time_s`` / ``time`` / ``sim_step`` / ``step`` / ``iteration`` / ``iter``
+  / ``epoch`` / ``frame`` / ``sample``, falling back to the row index (labelled
+  样本序号) when none is present, so training-trend CSVs that only carry ``iter``
+  load directly; the chosen column is excluded from the plotted metrics.
+- The same dashboard no longer hard-codes the joint list. Every
+  ``left_/right_<joint>_joint`` column is discovered from the CSV, so a robot
+  that names a joint differently still appears in the left/right comparison,
+  the T-N quadrant panel and the inertia view — pikachu_v03's knee is
+  ``knee_up``, not ``knee``, and previously vanished from all three. An
+  alias table (``JOINT_ALIASES``, currently ``knee_up -> knee``) lets a renamed
+  joint reuse a known joint's actuator spec and inertia defaults.
 
 Version 1.6.0 (August 8, 2026)
 ------------------------------

@@ -33,6 +33,7 @@
   .eyebrow { font:10px var(--mono); letter-spacing:.14em; color:var(--faint); margin-bottom:3px; }
   h1 { margin:0; font-size:18px; font-weight:680; }
   .actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .file-tools { display:flex; gap:6px; align-items:center; flex-wrap:wrap; min-width:0; }
   .btn {
     border:1px solid var(--line2); background:#fff; color:var(--ink);
     border-radius:8px; padding:8px 13px; cursor:pointer; font-size:13px;
@@ -45,9 +46,15 @@
   .btn.on { color:var(--accent2); border-color:var(--accent); background:var(--soft); }
   #file-input { display:none; }
   .csv-picker {
-    min-width:290px; max-width:430px; border:1px solid var(--line2);
+    width:clamp(300px,38vw,680px); min-width:0; border:1px solid var(--line2);
     border-radius:8px; padding:8px 10px; background:#fff; color:var(--ink);
+    text-overflow:ellipsis;
   }
+  .favorite-alias { width:150px; padding:7px 9px; border:1px solid var(--line2);
+                    border-radius:8px; color:var(--ink); background:#fff; }
+  .favorite-alias:disabled { background:#f1f5f9; color:var(--faint); }
+  #favorite-toggle { width:88px; }
+  #favorite-toggle.on { color:#a16207; border-color:#facc15; background:#fefce8; }
   #status {
     max-width:520px; padding:7px 10px; border:1px solid var(--line);
     border-radius:7px; background:#fff; color:var(--muted); font:12px var(--mono);
@@ -63,31 +70,51 @@
     display:grid; grid-template-columns:repeat(5,minmax(130px,1fr)); gap:10px;
     margin:14px 22px;
   }
-  .meta-card { background:var(--card); border:1px solid var(--line); border-radius:9px; padding:10px 12px; box-shadow:var(--shadow); }
+  .meta-card { min-width:0; background:var(--card); border:1px solid var(--line);
+               border-radius:9px; padding:10px 12px; box-shadow:var(--shadow); }
   .meta-k { font:10px var(--mono); letter-spacing:.08em; color:var(--faint); text-transform:uppercase; }
   .meta-v { margin-top:5px; font:13px var(--mono); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   nav {
-    position:sticky; top:0; z-index:10; display:flex; gap:6px; flex-wrap:wrap;
+    position:sticky; top:0; z-index:10; display:flex; gap:5px; flex-wrap:nowrap;
     padding:8px 22px; background:rgba(243,245,249,.94); backdrop-filter:blur(6px);
-    border-block:1px solid var(--line);
+    border-block:1px solid var(--line); overflow-x:auto; scrollbar-width:thin;
   }
   nav button {
     border:1px solid transparent; background:transparent; color:var(--muted);
-    border-radius:8px; padding:7px 13px; cursor:pointer; font-size:13px;
+    border-radius:8px; padding:6px 9px; cursor:pointer; font-size:12.5px;
+    display:inline-flex; align-items:center; gap:6px; white-space:nowrap; flex:0 0 auto;
   }
   nav button:hover { background:#fff; border-color:var(--line); color:var(--ink); }
   nav button.active { background:#fff; color:var(--accent2); border-color:var(--line2); box-shadow:var(--shadow); font-weight:650; }
+  nav button.special { border-color:#dbe4f0; background:rgba(255,255,255,.55); }
+  .nav-count { min-width:18px; padding:1px 5px; border-radius:99px; text-align:center;
+               background:#e8edf5; color:#64748b; font:10px var(--mono); }
+  nav button.active .nav-count { background:var(--soft); color:var(--accent2); }
   .layout { display:grid; grid-template-columns:300px minmax(0,1fr); gap:14px; max-width:1600px; margin:14px auto 40px; padding:0 22px; }
   aside,.panel { background:var(--card); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow); }
-  aside { align-self:start; position:sticky; top:58px; max-height:calc(100vh - 74px); display:flex; flex-direction:column; overflow:hidden; }
-  .aside-head { padding:14px; border-bottom:1px solid var(--line); }
+  aside { align-self:start; position:sticky; top:58px; height:calc(100vh - 74px);
+          max-height:calc(100vh - 74px); display:flex; flex-direction:column; overflow:hidden; }
+  .aside-head { flex:0 0 auto; padding:14px; border-bottom:1px solid var(--line); }
   .aside-head h2 { margin:0 0 5px; font-size:14px; }
   .aside-head p { margin:0; color:var(--muted); font-size:11.5px; line-height:1.55; }
+  .current-file { flex:0 0 auto; margin:10px 10px 0; padding:10px; border:1px solid #fed7aa;
+                  border-radius:8px; background:#fff7ed; }
+  .current-file-k { color:#9a3412; font:10px var(--mono); letter-spacing:.08em; }
+  .current-file-name { margin-top:5px; color:var(--ink); font:600 12px var(--mono);
+                       overflow-wrap:anywhere; line-height:1.45; }
+  .current-file-path { margin-top:4px; color:var(--muted); font:10px var(--mono);
+                       overflow-wrap:anywhere; line-height:1.4; max-height:42px; overflow:auto; }
+  .current-file-alias { display:inline-block; margin-top:6px; padding:2px 7px;
+                        border-radius:99px; background:#fef3c7; color:#92400e;
+                        font-size:10px; }
   .search { margin:10px 12px 6px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; width:calc(100% - 24px); color:var(--ink); }
   .search:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(232,89,12,.12); }
   .quick { display:grid; grid-template-columns:repeat(2,1fr); gap:6px; padding:4px 12px 8px; }
   .quick .btn { padding:6px 8px; box-shadow:none; }
-  #term-list { overflow:auto; padding:3px 9px 12px; }
+  #aside-term-controls { flex:1 1 auto; min-height:110px; display:flex;
+                         flex-direction:column; overflow:hidden; }
+  #aside-term-controls[hidden] { display:none !important; }
+  #term-list { flex:1 1 auto; min-height:0; overflow:auto; padding:3px 9px 12px; }
   .term {
     display:flex; gap:8px; align-items:center; padding:6px 7px; margin:2px 0;
     border:1px solid transparent; border-radius:7px; cursor:pointer; font-size:12px;
@@ -144,19 +171,59 @@
   .inertia-input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(232,89,12,.12); }
 
   /* ---- 数据对比面板（左右两来源） ---- */
-  #compare-panel { margin:16px 20px 4px; }
+  #compare-panel { margin:0; }
   .compare-sources { display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
   .cmp-src { display:flex; align-items:center; gap:8px; }
   .cmp-src .lbl { color:var(--muted); }
-  .cmp-src select { min-width:300px; max-width:520px; }
+  .cmp-src select { width:clamp(260px,34vw,560px); min-width:0; }
   .cmp-vs { font:bold 14px var(--mono); color:var(--accent); padding-bottom:6px; }
   .btn.small { padding:5px 10px; font-size:11px; }
   .compare-metric { margin:6px 0 12px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:12px; }
   .compare-metric .lbl { color:var(--muted); }
-  .compare-metric select { max-width:440px; }
+  .compare-metric select { max-width:520px; }
+  .cmp-count { color:var(--muted); font:11px var(--mono); }
+  .cmp-items { display:grid; gap:14px; }
+  .cmp-item { border:1px solid var(--line2); border-radius:10px; padding:11px;
+              background:#fafbfd; }
+  .cmp-item-head { display:flex; justify-content:space-between; align-items:flex-start;
+                   gap:12px; margin-bottom:9px; }
+  .cmp-item-title { min-width:0; }
+  .cmp-item-title b { display:block; font:600 12px var(--mono); overflow-wrap:anywhere; }
+  .cmp-item-title small { display:block; margin-top:3px; color:var(--muted); }
   .cmp-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
-  #cmp-line,#cmp-box { height:340px; border:1px solid var(--line); border-radius:8px; overflow:hidden; background:#fff; }
+  .cmp-chart { height:340px; border:1px solid var(--line); border-radius:8px;
+               overflow:hidden; background:#fff; }
+  .cmp-item .table-wrap { background:#fff; }
   @media(max-width:1100px){ .cmp-grid{ grid-template-columns:1fr; } }
+  /* ---- 收藏与跨文件汇总 ---- */
+  .favorite-list { display:grid; gap:7px; margin:10px 0 14px; }
+  .favorite-row { display:grid; grid-template-columns:minmax(220px,1fr) minmax(140px,240px) auto;
+                  gap:8px; align-items:center; padding:8px 10px; border:1px solid var(--line);
+                  border-radius:8px; background:#fafbfd; }
+  .favorite-row-name { min-width:0; }
+  .favorite-row-name b { display:block; font:11px var(--mono); overflow-wrap:anywhere; }
+  .favorite-row-name small { display:block; margin-top:3px; color:var(--muted);
+                             font:9.5px var(--mono); overflow-wrap:anywhere; }
+  .favorite-row input { width:100%; padding:6px 8px; border:1px solid var(--line2);
+                        border-radius:7px; }
+  .favorite-summary-tools { display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+                            margin:10px 0; }
+  .favorite-summary-tools input { min-width:260px; padding:7px 9px;
+                                  border:1px solid var(--line2); border-radius:7px; }
+  .favorite-summary-tools select { min-width:320px; max-width:620px; }
+  #favorite-summary-chart { height:360px; border:1px solid var(--line);
+                            border-radius:8px; background:#fff; margin-bottom:12px; }
+  .summary-cards { display:grid; grid-template-columns:repeat(4,minmax(130px,1fr));
+                   gap:8px; margin:10px 0; }
+  .summary-card { padding:9px 11px; border:1px solid var(--line); border-radius:8px;
+                  background:#fafbfd; }
+  .summary-card span { display:block; color:var(--muted); font-size:10px; }
+  .summary-card b { display:block; margin-top:4px; font:600 15px var(--mono); }
+  @media(max-width:900px){
+    .favorite-row { grid-template-columns:1fr; }
+    .summary-cards { grid-template-columns:repeat(2,1fr); }
+    .csv-picker { width:min(82vw,620px); }
+  }
   .table-wrap { overflow:auto; max-height:560px; border:1px solid var(--line); border-radius:8px; }
   table { width:100%; border-collapse:collapse; font-size:11px; }
   th,td { padding:7px 9px; border-bottom:1px solid var(--line); text-align:right; white-space:nowrap; font-family:var(--mono); }
@@ -176,28 +243,50 @@
   .tn-ctrl { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:12px; color:var(--muted); padding-top:8px; }
   .tn-ctrl .btn { font-size:12px; padding:4px 11px; }
   .tn-ctrl .btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .tn-method-note { margin:8px 0 10px; padding:9px 11px; border:1px solid #bae6fd;
+                    border-radius:8px; background:#f0f9ff; color:#475569;
+                    font-size:11.5px; line-height:1.6; }
+  .tn-method-note strong { color:#0c4a6e; }
+  .tn-summary { display:grid; grid-template-columns:repeat(4,minmax(150px,1fr));
+                gap:8px; margin:0 0 10px; }
+  .tn-stat { padding:9px 11px; border:1px solid var(--line); border-radius:8px;
+             background:#fafbfd; min-width:0; }
+  .tn-stat span { display:block; color:var(--muted); font-size:10.5px; }
+  .tn-stat b { display:block; margin-top:3px; font:600 14px var(--mono); color:var(--ink); }
+  .tn-stat small { display:block; margin-top:3px; color:var(--faint); font-size:10px; }
+  .tn-stat.drive { border-color:#bfdbfe; background:#eff6ff; }
+  .tn-stat.brake { border-color:#fed7aa; background:#fff7ed; }
+  @media(max-width:1000px){ .tn-summary{ grid-template-columns:repeat(2,minmax(150px,1fr)); } }
   /* 侧栏：电机参考图挂件 */
-  .ref-gallery { margin-top:14px; border:1px solid var(--line); border-radius:8px; background:#fff; overflow:hidden; }
+  .ref-gallery { flex:0 0 auto; min-height:43px; margin:8px 10px 10px;
+                 border:1px solid var(--line); border-radius:8px; background:#fff;
+                 overflow:hidden; display:flex; flex-direction:column; }
   .ref-g-head { display:flex; justify-content:space-between; align-items:center; gap:6px; padding:8px 10px;
                 font-size:12px; font-weight:650; color:var(--ink); border-bottom:1px solid var(--line); }
-  .ref-item { padding:8px 10px; border-bottom:1px solid var(--line); cursor:zoom-in;
+  #ref-gallery-body { flex:1 1 auto; min-height:0; display:grid;
+                      grid-template-columns:repeat(2,minmax(0,1fr));
+                      max-height:min(30vh,230px); overflow:auto; }
+  .ref-item { min-width:0; padding:7px; border-bottom:1px solid var(--line); cursor:zoom-in;
               display:flex; flex-direction:column; gap:6px; }
+  .ref-item:nth-child(odd) { border-right:1px solid var(--line); }
   .ref-item:last-child { border-bottom:none; }
   .ref-item img { width:100%; border:1px solid var(--line); border-radius:4px; display:block; background:#fff; }
   .ref-item span { font-size:11px; color:var(--muted); text-align:center; }
   .ref-item:hover { background:#f1f5f9; }
   /* 放大浮窗：非模态、可拖动整框；不影响背后主界面操作 */
-  .ref-float { position:fixed; top:0; left:0; z-index:2000; pointer-events:none; }
+  .ref-float { position:fixed; inset:0; z-index:2000; pointer-events:none; }
   .ref-float[hidden] { display:none !important; }
   .ref-gallery [hidden], #ref-gallery-body[hidden] { display:none !important; }
-  .ref-float-box { position:absolute; left:50%; top:24px; transform:translateX(-50%);
-                   width:min(90vw,880px); max-height:92vh; box-sizing:border-box;
+  .ref-float-box { position:absolute; left:50%; top:4vh; transform:translateX(-50%);
+                   width:min(94vw,1100px); height:min(90vh,800px); max-height:92vh;
+                   box-sizing:border-box;
                    background:#fff; border-radius:10px; box-shadow:0 18px 60px rgba(15,23,42,.35);
                    padding:10px 10px 8px; pointer-events:auto; cursor:grab;
                    display:flex; flex-direction:column; gap:8px; }
   .ref-float-box:active { cursor:grabbing; }
   .ref-float-head { display:flex; justify-content:space-between; align-items:center; gap:16px;
                     font-size:14px; font-weight:650; color:var(--ink); cursor:grab; }
+  .ref-float-actions { display:flex; gap:6px; }
   .ref-float-head button { cursor:pointer; }
   .ref-float-hint { font-size:11px; color:var(--muted); text-align:center; }
   /* 浮窗内的缩放容器：滚轮缩放图片；拖动由整框负责(不改变图片 transform 的平移) */
@@ -253,6 +342,30 @@
   @media(max-width:900px){
     #print-root .pv-meta { grid-template-columns:repeat(2,1fr); }
   }
+  @media(max-width:900px){
+    header { padding:12px; align-items:flex-start; }
+    .brand,.actions,.file-tools { width:100%; }
+    .csv-picker { flex:1 1 320px; width:auto; }
+    #status { max-width:100%; }
+    .drop-zone,.meta { margin-inline:12px; }
+    .meta { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    nav { padding-inline:12px; }
+    .layout { grid-template-columns:minmax(0,1fr); padding-inline:12px; }
+    aside { position:static; height:auto; max-height:none; }
+    #aside-term-controls { max-height:340px; }
+    #ref-gallery-body { max-height:none; }
+    .current-file-path { max-height:58px; overflow:auto; }
+  }
+  @media(max-width:520px){
+    .meta { grid-template-columns:1fr; }
+    .summary-cards { grid-template-columns:1fr; }
+    .favorite-summary-tools input,.favorite-summary-tools select { min-width:0; width:100%; }
+    .compare-metric select,.cmp-src { width:100%; }
+    .cmp-src { display:grid; grid-template-columns:auto minmax(0,1fr) auto; }
+    .cmp-src select { width:auto; min-width:0; }
+    .ref-float-box { top:8px; width:calc(100vw - 16px);
+                     height:calc(100vh - 16px); max-height:none; }
+  }
 </style>
 </head>
 <body>
@@ -262,17 +375,24 @@
     <div><div class="eyebrow">SIMULATION TELEMETRY · CSV INSPECTOR</div><h1>Pikachu Metrics 数据分析</h1></div>
   </div>
   <div class="actions">
-    <select id="csv-picker" class="csv-picker" disabled title="自动发现 logs/ 下的 Metrics CSV">
-      <option>正在发现 logs/ 下的 CSV…</option>
-    </select>
-    <button class="btn" id="refresh-csv" onclick="discoverCsvs(false)">刷新列表</button>
+    <div class="file-tools">
+      <select id="csv-picker" class="csv-picker" disabled title="自动发现的 Metrics CSV；收藏文件优先显示">
+        <option>正在发现 logs/ 下的 CSV…</option>
+      </select>
+      <button class="btn" id="refresh-csv" onclick="discoverCsvs(false)">刷新</button>
+      <button class="btn" id="favorite-toggle" onclick="toggleCurrentFavorite()" disabled title="收藏/取消收藏当前服务端 CSV">☆ 收藏</button>
+      <input class="favorite-alias" id="favorite-alias" placeholder="收藏别名" disabled
+             onkeydown="if(event.key==='Enter')saveCurrentFavoriteAlias()">
+      <button class="btn" id="favorite-alias-save" onclick="saveCurrentFavoriteAlias()" disabled>保存别名</button>
+    </div>
     <input id="file-input" type="file" accept=".csv,text/csv">
     <button class="btn primary" onclick="document.getElementById('file-input').click()">选择其他 CSV</button>
     <button class="btn" id="save-overview" onclick="saveOverviewPng()" disabled>保存当前总览 PNG</button>
-    <button class="btn" id="save-pairs" onclick="savePairsPng()" disabled>保存左右 1×7 PNG</button>
+    <button class="btn" id="save-pairs" onclick="savePairsPng()" disabled>保存左右对比 PNG</button>
     <button class="btn" id="save-pdf" onclick="saveAllPdf()" disabled>保存全部为 PDF</button>
     <button class="btn" id="save-csv" onclick="saveSelectedCsv()" disabled>保存所选数据 CSV</button>
     <button class="btn primary" id="open-compare" onclick="openCompare()">数据对比</button>
+    <button class="btn" onclick="openFavoriteSummary()">收藏总结</button>
     <span id="status">请选择 Viser Metrics 录制的 CSV</span>
   </div>
 </header>
@@ -283,7 +403,7 @@
   <div class="meta-card"><div class="meta-k">File</div><div class="meta-v" id="m-file">—</div></div>
   <div class="meta-card"><div class="meta-k">Network</div><div class="meta-v" id="m-network">—</div></div>
   <div class="meta-card"><div class="meta-k">Samples</div><div class="meta-v" id="m-samples">—</div></div>
-  <div class="meta-card"><div class="meta-k">Duration</div><div class="meta-v" id="m-duration">—</div></div>
+  <div class="meta-card"><div class="meta-k" id="m-duration-k">Duration</div><div class="meta-v" id="m-duration">—</div></div>
   <div class="meta-card"><div class="meta-k">Environments</div><div class="meta-v" id="m-envs">—</div></div>
 </div>
 
@@ -291,36 +411,44 @@
 
 <div class="layout">
   <aside>
-    <div class="aside-head">
-      <h2>曲线选择</h2>
-      <p>按 CSV 列名自动分类。勾选决定网页曲线、图片导出和筛选 CSV 的字段。</p>
+    <div class="current-file" id="current-file-card">
+      <div class="current-file-k">CURRENT CSV</div>
+      <div class="current-file-name" id="aside-current-file">尚未加载</div>
+      <div class="current-file-path" id="aside-current-path">—</div>
+      <span class="current-file-alias" id="aside-current-alias" hidden></span>
     </div>
-    <button id="actual-btn" class="btn" hidden title="在设定值(关节目标)曲线上叠加显示同关节实际到达位置 joint_position_rad：设定值虚线、实际位置实线；颜色均跟随左右(蓝/红)">显示实际位置</button>
-    <input id="search" class="search" placeholder="搜索关节或指标…" oninput="renderTermList()">
-    <div class="quick">
-      <button class="btn" onclick="selectTerms('all')">全选</button>
-      <button class="btn" onclick="selectTerms('none')">全不选</button>
-      <button class="btn" onclick="selectTerms('left')">仅左侧</button>
-      <button class="btn" onclick="selectTerms('right')">仅右侧</button>
-    </div>
-    <div id="term-list"><div class="empty">加载 CSV 后显示字段</div></div>
     <div class="ref-gallery" id="ref-gallery">
       <div class="ref-g-head">电机参考图（DM T-N）
         <button class="btn small" onclick="toggleRefGallery()" id="ref-g-toggle" title="收起/展开整块参考图到原位">收起</button>
       </div>
       <div id="ref-gallery-body">
         <div class="ref-item" onclick="showRefFloat('DM-J3507-2EC-T-N.png','DM-J3507-2EC')" title="点击放大；放大后可拖拽平移、滚轮缩放">
-          <img src="DM-J3507-2EC-T-N.png" alt="DM-J3507 T-N" loading="lazy"><span>DM-J3507-2EC</span>
+          <img src="DM-J3507-2EC-T-N.png" alt="DM-J3507 T-N" loading="eager" decoding="async"><span>DM-J3507-2EC</span>
         </div>
         <div class="ref-item" onclick="showRefFloat('DM-J4310-2EC-T-N.png','DM-J4310-2EC')" title="点击放大；放大后可拖拽平移、滚轮缩放">
-          <img src="DM-J4310-2EC-T-N.png" alt="DM-J4310 T-N" loading="lazy"><span>DM-J4310-2EC</span>
+          <img src="DM-J4310-2EC-T-N.png" alt="DM-J4310 T-N" loading="eager" decoding="async"><span>DM-J4310-2EC</span>
         </div>
       </div>
+    </div>
+    <div class="aside-head">
+      <h2>曲线选择</h2>
+      <p>按 CSV 列名自动分类。勾选决定网页曲线、图片导出和筛选 CSV 的字段。</p>
+    </div>
+    <div id="aside-term-controls">
+      <button id="actual-btn" class="btn" hidden title="在设定值(关节目标)曲线上叠加显示同关节实际到达位置 joint_position_rad：设定值虚线、实际位置实线；颜色均跟随左右(蓝/红)">显示实际位置</button>
+      <input id="search" class="search" placeholder="搜索关节或指标…" oninput="renderTermList()">
+      <div class="quick">
+        <button class="btn" onclick="selectTerms('all')">全选</button>
+        <button class="btn" onclick="selectTerms('none')">全不选</button>
+        <button class="btn" onclick="selectTerms('left')">仅左侧</button>
+        <button class="btn" onclick="selectTerms('right')">仅右侧</button>
+      </div>
+      <div id="term-list"><div class="empty">加载 CSV 后显示字段</div></div>
     </div>
   </aside>
 
   <main>
-    <div class="panel">
+    <div class="panel" id="range-panel">
       <div class="panel-head">
         <div><h2>数据区间</h2><p>同步控制总览、左右对比、统计和导出 CSV；图内仍可滚轮缩放。</p></div>
         <button class="btn" onclick="resetRange()">恢复全量</button>
@@ -345,21 +473,29 @@
 
     <div class="panel" id="tn-panel" hidden>
       <div class="panel-head">
-        <div><h2>关节 T-N 散点图</h2><p>横轴=<span class="tip" title="关节角速度 ω，rpm 与 rad/s 换算：rpm = ω·60/(2π)">转速 ω</span>，纵轴=扭矩 τ，每个采样点一个散点 <code title="由同一时刻的 joint_torque_nm 与 joint_velocity_rad_s 组成散点 (ω, τ)。散点集中处即该关节电机实际运行点，与规格书的 T-N 特性对照可判断是否越限/是否合理">(<code>ω</code>,<code>τ</code>)</code>。散点相对电机 T-N 特性线(<span class="tip" title="扭矩-转速特性：扭矩越大可用转速越低，越限区即 T-N 线外">运行点区</span>)判断运行是否合理。</p></div>
+        <div><h2>关节四象限 T-N 分析</h2><p>机械功率 <code>P<sub>m</sub>=τ·ω</code>：Q1/Q3 为驱动输出，Q2/Q4 为制动吸收。四象限视图保留方向；绝对值视图只折叠坐标，仍将驱动与制动分开。</p></div>
         <div class="tn-ctrl">
+          分析视图：
+          <button class="btn small" id="tn-view-quadrant" onclick="tnSetView('quadrant')" title="保留关节速度和扭矩符号；电机正向曲线以中心对称方式镜像到第三象限">四象限</button>
+          <button class="btn small" id="tn-view-magnitude" onclick="tnSetView('magnitude')" title="绘制 |ω| 与 |τ|，但继续按 τ·ω 的正负区分驱动和制动">绝对值</button>
+          工况：
+          <button class="btn small" id="tn-op-all" onclick="tnSetOperation('all')">全部</button>
+          <button class="btn small" id="tn-op-drive" onclick="tnSetOperation('drive')">驱动</button>
+          <button class="btn small" id="tn-op-brake" onclick="tnSetOperation('brake')">制动</button>
           转速单位：
           <button class="btn small" id="tn-unit-rad" onclick="tnSetUnit('rad/s')">rad/s</button>
           <button class="btn small" id="tn-unit-rpm" onclick="tnSetUnit('rpm')">rpm</button>
           <span id="tn-unit-now" class="tip" title="rpm = ω·60/(2π)。仅影响横轴刻度与读数，散点不变">当前：rad/s</span>
-          <button class="btn small" id="tn-xy-swap" onclick="tnSwapXY()" title="对调横/纵轴。有的厂家 T-N 表横轴是扭矩、纵轴是转速，用于对齐导入参考图的方向；对调后散点数据不变，仅换坐标">互换 XY</button>
-          <span class="tip" title="把电机规格书 T-N 图作为各散点卡底图：优先用与当前结合内置 DM-J3507/DM-J4310，也可导入自定义图。半透明叠加，配合互换 XY 对齐方向（底图坐标需人工对照，仅示运行点外形）">参考图：</span>
-          <button class="btn small" id="tn-ref-none" onclick="tnRefMode('none')" title="不叠加参考图">关</button>
-          <button class="btn small" id="tn-ref-dm3507" onclick="tnRefMode('dm3507')" title="用本目录内 DM-J3507-2EC-T-N.png 作底图">DM-J3507</button>
-          <button class="btn small" id="tn-ref-dm4310" onclick="tnRefMode('dm4310')" title="用本目录内 DM-J4310-2EC-T-N.png 作底图">DM-J4310</button>
-          <button class="btn small" onclick="document.getElementById('tn-ref-file').click()" title="上传本地规格书 T-N 图作底图">导入自定义</button>
-          <input id="tn-ref-file" type="file" accept="image/*" hidden onchange="tnRefPick(event)">
+          <button class="btn small" id="tn-xy-swap" onclick="tnSwapXY()" title="对调横/纵轴。散点与电机 Speed–Torque 曲线同步换轴">互换 XY</button>
+          <span class="tip" title="自动模式按关节选择 J4310（hip_pitch/knee）或 J3507（其余关节）；手动模式将同一型号用于全部关节，仅供对比">电机曲线：</span>
+          <button class="btn small" id="tn-ref-none" onclick="tnRefMode('none')" title="不叠加电机曲线">关</button>
+          <button class="btn small" id="tn-ref-auto" onclick="tnRefMode('auto')" title="按关节自动匹配 J4310 或 J3507 曲线">自动匹配</button>
+          <button class="btn small" id="tn-ref-dm3507" onclick="tnRefMode('dm3507')" title="叠加 TN/DM-J3507-2EC-T-N_digitized.csv 中的 Speed–Torque 数据">DM-J3507</button>
+          <button class="btn small" id="tn-ref-dm4310" onclick="tnRefMode('dm4310')" title="叠加 TN/DM-J4310-2EC-T-N_digitized.csv 中的 Speed–Torque 数据">DM-J4310</button>
         </div>
       </div>
+      <div class="tn-method-note"><strong>判读边界：</strong>当前电机 CSV 是 24 V、正向、有限速度区间的实测性能曲线，不是完整四象限极限包络。第三象限曲线只是正反转对称假设；负机械功率表示执行器从机构吸收能量，不等于电池实际回充。</div>
+      <div id="tn-summary" class="tn-summary"></div>
       <div id="tn-chart"><div class="empty">加载 CSV 后显示 T-N 散点图</div></div>
     </div>
 
@@ -383,7 +519,7 @@
       <div id="pair-grid" class="pair-grid"></div>
     </div>
 
-    <div class="panel">
+    <div class="panel" id="stats-panel">
       <div class="panel-head">
         <div><h2>统计摘要</h2><p>基于当前时间区间和所选字段，重点展示峰值、RMS 与绝对值 P95。上方为分布箱线图（箱内 Q1/中位/Q3，须为 1.5×IQR，菱形为均值）。</p></div>
       </div>
@@ -448,47 +584,69 @@
         </div>
       </details>
     </div>
-  </main>
-</div>
 
-<div id="compare-panel" class="panel" hidden>
-  <div class="panel-head">
-    <div><h2>数据对比</h2><p>左侧下拉选来源 A、右侧选来源 B（各也可选本地 CSV），选定即自动对比「同一个指标」：曲线（横轴可归一化进度对齐）、并排箱线、按来源逐行统计。一次只对比一个指标，避免堆叠。</p></div>
-    <div class="actions" style="gap:8px">
-      <button class="btn" onclick="refreshSourceSelects()">刷新列表</button>
-      <button class="btn" onclick="clearCompare()">清除</button>
-      <button class="btn" onclick="closeCompare()">关闭</button>
+    <div id="compare-panel" class="panel" hidden>
+      <div class="panel-head">
+        <div><h2>数据对比</h2><p>先固定两个 CSV 来源，再把多个共同指标依次添加到下方。支持原始 Metrics、派生加速度、惯性扭矩、机械功率和逐关节 T-N；标量项显示时间曲线、箱线与统计，T-N 项显示四象限散点和功率分布。</p></div>
+        <div class="actions" style="gap:8px">
+          <button class="btn" onclick="refreshSourceSelects()">刷新来源</button>
+          <button class="btn" onclick="clearCompare()">清除</button>
+          <button class="btn" onclick="closeCompare()">返回数据浏览</button>
+        </div>
+      </div>
+      <div class="compare-sources">
+        <div class="cmp-src">
+          <span class="lbl">来源 A</span>
+          <select id="cmp-src-left" onchange="onSourceChange('left')"></select>
+          <input id="cmp-file-left" type="file" accept=".csv,text/csv" hidden onchange="onLocalFile('left',event)">
+          <button class="btn small" onclick="document.getElementById('cmp-file-left').click()">本地</button>
+        </div>
+        <div class="cmp-vs">↔</div>
+        <div class="cmp-src">
+          <span class="lbl">来源 B</span>
+          <select id="cmp-src-right" onchange="onSourceChange('right')"></select>
+          <input id="cmp-file-right" type="file" accept=".csv,text/csv" hidden onchange="onLocalFile('right',event)">
+          <button class="btn small" onclick="document.getElementById('cmp-file-right').click()">本地</button>
+        </div>
+      </div>
+      <div class="compare-metric">
+        <span class="lbl">新增对比项</span>
+        <select id="cmp-metric" disabled onchange="onMetricChange()"></select>
+        <button class="btn primary" id="cmp-add" disabled onclick="addCompareMetric()">添加到下方</button>
+        <span id="cmp-xaxis-wrap">
+          <span class="lbl">曲线 X 轴</span>
+          <select id="cmp-xaxis" onchange="renderCompare()">
+            <option value="progress">归一化进度 (%)</option>
+            <option value="time" selected>真实时间 (s)</option>
+          </select>
+        </span>
+        <span class="cmp-count" id="cmp-item-count">已添加 0 项</span>
+      </div>
+      <div id="cmp-items" class="cmp-items">
+        <div class="empty">选择来源 A、B 后，可连续添加多个对比指标</div>
+      </div>
     </div>
-  </div>
-  <div class="compare-sources">
-    <div class="cmp-src">
-      <span class="lbl">左来源</span>
-      <select id="cmp-src-left" onchange="onSourceChange('left')"></select>
-      <input id="cmp-file-left" type="file" accept=".csv,text/csv" hidden onchange="onLocalFile('left',event)">
-      <button class="btn small" onclick="document.getElementById('cmp-file-left').click()">本地</button>
+
+    <div id="favorites-panel" class="panel" hidden>
+      <div class="panel-head">
+        <div><h2>收藏文件总结</h2><p>收藏保存在当前浏览器中。点击“一键总结”会读取全部仍可发现的收藏 CSV，补齐加速度、惯性扭矩和机械功率等派生项，并以统一口径比较各项指标。</p></div>
+        <div class="actions" style="gap:8px">
+          <button class="btn primary" onclick="summarizeFavorites()">一键总结收藏文件</button>
+          <button class="btn" onclick="renderFavoriteManager()">刷新收藏</button>
+          <button class="btn" onclick="closeFavoriteSummary()">返回数据浏览</button>
+        </div>
+      </div>
+      <div id="favorite-manager-list" class="favorite-list"></div>
+      <div id="favorite-summary-cards" class="summary-cards"></div>
+      <div class="favorite-summary-tools">
+        <span class="lbl">指标图表</span>
+        <select id="favorite-summary-metric" disabled onchange="renderFavoriteSummaryChart()"></select>
+        <input id="favorite-summary-search" placeholder="筛选文件、别名或指标…" oninput="renderFavoriteSummaryTable()">
+      </div>
+      <div id="favorite-summary-chart"><div class="empty">点击“一键总结收藏文件”生成跨文件指标对比</div></div>
+      <div class="table-wrap" id="favorite-summary-table" style="max-height:640px"><div class="empty">暂无收藏汇总</div></div>
     </div>
-    <div class="cmp-vs">↔</div>
-    <div class="cmp-src">
-      <span class="lbl">右来源</span>
-      <select id="cmp-src-right" onchange="onSourceChange('right')"></select>
-      <input id="cmp-file-right" type="file" accept=".csv,text/csv" hidden onchange="onLocalFile('right',event)">
-      <button class="btn small" onclick="document.getElementById('cmp-file-right').click()">本地</button>
-    </div>
-  </div>
-  <div class="compare-metric">
-    <span class="lbl">对比指标</span>
-    <select id="cmp-metric" disabled onchange="onMetricChange()"></select>
-    <span class="lbl">X 轴</span>
-    <select id="cmp-xaxis" onchange="renderCompare()">
-      <option value="progress">归一化进度 (%)</option>
-      <option value="time" selected>真实时间 (s)</option>
-    </select>
-  </div>
-  <div class="cmp-grid">
-    <div id="cmp-line"><div class="empty">在左、右下拉各选一个来源后自动对比</div></div>
-    <div id="cmp-box"><div class="empty">箱线分布会在此并排显示</div></div>
-  </div>
-  <div class="table-wrap" id="cmp-stats" style="max-height:380px"><div class="empty">暂无对比统计</div></div>
+  </main>
 </div>
 
 <footer>运行 <code>uv run python scripts/plot_logs/serve.py</code> 可自动发现 logs/ 下的 CSV；直接双击时仍可手动选择。</footer>
@@ -507,17 +665,32 @@ const JOINT_GROUPS = {
   joint_inertia_torque:{prefix:'joint_inertia_torque_nm/', label:'惯量扭矩需求', unit:'N·m'},
   joint_power:{prefix:'joint_power_w/', label:'关节功率', unit:'W'},
 };
-const PAIRS = ['hip_pitch','hip_roll','hip_yaw','knee','ankle','arm_pitch','arm_roll'];
+// 关节名**不是**白名单。不同机型的同一关节叫法不同(pikachu_v03 的膝是 knee_up,
+// 老机型是 knee),写死列表会让新名字的关节在「左右对比」「T-N 四象限」里整个消失。
+// 实际关节列表改为从加载到的 CSV 动态发现(见 discoverJoints),这里只提供两样东西:
+//   1) CANONICAL_JOINT_ORDER —— 排序偏好,让侧栏与对比面板按解剖顺序排列;
+//   2) JOINT_ALIASES —— 别名归一,让 knee_up 继承 knee 的电机规格与惯量默认值。
+// 新机型只要列名是 ``left_<x>_joint`` 就会被自动收进来;若它还需要某个已知关节的
+// 规格/惯量,在这里补一条别名即可。
+const CANONICAL_JOINT_ORDER = ['hip_pitch','hip_roll','hip_yaw','knee','ankle','arm_pitch','arm_roll','arm_yaw'];
+const JOINT_ALIASES = {knee_up:'knee'};
+let JOINT_ORDER = [];   // 当前 CSV 里实际出现的关节,每次加载后由 discoverJoints() 重建
+function canonicalJoint(joint){return JOINT_ALIASES[joint]||joint;}
 const CATEGORY_ORDER = ['joint_position','joint_target','joint_velocity','joint_torque','joint_torque_ratio','joint_velocity_ratio','joint_accel','joint_inertia_torque','joint_power','joint_tn','base','foot','command','reward','contact','other'];
+const SPECIAL_COMPARE = '__compare__';
+const SPECIAL_FAVORITES = '__favorites__';
+const FAVORITES_STORAGE_KEY = 'mjlab.metrics.favorites.v1';
 // 电机规格（Pikachu DM 电机）——单一来源 pikachu_constants.py：
-//   hip_pitch/knee = J4310（vel 30 rad/s，effort 10 N·m）
+//   hip_pitch/knee = J4310（vel 20 rad/s，effort 10 N·m）
 //   其余 = J3507（vel 10 rad/s，effort 15 N·m）
+// 键是**规范关节名**；CSV 里的别名(pikachu_v03 的 knee_up)经 canonicalJoint 归一到
+// 这里，所以 knee_up 自动拿到 J4310。
 const ACTUATOR_SPEC = {
-  hip_pitch:{vel:30,effort:10}, knee:{vel:30,effort:10},
+  hip_pitch:{vel:20,effort:10}, knee:{vel:20,effort:10},
   hip_roll:{vel:10,effort:15}, hip_yaw:{vel:10,effort:15}, ankle:{vel:10,effort:15},
   arm_pitch:{vel:10,effort:15}, arm_roll:{vel:10,effort:15},
 };
-function specFor(joint){return ACTUATOR_SPEC[joint]||null;}
+function specFor(joint){return ACTUATOR_SPEC[canonicalJoint(joint)]||null;}
 // 各关节系统绕转轴总转动惯量 J_total(kg·m²)的默认估计；加载后可在「惯量扭矩需求」
 // 面板内编辑并重算。具体值应按实际机构/减速比/负载校核替换。
 const JOINT_INERTIA_DEFAULTS = {
@@ -532,14 +705,28 @@ const MAX_TN_POINTS = 3000;              // 每个 T-N 散点卡最多点数(超
 
 let DATA = null;
 let FILE_NAME = '';
+let CURRENT_PATH = '';
 let TERM_META = {};
 let CATEGORIES = {};
 let ACTIVE = '';
 let SELECTED = new Set();
 let TN_UNIT = 'rad/s';                    // T-N 散点图转速单位：rad/s | rpm（rpm = ω·60/(2π)）
 let TN_SWAP = false;                      // T-N 轴序：false=转速在 x，true=扭矩(N·m)在 x
-let TN_REF = 'none';                      // 参考图叠加模式：none | dm3507 | dm4310 | custom
-let TN_REF_IMG = '';                      // 自定义参考图 dataURL（tn-ref-file 读入）
+let TN_VIEW = 'quadrant';                 // quadrant=保留符号，magnitude=|速度|/|扭矩|
+let TN_OPERATION = 'all';                 // all | drive(P>0) | brake(P<0)
+let TN_REF = 'auto';                      // none | auto(按关节) | dm3507 | dm4310
+const TN_MOTOR_SOURCES = {
+  dm3507:{label:'DM-J3507',url:'TN/DM-J3507-2EC-T-N_digitized.csv',color:'#7c3aed'},
+  dm4310:{label:'DM-J4310',url:'TN/DM-J4310-2EC-T-N_digitized.csv',color:'#059669'},
+};
+const TN_MODE_STYLE = {
+  drive:{label:'驱动 P>0',color:'#2563eb'},
+  brake:{label:'制动 P<0',color:'#f97316'},
+  zero:{label:'零功率',color:'#94a3b8'},
+};
+const TN_MOTOR_DATA = {};                 // 型号 -> [{torqueNm,speedRpm}]
+const TN_MOTOR_LOADING = {};              // 型号 -> 正在执行的 fetch Promise
+const TN_MOTOR_ERRORS = {};               // 型号 -> 最近一次读取错误；手动重试时清除
 let TN_CHARTS = [];                       // T-N 散点图实例
 let OVERVIEW = null;
 let BOX = null;
@@ -547,8 +734,14 @@ let PAIR_CHARTS = [];
 let ASSUMED_TORQUE = {};   // joint -> 假设扭矩上限(N·m),重算时作为 ratio 的分母
 let RATIO_BACKUP = {};     // joint -> {left:[...], right:[...]} 原始 ratio 值,供重置恢复
 let INERTIA = Object.assign({}, JOINT_INERTIA_DEFAULTS);   // joint -> 系统绕轴总转动惯量 J_total(kg·m²)
+// 惯量查表:先看用户在面板里改过的值(按 CSV 里的实际关节名存),再回落到规范名的默认值。
+// 这样 knee_up 未手改时自动用 knee 的默认惯量,而不是算不出惯量扭矩。
+function inertiaFor(joint){return INERTIA[joint]??JOINT_INERTIA_DEFAULTS[canonicalJoint(joint)];}
 let RANGE = [0,100];
 let DISCOVERED_FILES = [];
+let FAVORITES = loadFavoriteStore();       // path -> {alias,addedAt}
+let FAVORITE_SUMMARY = {datasets:[],rows:[],metric:'',errors:[]};
+let FAVORITE_CHART = null;
 // 系统功率分析：POWER = {joints:[{joint,side,name}], total:[...瞬时总机械功率 W]}。
 // 由 left/right 每条关节的 torque × velocity 逐点累加；作为衍生数据不进入分类。
 let POWER = null;
@@ -562,7 +755,10 @@ const MOTOR_TYPE = {
   J4310:['hip_pitch','knee'],
   J3507:['hip_roll','hip_yaw','ankle','arm_pitch','arm_roll'],
 };
-function motorTypeFor(joint){ for(const [t,js] of Object.entries(MOTOR_TYPE)) if(js.includes(joint)) return t; return null; }
+function motorTypeFor(joint){
+  const c=canonicalJoint(joint);
+  for(const [t,js] of Object.entries(MOTOR_TYPE)) if(js.includes(c)) return t; return null;
+}
 function readMotorParams(){
   const p={};
   for(const t of ['J4310','J3507']){
@@ -604,6 +800,163 @@ function setStatus(text,error=false){
   el.textContent=text; el.style.color=error?'var(--err)':'var(--muted)';
 }
 
+function escapeHtml(value){
+  return String(value??'').replace(/[&<>"']/g,char=>({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;',
+  })[char]);
+}
+function loadFavoriteStore(){
+  try{
+    const value=JSON.parse(localStorage.getItem(FAVORITES_STORAGE_KEY)||'{}');
+    return value&&typeof value==='object'&&!Array.isArray(value)?value:{};
+  }catch(_error){return {};}
+}
+function persistFavoriteStore(){
+  try{localStorage.setItem(FAVORITES_STORAGE_KEY,JSON.stringify(FAVORITES));}
+  catch(error){setStatus('无法保存收藏：'+(error.message||String(error)),true);}
+}
+function favoriteRecord(path){ return path?FAVORITES[path]||null:null; }
+function favoriteAlias(path){ return favoriteRecord(path)?.alias?.trim()||''; }
+function favoriteFiles(){
+  return DISCOVERED_FILES.filter(file=>favoriteRecord(file.path))
+    .sort((a,b)=>(favoriteRecord(a.path).addedAt||0)-(favoriteRecord(b.path).addedAt||0));
+}
+function fileOptionLabel(file,isFavorite=false){
+  const parts=file.path.split('/'),parent=parts.slice(Math.max(0,parts.length-3),-1).join('/');
+  const alias=favoriteAlias(file.path),star=isFavorite?'★ ':'';
+  return star+file.name+(alias?' · '+alias:'')+(parent?' — '+parent:'')+' · '+formatBytes(file.size);
+}
+function appendFileOption(parent,file,isFavorite=false){
+  const option=document.createElement('option');
+  option.value=file.path;option.textContent=fileOptionLabel(file,isFavorite);
+  option.title=file.path+(favoriteAlias(file.path)?' · 别名：'+favoriteAlias(file.path):'');
+  parent.appendChild(option);
+}
+function populateDiscoveredSelect(select,{placeholder='',includeLocal=false}={}){
+  const previous=select.value;select.innerHTML='';
+  if(placeholder){const option=new Option(placeholder,'');select.appendChild(option);}
+  const favorites=favoriteFiles(),favoritePaths=new Set(favorites.map(file=>file.path));
+  if(favorites.length){
+    const group=document.createElement('optgroup');group.label='★ 收藏文件';
+    for(const file of favorites)appendFileOption(group,file,true);
+    select.appendChild(group);
+  }
+  const group=document.createElement('optgroup');group.label='全部文件';
+  for(const file of DISCOVERED_FILES){
+    if(!favoritePaths.has(file.path))appendFileOption(group,file,false);
+  }
+  if(group.children.length)select.appendChild(group);
+  if(includeLocal)select.appendChild(new Option('… 从本地选择 CSV','__local__'));
+  if([...select.options].some(option=>option.value===previous))select.value=previous;
+}
+function rebuildMainFilePicker(preferred=''){
+  const picker=document.getElementById('csv-picker');
+  populateDiscoveredSelect(picker);
+  const candidate=[preferred,CURRENT_PATH,picker.value]
+    .find(path=>DISCOVERED_FILES.some(file=>file.path===path));
+  if(candidate)picker.value=candidate;
+  picker.disabled=!DISCOVERED_FILES.length;
+  const current=DISCOVERED_FILES.find(file=>file.path===picker.value);
+  picker.title=current?current.path:'未发现 Metrics CSV';
+}
+function syncCurrentFileUi(){
+  const record=favoriteRecord(CURRENT_PATH),alias=record?.alias?.trim()||'';
+  const name=document.getElementById('aside-current-file');
+  const path=document.getElementById('aside-current-path');
+  const aliasEl=document.getElementById('aside-current-alias');
+  name.textContent=FILE_NAME||'尚未加载';
+  path.textContent=CURRENT_PATH||((FILE_NAME&&'本地文件（未加入服务端列表）')||'—');
+  path.title=CURRENT_PATH||FILE_NAME||'';
+  aliasEl.hidden=!alias;aliasEl.textContent=alias?'别名：'+alias:'';
+  const meta=document.getElementById('m-file');
+  meta.title=CURRENT_PATH||FILE_NAME||'';
+  const toggle=document.getElementById('favorite-toggle');
+  const input=document.getElementById('favorite-alias');
+  const save=document.getElementById('favorite-alias-save');
+  const canFavorite=Boolean(CURRENT_PATH&&DISCOVERED_FILES.some(file=>file.path===CURRENT_PATH));
+  toggle.disabled=!canFavorite;toggle.classList.toggle('on',Boolean(record));
+  toggle.textContent=record?'★ 已收藏':'☆ 收藏';
+  input.disabled=!record;input.value=alias;
+  save.disabled=!record;
+  const picker=document.getElementById('csv-picker');
+  if(CURRENT_PATH&&[...picker.options].some(option=>option.value===CURRENT_PATH)){
+    picker.value=CURRENT_PATH;picker.title=CURRENT_PATH;
+  }
+}
+function refreshFavoriteUi(preferred=CURRENT_PATH){
+  const scrollX=window.scrollX,scrollY=window.scrollY;
+  const nav=document.getElementById('tabs'),navScroll=nav.scrollLeft;
+  persistFavoriteStore();rebuildMainFilePicker(preferred);syncCurrentFileUi();
+  for(const side of ['left','right']){
+    const dataset=CMP?.[side];
+    if(dataset?.path)dataset.name=favoriteAlias(dataset.path)||dataset.fileName;
+  }
+  refreshSourceSelects();updateFavoriteTabBadge();
+  if(ACTIVE===SPECIAL_COMPARE)void renderCompare();
+  if(ACTIVE===SPECIAL_FAVORITES)renderFavoriteSummary();
+  requestAnimationFrame(()=>{
+    nav.scrollLeft=navScroll;
+    window.scrollTo(scrollX,scrollY);
+  });
+}
+function toggleCurrentFavorite(){
+  if(!CURRENT_PATH)return;
+  if(favoriteRecord(CURRENT_PATH))delete FAVORITES[CURRENT_PATH];
+  else FAVORITES[CURRENT_PATH]={alias:'',addedAt:Date.now()};
+  refreshFavoriteUi();
+  setStatus(favoriteRecord(CURRENT_PATH)?'已收藏当前 CSV':'已取消收藏当前 CSV');
+}
+function saveCurrentFavoriteAlias(){
+  const record=favoriteRecord(CURRENT_PATH);if(!record)return;
+  record.alias=document.getElementById('favorite-alias').value.trim();
+  refreshFavoriteUi();setStatus('已保存收藏别名');
+}
+function updateFavoriteAlias(path,value){
+  const record=favoriteRecord(path);if(!record)return;
+  record.alias=value.trim();refreshFavoriteUi(CURRENT_PATH);
+}
+function removeFavorite(path){
+  delete FAVORITES[path];refreshFavoriteUi();setStatus('已移除收藏');
+}
+
+// 横轴候选列,按优先级排列。Viser 录的标准 CSV 有 time_s;而训练趋势 CSV
+// (如 docs/pikachu_v03/reports/r06b-train-trend.csv)只有 iter/step —— 以前会直接
+// 报「CSV 缺少 time_s 列」把整份文件挡在门外。现在按候选顺序取第一个**数值且单调
+// 不减**的列当横轴,都找不到才退化为样本序号:宁可横轴朴素,也不拒绝文件。
+const TIME_COLUMN_CANDIDATES = ['time_s','time','sim_step','step','iteration','iter','epoch','frame','sample'];
+const TIME_COLUMN_LABELS = {
+  time_s:'Time (s)', time:'Time', sim_step:'Sim step', step:'Step',
+  iteration:'Iteration', iter:'Iteration', epoch:'Epoch', frame:'Frame', sample:'Sample',
+};
+const TIME_SECONDS_COLUMNS = new Set(['time_s','time','t']);
+const ROW_INDEX_LABEL = '样本序号';
+function resolveTimeAxis(headers,columns){
+  for(const cand of TIME_COLUMN_CANDIDATES){
+    if(!headers.includes(cand)) continue;
+    const nums=columns[cand].map(Number);
+    if(!nums.length||nums.some(v=>!Number.isFinite(v))) continue;
+    let monotonic=true;
+    for(let i=1;i<nums.length;i++) if(nums[i]<nums[i-1]){monotonic=false;break;}
+    if(!monotonic) continue;
+    return {time:nums,timeHeader:cand,timeIsSeconds:TIME_SECONDS_COLUMNS.has(cand),
+            timeLabel:TIME_COLUMN_LABELS[cand]||cand};
+  }
+  return {time:headers.length?columns[headers[0]].map((_,i)=>i):[],
+          timeHeader:null,timeIsSeconds:false,timeLabel:ROW_INDEX_LABEL};
+}
+// 横轴上一个点的显示:秒轴带单位,其余(iter/step/行号)按原值。
+function rangeEndpointText(i){
+  const v=DATA?.time?.[i];
+  if(!Number.isFinite(v)) return '—';
+  return DATA.timeIsSeconds?v.toFixed(3)+' s':String(v);
+}
+// 对比面板「真实横轴」模式的名字。左右两份 CSV 的横轴可能不同(一份 time_s、一份 iter),
+// 以 A 侧为准,只在都不是秒时才带前缀。
+function relativeAxisLabel(){
+  const f=CMP.left||CMP.right;
+  return (f&&!f.timeIsSeconds)?('相对 '+f.timeLabel):'相对时间 (s)';
+}
+
 function parseCsv(text){
   const rows=[]; let row=[]; let field=''; let quoted=false;
   for(let i=0;i<text.length;i++){
@@ -620,23 +973,21 @@ function parseCsv(text){
   if(field.length || row.length){ row.push(field); rows.push(row); }
   if(!rows.length) throw new Error('CSV 为空');
   const headers=rows[0].map((v,i)=>(i===0?v.replace(/^\uFEFF/,''):v).trim());
-  if(!headers.includes('time_s')) throw new Error('CSV 缺少 time_s 列');
   const columns=Object.fromEntries(headers.map(h=>[h,[]]));
   for(let r=1;r<rows.length;r++){
     if(rows[r].length===1 && rows[r][0]==='') continue;
     for(let c=0;c<headers.length;c++) columns[headers[c]].push(rows[r][c]??'');
   }
-  const time=columns.time_s.map(Number);
-  if(!time.length || time.some(v=>!Number.isFinite(v))) throw new Error('time_s 含空值或非数字');
-  for(let i=1;i<time.length;i++) if(time[i]<time[i-1]) throw new Error('time_s 必须单调递增');
+  const axis=resolveTimeAxis(headers,columns);
   const values={};
   for(const h of headers){
-    if(META_COLUMNS.has(h)) continue;
+    // 被选作横轴的列不再当指标画,否则 iter/step 会同时出现在横轴和曲线里。
+    if(META_COLUMNS.has(h) || h===axis.timeHeader) continue;
     const nums=columns[h].map(v=>v===''?NaN:Number(v));
     if(nums.some(Number.isFinite)) values[h]=nums;
   }
   if(!Object.keys(values).length) throw new Error('CSV 中没有可绘制的数值 Metrics 列');
-  return {headers,columns,time,values};
+  return {headers,columns,values,...axis};
 }
 
 function classifyTerm(name){
@@ -662,18 +1013,34 @@ function categoryLabel(key){
   return labels[key]||key;
 }
 
+// 从已分类的列名里发现关节:任何 ``left_/right_<x>_joint`` 都会被收进来,所以换机型
+// (膝叫 knee_up 而不是 knee)不需要改任何代码。排序按 CANONICAL_JOINT_ORDER 的位次
+// (别名先归一,于是 knee_up 与 knee 同位),不在其中的按名字排在最后。
+function discoverJoints(){
+  const found=new Set();
+  for(const [name,meta] of Object.entries(TERM_META)){
+    if(meta.joint && JOINT_GROUPS[meta.category]) found.add(meta.joint);
+  }
+  const rank=joint=>{
+    const i=CANONICAL_JOINT_ORDER.indexOf(canonicalJoint(joint));
+    return i<0?99:i;
+  };
+  return [...found].sort((a,b)=>rank(a)-rank(b)||a.localeCompare(b));
+}
+
 function buildTaxonomy(){
   TERM_META={}; CATEGORIES={};
   for(const name of Object.keys(DATA.values)){
     const meta=classifyTerm(name); TERM_META[name]=meta;
     (CATEGORIES[meta.category]??=[]).push(name);
   }
+  JOINT_ORDER=discoverJoints();
   for(const terms of Object.values(CATEGORIES)){
     terms.sort((a,b)=>{
       const ma=TERM_META[a], mb=TERM_META[b];
       const sa=ma.side==='left'?0:ma.side==='right'?1:2;
       const sb=mb.side==='left'?0:mb.side==='right'?1:2;
-      const ja=PAIRS.indexOf(ma.joint), jb=PAIRS.indexOf(mb.joint);
+      const ja=JOINT_ORDER.indexOf(ma.joint), jb=JOINT_ORDER.indexOf(mb.joint);
       return sa-sb || (ja<0?99:ja)-(jb<0?99:jb) || a.localeCompare(b);
     });
   }
@@ -681,7 +1048,7 @@ function buildTaxonomy(){
   // 让侧栏曲线选择框显示左/右数据；散点卡只绘制被勾选的侧别(左右独立生效)。
   if(DATA){
     CATEGORIES.joint_tn=[];
-    for(const joint of PAIRS){
+    for(const joint of JOINT_ORDER){
       for(const side of ['left','right']){
         const tnName=side+'_'+joint;
         CATEGORIES.joint_tn.push(tnName);
@@ -733,7 +1100,7 @@ function computePowerSeries(){
   // 每条关节的功率列写入 DATA.values,使第二次 buildTaxonomy 归入 joint_power 分类。
   const powerCols=[];
   for(const side of ['left','right']){
-    for(const joint of PAIRS){
+    for(const joint of JOINT_ORDER){
       const tn=`joint_torque_nm/${side}_${joint}_joint`, vn=`joint_velocity_rad_s/${side}_${joint}_joint`;
       const tau=DATA.values[tn], vel=DATA.values[vn];
       if(!tau||!vel){continue;}
@@ -766,18 +1133,18 @@ function recomputeInertiaSeries(joint){
     else delete DATA.values[tn];
   }
 }
-function recomputeAllInertiaSeries(){ for(const j of PAIRS)recomputeInertiaSeries(j); }
+function recomputeAllInertiaSeries(){ for(const j of JOINT_ORDER)recomputeInertiaSeries(j); }
 function resetInertia(){
   INERTIA=Object.assign({},JOINT_INERTIA_DEFAULTS);
   recomputeAllInertiaSeries();renderAll();
   setStatus('已恢复默认系统总惯量 J_total(可再在面板内编辑)');
 }
 
-async function loadCsvText(text,name){
+async function loadCsvText(text,name,path=''){
   try{
     setStatus('正在解析 '+name+'…');
     await waitEcharts();
-    DATA=parseCsv(text); FILE_NAME=name;
+    DATA=parseCsv(text); FILE_NAME=name;CURRENT_PATH=path;
     buildTaxonomy();      // 先分类原始列,供 computeDerived 定位各关节
     computeDerived();     // 由关节速度差分出加速度,再按 J 算出惯性扭矩需求
     computePowerSeries(); // 逐点累加各关节 τ×ω,得瞬时总机械功率(独立于分类)
@@ -789,8 +1156,18 @@ async function loadCsvText(text,name){
     document.getElementById('m-file').textContent=name;
     document.getElementById('m-network').textContent=DATA.columns.network?.find(Boolean)||'unknown';
     document.getElementById('m-samples').textContent=DATA.time.length.toLocaleString();
-    document.getElementById('m-duration').textContent=(DATA.time.at(-1)-DATA.time[0]).toFixed(3)+' s';
+    // 横轴不一定是秒(训练趋势 CSV 是 iter),卡片标题与内容都要跟着变。
+    const first=DATA.time[0], last=DATA.time.at(-1);
+    document.getElementById('m-duration-k').textContent=DATA.timeIsSeconds?'Duration':'Range';
+    document.getElementById('m-duration').textContent=
+      Number.isFinite(first)&&Number.isFinite(last)
+        ? (DATA.timeIsSeconds?(last-first).toFixed(3)+' s':first+' – '+last)
+        : '—';
+    // 对比面板的「真实时间」选项同样按横轴改写。
+    const xopt=document.querySelector('#cmp-xaxis option[value="time"]');
+    if(xopt) xopt.textContent=DATA.timeIsSeconds?'真实时间 (s)':('真实 '+DATA.timeLabel);
     document.getElementById('m-envs').textContent=new Set(DATA.columns.env_idx||[]).size||'—';
+    syncCurrentFileUi();
     for(const id of ['save-overview','save-pairs','save-pdf','save-csv']) document.getElementById(id).disabled=false;
     renderTabs(); renderTermList(); resetRange(); renderAll();
     setStatus('已加载 '+name+' · '+Object.keys(DATA.values).length+' 条曲线');
@@ -799,7 +1176,7 @@ async function loadCsvText(text,name){
 
 async function loadFile(file){
   setStatus('正在读取 '+file.name+'…');
-  await loadCsvText(await file.text(),file.name);
+  await loadCsvText(await file.text(),file.name,'');
 }
 
 function formatBytes(bytes){
@@ -815,7 +1192,7 @@ async function loadDiscovered(path){
     setStatus('正在读取 '+item.path+'…');
     const response=await fetch(item.url,{cache:'no-store'});
     if(!response.ok)throw new Error('读取失败：HTTP '+response.status);
-    await loadCsvText(await response.text(),item.name);
+    await loadCsvText(await response.text(),item.name,item.path);
   }catch(err){setStatus((err.message||String(err))+'；可改用“选择其他 CSV”',true);}
 }
 
@@ -827,20 +1204,13 @@ async function discoverCsvs(autoLoad=true){
     const response=await fetch('/api/csv-files?kind=metrics',{cache:'no-store'});
     if(!response.ok)throw new Error('自动发现接口不可用');
     const payload=await response.json();DISCOVERED_FILES=payload.files||[];
-    picker.innerHTML='';
     if(!DISCOVERED_FILES.length){
       picker.innerHTML='<option>logs/ 下没有 Metrics CSV</option>';
       setStatus('未发现 Metrics CSV；可点击“选择其他 CSV”',true);return;
     }
-    DISCOVERED_FILES.forEach(function(file,index){
-      const option=document.createElement('option');option.value=file.path;
-      option.textContent=(index===0?'最新 · ':'')+file.path+' · '+formatBytes(file.size);
-      picker.appendChild(option);
-    });
-    picker.disabled=false;
     const queryPath=new URLSearchParams(location.search).get('csv');
     const preferred=[queryPath,previous].find(path=>DISCOVERED_FILES.some(file=>file.path===path));
-    if(preferred)picker.value=preferred;
+    rebuildMainFilePicker(preferred||'');refreshSourceSelects();renderFavoriteManager();renderTabs();
     if(autoLoad)await loadDiscovered(picker.value);
     else setStatus('已发现 '+DISCOVERED_FILES.length+' 个 Metrics CSV');
   }catch(err){
@@ -871,16 +1241,41 @@ drop.addEventListener('drop',e=>{const f=e.dataTransfer.files?.[0];if(f)loadFile
 
 function renderTabs(){
   const nav=document.getElementById('tabs'); nav.innerHTML='';
+  const add=(key,label,count=null,special=false)=>{
+    const button=document.createElement('button');button.classList.toggle('special',special);
+    button.dataset.view=key;
+    button.classList.toggle('active',key===ACTIVE);
+    const text=document.createElement('span');text.textContent=label;button.appendChild(text);
+    if(count!==null){const badge=document.createElement('span');badge.className='nav-count';
+      badge.textContent=count;button.appendChild(badge);}
+    button.onclick=()=>activateView(key);nav.appendChild(button);
+  };
   for(const key of orderedCategories()){
-    const cnt=key==='joint_tn'?'':' · '+CATEGORIES[key].length;   // T-N 为视图分类,无原始字段计数
-    const b=document.createElement('button'); b.textContent=categoryLabel(key)+cnt;
-    b.className=key===ACTIVE?'active':''; b.onclick=()=>{ACTIVE=key;renderTabs();renderTermList();renderAll();syncActualBtn();};
-    nav.appendChild(b);
+    add(key,categoryLabel(key),key==='joint_tn'?null:CATEGORIES[key].length);
   }
+  add(SPECIAL_COMPARE,'数据对比',null,true);
+  add(SPECIAL_FAVORITES,'收藏总结',Object.keys(FAVORITES).length,true);
+}
+
+function updateFavoriteTabBadge(){
+  const button=[...document.querySelectorAll('#tabs button')]
+    .find(item=>item.dataset.view===SPECIAL_FAVORITES);
+  const badge=button?.querySelector('.nav-count');
+  if(badge)badge.textContent=Object.keys(FAVORITES).length;
+}
+
+function activateView(key){
+  ACTIVE=key;renderTabs();renderTermList();renderAll();syncActualBtn();
+  if(key===SPECIAL_COMPARE){refreshSourceSelects();fillCompareMetric();renderCompare();}
+  if(key===SPECIAL_FAVORITES){renderFavoriteManager();renderFavoriteSummary();}
 }
 
 function renderTermList(){
   const root=document.getElementById('term-list');
+  const special=ACTIVE===SPECIAL_COMPARE||ACTIVE===SPECIAL_FAVORITES;
+  document.getElementById('aside-term-controls').hidden=special;
+  document.getElementById('ref-gallery').hidden=special;
+  if(special)return;
   if(!DATA){ root.innerHTML='<div class="empty">加载 CSV 后显示字段</div>'; return; }
   const q=document.getElementById('search').value.trim().toLowerCase();
   root.innerHTML='';
@@ -896,7 +1291,7 @@ function renderTermList(){
 }
 
 function selectTerms(mode){
-  if(!DATA) return;
+  if(!DATA||!CATEGORIES[ACTIVE]) return;
   for(const name of CATEGORIES[ACTIVE]){
     const side=TERM_META[name].side;
     if(mode==='all' || mode===side) SELECTED.add(name);
@@ -920,8 +1315,10 @@ function sampledData(name){
 
 function seriesColor(name,index){
   const meta=TERM_META[name], base=METRIC_COLORS[index%METRIC_COLORS.length];
-  if(meta.side==='left') return METRIC_COLORS[PAIRS.indexOf(meta.joint)%7];
-  if(meta.side==='right') return METRIC_COLORS[7+(PAIRS.indexOf(meta.joint)%7)];
+  // 调色板按关节序号取色:左右各占 7 个槽位(见 METRIC_COLORS),未知关节归到 0。
+  const slot=Math.max(0,JOINT_ORDER.indexOf(meta.joint))%7;
+  if(meta.side==='left') return METRIC_COLORS[slot];
+  if(meta.side==='right') return METRIC_COLORS[7+slot];
   return base;
 }
 
@@ -954,7 +1351,7 @@ function overviewOption(names,exporting=false,key=ACTIVE){
     tooltip:{trigger:'axis',axisPointer:{type:'cross'}},
     legend:{type:'scroll',top:exporting?58:4,left:20,right:20},
     toolbox:exporting?undefined:{right:15,feature:{dataZoom:{},restore:{},saveAsImage:{name:'metrics_'+ACTIVE,pixelRatio:2}}},
-    xAxis:{type:'value',name:'Time (s)',nameLocation:'middle',nameGap:32,scale:true},
+    xAxis:{type:'value',name:DATA.timeLabel,nameLocation:'middle',nameGap:32,scale:true},
     yAxis:{type:'value',name:unit,scale:true},
     dataZoom:[{type:'inside',filterMode:'none'},{type:'slider',bottom:20,height:22,filterMode:'none'}],
     series:items.map((it,i)=>({
@@ -988,7 +1385,7 @@ function renderPairs(){
   document.getElementById('save-pairs').disabled=!jointCategory;
   section.hidden=!jointCategory; if(!jointCategory)return;
   const root=document.getElementById('pair-grid');root.innerHTML='';
-  for(const joint of PAIRS){
+  for(const joint of JOINT_ORDER){
     const spec=specFor(joint);
     const card=document.createElement('div');card.className='pair-card';root.appendChild(card);
 
@@ -1023,7 +1420,7 @@ function renderPairs(){
     chart.setOption({
       animation:false,title:{text:joint,left:12,top:6,textStyle:{fontSize:13}},
       grid:{left:70,right:25,top:45,bottom:55},tooltip:{trigger:'axis'},
-      legend:{top:8,right:20},xAxis:{type:'value',name:'Time (s)',scale:true},
+      legend:{top:8,right:20},xAxis:{type:'value',name:DATA.timeLabel,scale:true},
       yAxis:{type:'value',name:JOINT_GROUPS[ACTIVE].unit,scale:true},
       dataZoom:[{type:'inside',filterMode:'none'}],series,
     });
@@ -1039,7 +1436,7 @@ function renderInertiaPanel(){
   panel.hidden=!show; if(!show)return;
   const [start,end]=rangeIndices();
   const tbody=document.getElementById('inertia-tbody');tbody.innerHTML='';
-  for(const joint of PAIRS){
+  for(const joint of JOINT_ORDER){
     const J=INERTIA[joint];
     let hasAccel=false; let alphaPeak=-Infinity,reqPeak=-Infinity; let measPeak=null;
     for(const side of ['left','right']){
@@ -1463,7 +1860,7 @@ function renderPowerPanel(){
     grid:{left:70,right:22,top:34,bottom:44},
     tooltip:{trigger:'axis',axisPointer:{type:'cross'},
       formatter:p=>p.map(x=>`${x.seriesName}<br/>t=${fmt(x.value[0])} s<br/>P=${fmt(x.value[1])} W`).join('<br/>')},
-    xAxis:{type:'value',name:'Time (s)',nameLocation:'middle',nameGap:30,scale:true},
+    xAxis:{type:'value',name:DATA.timeLabel,nameLocation:'middle',nameGap:30,scale:true},
     yAxis:{type:'value',name:'P_m (W)',scale:true},
     series:[{name:'总机械功率',type:'line',showSymbol:false,smooth:false,lineStyle:{width:1.4},data:lines}],
   });
@@ -1513,9 +1910,118 @@ function renderPowerPanel(){
 
 function disposeTn(){ for(const c of TN_CHARTS)c.dispose(); TN_CHARTS=[]; }
 function tnToUnit(v){ return TN_UNIT==='rpm'? v*60/(2*Math.PI) : v; }
-// 参考图来源：内置 DM 两型号（与本 HTML 同目录的相对 PNG）或自定义上传的 dataURL。
-function tnRefSrc(){ return TN_REF==='dm3507'?'DM-J3507-2EC-T-N.png':TN_REF==='dm4310'?'DM-J4310-2EC-T-N.png':TN_REF==='custom'?TN_REF_IMG:null; }
-// T-N 散点图：各功能组一张散点卡，默认横轴转速(rad/s|rpm)、纵轴扭矩；可对调以适配不同厂家 T-N 表。
+function parseTnMotorCsv(text,label){
+  const rows=text.trim().split(/\r?\n/).map(row=>row.split(','));
+  if(rows.length<2)throw new Error(label+' Speed–Torque CSV 为空');
+  const headers=rows[0].map((value,index)=>(index===0?value.replace(/^\uFEFF/,''):value).trim());
+  const torqueIndex=headers.indexOf('torque_nm'), speedIndex=headers.indexOf('speed_rpm');
+  if(torqueIndex<0||speedIndex<0)throw new Error(label+' CSV 缺少 torque_nm 或 speed_rpm 列');
+  const points=[];
+  for(const row of rows.slice(1)){
+    const torqueNm=Number(row[torqueIndex]), speedRpm=Number(row[speedIndex]);
+    if(Number.isFinite(torqueNm)&&Number.isFinite(speedRpm))points.push({torqueNm,speedRpm});
+  }
+  if(points.length<2)throw new Error(label+' CSV 中没有足够的有效 Speed–Torque 数据');
+  return points;
+}
+async function loadTnMotorCurve(mode){
+  const source=TN_MOTOR_SOURCES[mode]; if(!source)return null;
+  if(TN_MOTOR_DATA[mode])return TN_MOTOR_DATA[mode];
+  if(TN_MOTOR_LOADING[mode])return TN_MOTOR_LOADING[mode];
+  TN_MOTOR_LOADING[mode]=(async()=>{
+    const response=await fetch(source.url,{cache:'no-store'});
+    if(!response.ok)throw new Error('读取 '+source.url+' 失败：HTTP '+response.status);
+    const points=parseTnMotorCsv(await response.text(),source.label);
+    TN_MOTOR_DATA[mode]=points;
+    return points;
+  })();
+  try{return await TN_MOTOR_LOADING[mode];}
+  finally{delete TN_MOTOR_LOADING[mode];}
+}
+function tnReferenceModes(mode){
+  if(mode==='auto')return ['dm3507','dm4310'];
+  return TN_MOTOR_SOURCES[mode]?[mode]:[];
+}
+function tnReferenceForJoint(joint){
+  if(TN_REF!=='auto')return TN_REF;
+  return MOTOR_TYPE.J4310.includes(joint)?'dm4310':'dm3507';
+}
+function tnMotorSeriesData(mode,uRpm,swap,mirror=false){
+  const points=TN_MOTOR_DATA[mode];
+  if(!points)return null;
+  return points.map(point=>{
+    const sign=mirror?-1:1;
+    const speed=sign*(uRpm?point.speedRpm:point.speedRpm*2*Math.PI/60);
+    const torque=sign*point.torqueNm;
+    return swap?[torque,speed]:[speed,torque];
+  });
+}
+function tnModeForPower(power){ return power>0?'drive':power<0?'brake':'zero'; }
+function tnQuadrant(speed,torque){
+  if(speed===0||torque===0)return '轴上';
+  if(speed>0)return torque>0?'Q1':'Q4';
+  return torque>0?'Q2':'Q3';
+}
+function tnOperationVisible(mode){
+  return TN_OPERATION==='all'||TN_OPERATION===mode;
+}
+function tnPowerEnergyInterval(p0,p1,dt){
+  if(p0>=0&&p1>=0)return {delivered:(p0+p1)*dt/2,absorbed:0};
+  if(p0<=0&&p1<=0)return {delivered:0,absorbed:-(p0+p1)*dt/2};
+  const crossing=Math.abs(p0)/(Math.abs(p0)+Math.abs(p1));
+  if(p0>0){
+    return {delivered:p0*dt*crossing/2,absorbed:-p1*dt*(1-crossing)/2};
+  }
+  return {delivered:p1*dt*(1-crossing)/2,absorbed:-p0*dt*crossing/2};
+}
+function tnSummaryStats(start,end){
+  const stats={drive:0,brake:0,zero:0,q1:0,q2:0,q3:0,q4:0,total:0,
+    deliveredJ:0,absorbedJ:0,signals:0};
+  for(const joint of JOINT_ORDER){
+    for(const side of ['left','right']){
+      if(!SELECTED.has(side+'_'+joint))continue;
+      const tag=side+'_'+joint+'_joint';
+      const tau=DATA.values[`joint_torque_nm/${tag}`];
+      const vel=DATA.values[`joint_velocity_rad_s/${tag}`];
+      if(!tau||!vel)continue;
+      stats.signals++;
+      for(let i=start;i<end;i++){
+        const torque=Number(tau[i]),speed=Number(vel[i]);
+        if(!Number.isFinite(torque)||!Number.isFinite(speed))continue;
+        const mode=tnModeForPower(torque*speed);
+        stats[mode]++;stats.total++;
+        const quadrant=tnQuadrant(speed,torque).toLowerCase();
+        if(quadrant in stats)stats[quadrant]++;
+      }
+      for(let i=start;i<end-1;i++){
+        const t0=Number(DATA.time[i]),t1=Number(DATA.time[i+1]);
+        const tau0=Number(tau[i]),tau1=Number(tau[i+1]);
+        const vel0=Number(vel[i]),vel1=Number(vel[i+1]);
+        if(![t0,t1,tau0,tau1,vel0,vel1].every(Number.isFinite)||t1<=t0)continue;
+        const p0=tau0*vel0,p1=tau1*vel1,dt=t1-t0;
+        const energy=tnPowerEnergyInterval(p0,p1,dt);
+        stats.deliveredJ+=energy.delivered;stats.absorbedJ+=energy.absorbed;
+      }
+    }
+  }
+  return stats;
+}
+function renderTnSummary(start,end){
+  const root=document.getElementById('tn-summary'); if(!root)return;
+  const stats=tnSummaryStats(start,end);
+  if(!stats.total){root.innerHTML='<div class="tn-stat"><span>当前选择</span><b>无有效 T-N 点</b><small>请在左侧勾选关节</small></div>';return;}
+  const drivePct=100*stats.drive/stats.total,brakePct=100*stats.brake/stats.total;
+  const ratio=stats.deliveredJ>0?100*stats.absorbedJ/stats.deliveredJ:NaN;
+  const view=TN_VIEW==='quadrant'?'四象限（保留符号）':'绝对值（按功率分组）';
+  const operation={all:'全部工况',drive:'仅驱动',brake:'仅制动'}[TN_OPERATION];
+  root.innerHTML=
+    `<div class="tn-stat drive"><span>驱动输出 · Q1 + Q3</span><b>${drivePct.toFixed(2)}%</b><small>Q1 ${stats.q1.toLocaleString()} · Q3 ${stats.q3.toLocaleString()} · 共 ${stats.drive.toLocaleString()} 点</small></div>`+
+    `<div class="tn-stat brake"><span>制动吸收 · Q2 + Q4</span><b>${brakePct.toFixed(2)}%</b><small>Q2 ${stats.q2.toLocaleString()} · Q4 ${stats.q4.toLocaleString()} · 共 ${stats.brake.toLocaleString()} 点</small></div>`+
+    `<div class="tn-stat"><span>机械能 · 输出 / 吸收</span><b>${stats.deliveredJ.toFixed(3)} / ${stats.absorbedJ.toFixed(3)} J</b><small>吸收/输出 ${Number.isFinite(ratio)?ratio.toFixed(2)+'%':'—'}；不代表电池回充</small></div>`+
+    `<div class="tn-stat"><span>当前显示口径</span><b>${view}</b><small>${operation} · ${stats.signals} 条信号 · ${stats.total.toLocaleString()} 点${stats.zero?' · 轴上 '+stats.zero:''}</small></div>`;
+}
+// T-N 散点图：四象限保留原始符号，绝对值视图仅折叠坐标；两种视图都按
+// Pm=τ·ω 的符号区分驱动与制动。正向电机曲线只用于驱动参考，第三象限为对称假设。
 function renderTnChart(){
   const root=document.getElementById('tn-chart');
   const empty=t=>root.innerHTML='<div class="empty">'+t+'</div>';
@@ -1524,13 +2030,14 @@ function renderTnChart(){
   if(!window.echarts){ empty('ECharts 未加载'); return; }
   const grid=document.createElement('div'); grid.className='pair-grid'; root.appendChild(grid);
   const [start,end]=rangeIndices(), n=end-start, stride=Math.max(1,Math.floor(n/MAX_TN_POINTS));
-  const uRpm=TN_UNIT==='rpm', swap=TN_SWAP, refSrc=tnRefSrc();
+  const uRpm=TN_UNIT==='rpm', swap=TN_SWAP;
+  renderTnSummary(start,end);
   // 轴量名与刻度格式随互换联动：默认 x=转速 y=扭矩；互换后 x=扭矩 y=转速。
   const xName=swap?'N·m':TN_UNIT, yName=swap?TN_UNIT:'N·m';
   const fmtSpeed=uRpm?v=>String(Math.round(v)):v=>String(Math.round(v*10)/10);
   const fmtTorq=v=>String(Math.round(v*100)/100);
   const fmtX=swap?fmtTorq:fmtSpeed, fmtY=swap?fmtSpeed:fmtTorq;
-  for(const joint of PAIRS){
+  for(const joint of JOINT_ORDER){
     // 仅绘制「曲线选择」中勾选的侧别(左右独立生效)；都未勾选则该关节不画卡。
     const sides=[]; if(SELECTED.has('left_'+joint))sides.push(['left','#2563eb']);
     if(SELECTED.has('right_'+joint))sides.push(['right','#dc2626']);
@@ -1538,44 +2045,75 @@ function renderTnChart(){
     const card=document.createElement('div'); card.className='pair-card'; grid.appendChild(card);
     const chartEl=document.createElement('div'); chartEl.className='pair-chart'; card.appendChild(chartEl);
     const series=[];
-    for(const [side,color] of sides){
+    for(const [side] of sides){
       const tau=DATA.values[`joint_torque_nm/${side}_${joint}_joint`], vel=DATA.values[`joint_velocity_rad_s/${side}_${joint}_joint`];
       if(!tau||!vel)continue;
-      const pts=[];
+      const buckets={drive:[],brake:[],zero:[]};
       for(let i=start;i<end;i+=stride){
         const t=Number(tau[i]),v=Number(vel[i]);
         if(!Number.isFinite(t)||!Number.isFinite(v))continue;
-        pts.push(swap?[t,tnToUnit(v)]:[tnToUnit(v),t]);   // 互换：x=扭矩,右=转速
+        const power=t*v,mode=tnModeForPower(power);
+        if(!tnOperationVisible(mode))continue;
+        const shownSpeed=TN_VIEW==='magnitude'?Math.abs(v):v;
+        const shownTorque=TN_VIEW==='magnitude'?Math.abs(t):t;
+        buckets[mode].push({
+          value:swap?[shownTorque,tnToUnit(shownSpeed)]:[tnToUnit(shownSpeed),shownTorque],
+          rawSpeed:v,rawTorque:t,powerW:power,quadrant:tnQuadrant(v,t),mode,
+        });
       }
-      series.push({name:side==='left'?'Left':'Right',type:'scatter',symbolSize:3,
-        itemStyle:{color,opacity:.75}, emphasis:{itemStyle:{opacity:1}},
-        data:pts});
+      for(const mode of ['drive','brake','zero']){
+        if(!buckets[mode].length)continue;
+        const style=TN_MODE_STYLE[mode],sideLabel=side==='left'?'Left':'Right';
+        series.push({name:sideLabel+' · '+style.label,type:'scatter',
+          symbol:side==='left'?'circle':'diamond',symbolSize:mode==='zero'?2.5:3.5,
+          itemStyle:{color:style.color,opacity:mode==='zero'?.45:.68},
+          emphasis:{itemStyle:{opacity:1}},data:buckets[mode]});
+      }
+    }
+    const motorMode=tnReferenceForJoint(joint),motorSource=TN_MOTOR_SOURCES[motorMode];
+    const motorData=tnMotorSeriesData(motorMode,uRpm,swap);
+    if(TN_OPERATION!=='brake'&&motorSource&&motorData){
+      series.push({name:motorSource.label+' 正向实测',type:'line',data:motorData,showSymbol:false,
+        smooth:false,silent:false,z:5,
+        lineStyle:{color:motorSource.color,width:2.5,opacity:.95},
+        itemStyle:{color:motorSource.color},emphasis:{lineStyle:{width:3.5}}});
+      if(TN_VIEW==='quadrant'){
+        series.push({name:motorSource.label+' Q3 镜像',type:'line',
+          data:tnMotorSeriesData(motorMode,uRpm,swap,true),showSymbol:false,
+          smooth:false,silent:false,z:4,
+          lineStyle:{color:motorSource.color,width:2,type:'dashed',opacity:.72},
+          itemStyle:{color:motorSource.color},emphasis:{lineStyle:{width:3}}});
+      }
     }
     if(!series.length)continue;
     const chart=echarts.init(chartEl);
     chart.setOption({
       animation:false,backgroundColor:'#fff',
-      title:{text:joint+(swap?'（τ横/ω纵）':'（ω横/τ纵）'),left:6,top:4,textStyle:{fontSize:11,fontWeight:600}},
-      legend:{right:6,top:4,textStyle:{fontSize:9},icon:'circle'},
-      grid:{left:62,right:18,top:32,bottom:30},
+      title:{text:joint+(TN_VIEW==='quadrant'?' · 四象限':' · |ω| / |τ|'),left:6,top:4,textStyle:{fontSize:11,fontWeight:600}},
+      legend:{type:'scroll',left:135,right:6,top:4,textStyle:{fontSize:9}},
+      grid:{left:62,right:18,top:42,bottom:30},
       tooltip:{trigger:'item',confine:true,backgroundColor:'#fff',borderColor:'var(--line2)',
         textStyle:{fontSize:11,color:'var(--ink)'},
-        formatter:p=>{const x=p.value[0],y=p.value[1];
-          const sx=(swap?x.toFixed(2)+' N·m':(uRpm?x.toFixed(0):x.toFixed(2))+' '+TN_UNIT);
-          const sy=(swap?(uRpm?y.toFixed(0):y.toFixed(2))+' '+TN_UNIT:y.toFixed(2)+' N·m');
-          return `<b>${p.seriesName} ${joint}</b><br/>${swap?'τ':'ω'} ${sx}<br/>${swap?'ω':'τ'} ${sy}`;}},
+        formatter:p=>{
+          if(p.seriesType==='line'){
+            const speed=swap?p.value[1]:p.value[0],torque=swap?p.value[0]:p.value[1];
+            const speedText=(uRpm?speed.toFixed(0):speed.toFixed(2))+' '+TN_UNIT;
+            return `<b>${p.seriesName}</b><br/>ω ${speedText}<br/>τ ${torque.toFixed(2)} N·m`;
+          }
+          const d=p.data,speed=tnToUnit(d.rawSpeed);
+          const speedText=(uRpm?speed.toFixed(0):speed.toFixed(2))+' '+TN_UNIT;
+          const mode=TN_MODE_STYLE[d.mode].label;
+          return `<b>${p.seriesName} · ${joint}</b><br/>工况 ${mode} · ${d.quadrant}<br/>ω ${speedText}<br/>τ ${d.rawTorque.toFixed(2)} N·m<br/>P<sub>m</sub> ${d.powerW.toFixed(2)} W`;}},
       xAxis:{type:'value',name:xName,nameLocation:'middle',nameGap:18,scale:true,
         axisLine:{lineStyle:{color:'#475569'}},axisTick:{length:5,lineStyle:{color:'#64748b'}},
         axisLabel:{fontSize:11,color:'#334155',formatter:fmtX},
         splitLine:{show:true,lineStyle:{color:'#e2e8f0',type:'dashed'}},splitNumber:6,
-        minInterval:uRpm&&!swap?1:0.5},
+        min:TN_VIEW==='magnitude'?0:null,minInterval:uRpm&&!swap?1:0.5},
       yAxis:{type:'value',name:yName,nameLocation:'middle',nameGap:16,scale:true,
         axisLine:{lineStyle:{color:'#475569'}},axisTick:{length:5,lineStyle:{color:'#64748b'}},
         axisLabel:{fontSize:11,color:'#334155',formatter:fmtY},
-        splitLine:{show:true,lineStyle:{color:'#e2e8f0',type:'dashed'}},splitNumber:6},
-      // 参考图底图：把规格书 T-N 图(内置 DM 或自定义导入)半透明铺满绘图区，配合“互换 XY”对齐方向。
-      graphic:refSrc?{elements:[{type:'image',z:0,zlevel:0,left:62,top:32,right:18,bottom:30,
-        style:{image:refSrc,opacity:.45}}]}:undefined,
+        splitLine:{show:true,lineStyle:{color:'#e2e8f0',type:'dashed'}},splitNumber:6,
+        min:TN_VIEW==='magnitude'?0:null},
       series,
     });
     TN_CHARTS.push(chart);
@@ -1586,18 +2124,55 @@ function renderTnPanel(){
   const panel=document.getElementById('tn-panel'); if(!panel)return;
   const on=ACTIVE==='joint_tn';
   panel.hidden=!on;
-  const now=document.getElementById('tn-unit-now'); if(now)now.textContent='当前：'+TN_UNIT+(TN_SWAP?'（扭矩为横轴）':'');
+  const now=document.getElementById('tn-unit-now');
+  if(now)now.textContent='当前：'+TN_UNIT+(TN_SWAP?'（扭矩为横轴）':'');
+  for(const [view,id] of [['quadrant','tn-view-quadrant'],['magnitude','tn-view-magnitude']]){
+    const b=document.getElementById(id); if(b)b.classList.toggle('active',TN_VIEW===view);
+  }
+  for(const [operation,id] of [['all','tn-op-all'],['drive','tn-op-drive'],['brake','tn-op-brake']]){
+    const b=document.getElementById(id); if(b)b.classList.toggle('active',TN_OPERATION===operation);
+  }
   for(const [u,id] of [['rad/s','tn-unit-rad'],['rpm','tn-unit-rpm']]){ const b=document.getElementById(id); if(b)b.classList.toggle('active',TN_UNIT===u); }
-  for(const [m,id] of [['none','tn-ref-none'],['dm3507','tn-ref-dm3507'],['dm4310','tn-ref-dm4310']]){ const b=document.getElementById(id); if(b)b.classList.toggle('active',TN_REF===m); }
+  for(const [m,id] of [['none','tn-ref-none'],['auto','tn-ref-auto'],['dm3507','tn-ref-dm3507'],['dm4310','tn-ref-dm4310']]){ const b=document.getElementById(id); if(b)b.classList.toggle('active',TN_REF===m); }
   const sw=document.getElementById('tn-xy-swap'); if(sw)sw.classList.toggle('active',TN_SWAP);
-  if(on)renderTnChart();
+  if(on){
+    renderTnChart();
+    const missing=tnReferenceModes(TN_REF).filter(
+      mode=>!TN_MOTOR_DATA[mode]&&!TN_MOTOR_LOADING[mode]&&!TN_MOTOR_ERRORS[mode]);
+    if(missing.length)void tnLoadReferenceMode(TN_REF,false);
+  }
 }
+function tnSetView(view){ TN_VIEW=view; renderTnPanel(); }
+function tnSetOperation(operation){ TN_OPERATION=operation; renderTnPanel(); }
 function tnSetUnit(u){ TN_UNIT=u; renderTnPanel(); }
 function tnSwapXY(){ TN_SWAP=!TN_SWAP; renderTnPanel(); }
-function tnRefMode(m){ TN_REF=m; renderTnPanel(); }
-function tnRefPick(ev){
-  const f=ev.target&&ev.target.files&&ev.target.files[0]; if(!f)return;
-  const r=new FileReader(); r.onload=()=>{ TN_REF='custom'; TN_REF_IMG=r.result; renderTnPanel(); }; r.readAsDataURL(f);
+async function tnLoadReferenceMode(mode,announce){
+  const modes=tnReferenceModes(mode),pending=modes.filter(item=>!TN_MOTOR_DATA[item]);
+  if(!pending.length){
+    if(announce&&modes.length){
+      const count=modes.reduce((sum,item)=>sum+TN_MOTOR_DATA[item].length,0);
+      setStatus(`电机 T-N 数据已就绪 · ${count} 点`);
+    }
+    return;
+  }
+  try{
+    if(announce)setStatus('正在读取 '+pending.map(item=>TN_MOTOR_SOURCES[item].label).join(' / ')+' Speed–Torque 数据…');
+    const results=await Promise.all(pending.map(loadTnMotorCurve));
+    for(const item of pending)delete TN_MOTOR_ERRORS[item];
+    if(TN_REF===mode){
+      renderTnPanel();
+      const count=results.reduce((sum,points)=>sum+points.length,0);
+      setStatus(`已加载电机 T-N 数据 · ${count} 点；四象限镜像仅为正反转对称假设`);
+    }
+  }catch(err){
+    for(const item of pending)if(!TN_MOTOR_DATA[item])TN_MOTOR_ERRORS[item]=err.message||String(err);
+    setStatus((err.message||String(err))+'；请通过 plot_logs/serve.py 打开 dashboard',true);
+  }
+}
+async function tnRefMode(m){
+  for(const item of tnReferenceModes(m))delete TN_MOTOR_ERRORS[item];
+  TN_REF=m; renderTnPanel();
+  if(m!=='none')await tnLoadReferenceMode(m,true);
 }
 // 侧栏电机参考图：悬停放大浮窗；✕/点图关闭 —— 关闭后图回到曲线选择框下的原位(缩略图常驻)。
 let REF_GALLERY_OPEN=true;
@@ -1608,56 +2183,112 @@ function toggleRefGallery(){
 }
 function showRefFloat(src,name){
   const f=document.getElementById('ref-float'); if(!f)return;
-  const im=document.getElementById('ref-float-img'); if(im)im.src=src;
+  const im=document.getElementById('ref-float-img'); if(im){im.src=src;im.alt=name+' T-N 参考图';}
   const t=document.getElementById('ref-float-name'); if(t)t.textContent=name;
-  refReset();      // 每次打开重置平移/缩放
   f.hidden=false;
+  refReset();      // 每次打开显示完整图，并恢复浮窗默认位置
 }
 function hideRefFloat(){ const f=document.getElementById('ref-float'); if(f)f.hidden=true; }
 
-/* 放大浮窗内滚轮缩放图片（围绕图片中心），拖动由整框负责。
+/* 放大浮窗：标题栏拖动窗口，图片区域拖动已放大的图片。
    缩放倍率 REF_SCALE，1×–16×。 */
-let REF_SCALE=1;
+let REF_SCALE=1,REF_X=0,REF_Y=0;
 function refApply(){ const im=document.getElementById('ref-float-img');
-  if(im)im.style.transform='scale('+REF_SCALE.toFixed(3)+')'; }
-function refReset(){ REF_SCALE=1; refApply(); }
+  if(im)im.style.transform=`translate(${REF_X.toFixed(1)}px,${REF_Y.toFixed(1)}px) scale(${REF_SCALE.toFixed(3)})`; }
+function refClampPan(){
+  const box=document.getElementById('ref-zoom-box'),im=document.getElementById('ref-float-img');
+  if(!box||!im)return;
+  const maxX=Math.max(0,(im.clientWidth*REF_SCALE-box.clientWidth)/2);
+  const maxY=Math.max(0,(im.clientHeight*REF_SCALE-box.clientHeight)/2);
+  REF_X=Math.max(-maxX,Math.min(maxX,REF_X));
+  REF_Y=Math.max(-maxY,Math.min(maxY,REF_Y));
+}
+function refReset(){
+  REF_SCALE=1;REF_X=0;REF_Y=0;
+  const win=document.getElementById('ref-float-box');
+  if(win){win.style.left='50%';win.style.top=innerWidth<=520?'8px':'4vh';
+    win.style.right='auto';win.style.transform='translateX(-50%)';}
+  refApply();
+}
+function refClampWindow(){
+  const win=document.getElementById('ref-float-box');if(!win||win.style.transform!=='none')return;
+  const rect=win.getBoundingClientRect(),gap=8;
+  const left=Math.max(gap,Math.min(innerWidth-rect.width-gap,rect.left));
+  const top=Math.max(gap,Math.min(innerHeight-rect.height-gap,rect.top));
+  win.style.left=left+'px';win.style.top=top+'px';
+}
 function refInit(){
   const box=document.getElementById('ref-zoom-box'); if(!box)return;
-  // 拖动整个窗框（标题栏或图片上按住移动窗的位置）；非模态，背后主界面仍可操作。
   const win=document.getElementById('ref-float-box');
   if(win){
-    win.addEventListener('mousedown',e=>{
-      if(e.target.tagName==='BUTTON'||e.target.closest&&e.target.closest('button'))return;
+    // 标题栏只负责移动窗口；位置始终限制在可视区内。
+    win.querySelector('.ref-float-head').addEventListener('pointerdown',e=>{
+      if(e.button!==0||e.target.closest('button'))return;
       e.preventDefault();
       const r=win.getBoundingClientRect();
-      win.style.left=r.left+'px'; win.style.top=r.top+'px'; win.style.transform='none';
+      win.style.left=r.left+'px';win.style.top=r.top+'px';win.style.right='auto';
+      win.style.transform='none';
       const ox=e.clientX-r.left, oy=e.clientY-r.top;
-      const mv=ev=>{ win.style.left=(ev.clientX-ox)+'px'; win.style.top=(ev.clientY-oy)+'px'; };
-      const up=()=>{ document.removeEventListener('mousemove',mv); document.removeEventListener('mouseup',up); };
-      document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up);
+      const mv=ev=>{
+        const left=Math.max(8,Math.min(innerWidth-r.width-8,ev.clientX-ox));
+        const top=Math.max(8,Math.min(innerHeight-r.height-8,ev.clientY-oy));
+        win.style.left=left+'px';win.style.top=top+'px';
+      };
+      const up=()=>{document.removeEventListener('pointermove',mv);
+        document.removeEventListener('pointerup',up);};
+      document.addEventListener('pointermove',mv);document.addEventListener('pointerup',up);
     });
   }
-  // 滚轮缩放图片（围绕图片中心放大）；不做图片平移（平移=拖动整框）。
+  // 滚轮缩放，缩放后可在图片区域按住拖动查看细节。
   box.addEventListener('wheel',e=>{
     e.preventDefault();
     REF_SCALE=Math.min(16,Math.max(1,REF_SCALE*(e.deltaY<0?1.15:1/1.15)));
-    refApply();
+    refClampPan();refApply();
   },{passive:false});
+  box.addEventListener('pointerdown',e=>{
+    if(e.button!==0||REF_SCALE<=1)return;
+    e.preventDefault();
+    const x=REF_X,y=REF_Y,startX=e.clientX,startY=e.clientY;
+    const mv=ev=>{REF_X=x+ev.clientX-startX;REF_Y=y+ev.clientY-startY;
+      refClampPan();refApply();};
+    const up=()=>{document.removeEventListener('pointermove',mv);
+      document.removeEventListener('pointerup',up);};
+    document.addEventListener('pointermove',mv);document.addEventListener('pointerup',up);
+  });
+  box.addEventListener('dblclick',refReset);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')hideRefFloat();});
+  window.addEventListener('resize',()=>{refClampWindow();refClampPan();refApply();});
 }
 document.addEventListener('DOMContentLoaded',refInit);
 
 function renderAll(){
+  const isCompare=ACTIVE===SPECIAL_COMPARE,isFavorites=ACTIVE===SPECIAL_FAVORITES;
+  const special=isCompare||isFavorites;
+  document.getElementById('compare-panel').hidden=!isCompare;
+  document.getElementById('favorites-panel').hidden=!isFavorites;
+  document.getElementById('range-panel').hidden=special;
+  if(special){
+    for(const id of ['ov-panel','tn-panel','pair-section','inertia-panel','power-panel','stats-panel']){
+      const element=document.getElementById(id);if(element)element.hidden=true;
+    }
+    if(isCompare){refreshSourceSelects();fillCompareMetric();void renderCompare();}
+    else{renderFavoriteManager();renderFavoriteSummary();}
+    return;
+  }
   if(!DATA||!window.echarts)return;
   const isTn=ACTIVE==='joint_tn';
+  document.getElementById('range-panel').hidden=false;
   renderTnPanel();
   // T-N 为专用散点视图：隐藏所有其它面板(总览/左右对比/惯量/功率/统计对比)，
   // 避免上次标签页的统计摘要残留到 T-N 页下方。非 T-N 时不动它们(由各自 render 决定)。
   if(isTn){
-    for(const id of ['ov-panel','pair-section','inertia-panel','power-panel','compare-panel']){
+    for(const id of ['ov-panel','pair-section','inertia-panel','power-panel','stats-panel']){
       const el=document.getElementById(id); if(el)el.hidden=true;
     }
     return;
   }
+  document.getElementById('ov-panel').hidden=false;
+  document.getElementById('stats-panel').hidden=false;
   renderOverview();renderPairs();renderInertiaPanel();renderBox();renderStats();renderPowerPanel();
 }
 
@@ -1666,8 +2297,8 @@ function onRangeChange(){
   if(a>b)[a,b]=[b,a]; RANGE=[a,b];
   const [start,end]=rangeIndices(),fill=document.getElementById('range-fill');
   fill.style.left=a+'%';fill.style.width=(b-a)+'%';
-  document.getElementById('range-start').textContent=DATA?DATA.time[start].toFixed(3)+' s':'—';
-  document.getElementById('range-end').textContent=DATA?DATA.time[Math.max(start,end-1)].toFixed(3)+' s':'—';
+  document.getElementById('range-start').textContent=DATA?rangeEndpointText(start):'—';
+  document.getElementById('range-end').textContent=DATA?rangeEndpointText(Math.max(start,end-1)):'—';
   renderAll();
 }
 function resetRange(){
@@ -1688,9 +2319,10 @@ function saveOverviewPng(){
 function pairExportOption(key=ACTIVE){
   const grids=[],xAxis=[],yAxis=[],series=[],titles=[];
   const top0=4,gap=13.4,height=10.8;
-  PAIRS.forEach((joint,row)=>{
+  JOINT_ORDER.forEach((joint,row)=>{
     grids.push({left:115,right:45,top:(top0+row*gap)+'%',height:height+'%'});
-    xAxis.push({type:'value',gridIndex:row,name:row===6?'Time (s)':'',axisLabel:{show:row===6},scale:true});
+    const lastRow=row===JOINT_ORDER.length-1;
+    xAxis.push({type:'value',gridIndex:row,name:lastRow?DATA.timeLabel:'',axisLabel:{show:lastRow},scale:true});
     yAxis.push({type:'value',gridIndex:row,name:JOINT_GROUPS[key].unit,scale:true});
     titles.push({text:joint,left:16,top:(top0+row*gap+3)+'%',textStyle:{fontSize:14}});
     for(const [side,color] of [['left','#2563eb'],['right','#dc2626']]){
@@ -1756,7 +2388,7 @@ async function saveAllPdf(){
       `<div><div class="pv-mtk">Duration</div><div class="pv-mtv">${dur} s</div></div>`+
       `<div><div class="pv-mtk">Environments</div><div class="pv-mtv">${new Set(DATA.columns.env_idx||[]).size||'—'}</div></div>`+
     `</div>`+
-    `<div class="pv-note">时间区间: ${DATA.time[rangeIndices()[0]].toFixed(3)} – ${DATA.time[rangeIndices()[1]-1].toFixed(3)} s · 仅含已勾选字段</div>`;
+    `<div class="pv-note">${DATA.timeIsSeconds?'时间区间':'横轴区间'}: ${rangeEndpointText(rangeIndices()[0])} – ${rangeEndpointText(rangeIndices()[1]-1)} · 仅含已勾选字段</div>`;
 
   // 逐分类
   const cats=orderedCategories().filter(k=>CATEGORIES[k].some(n=>SELECTED.has(n)));
@@ -1809,61 +2441,100 @@ function saveSelectedCsv(){
   setStatus('已导出 '+selected.length+' 个字段、'+(end-start)+' 行');
 }
 
-// ==================== 数据对比面板（左右两来源） ====================
-// 与单份浏览独立的第二套结构：左侧选来源 A、右侧选来源 B，各端选定即自动
-// 解析并渲染「同一个指标」的曲线/箱线/统计表。选择即渲染，无需手动勾选。
-let CMP = { left:null, right:null, metric:'', line:null, box:null };
+function prepareCompareDataset(parsed,name,path=''){
+  const values={...parsed.values},tn={},n=parsed.time.length,totalPower=new Array(n).fill(0);
+  let hasPower=false;
+  for(const velocityName of Object.keys(values)){
+    if(!velocityName.startsWith('joint_velocity_rad_s/'))continue;
+    const tag=velocityName.slice('joint_velocity_rad_s/'.length);
+    const match=tag.match(/^(left|right)_(.+)_joint$/);if(!match)continue;
+    const joint=match[2],velocity=values[velocityName];
+    const accel=deriveAccel(velocity,parsed.time);
+    values[`joint_accel_rad_s2/${tag}`]=accel;
+    const inertia=INERTIA[joint]??JOINT_INERTIA_DEFAULTS[joint];
+    if(Number.isFinite(inertia)){
+      values[`joint_inertia_torque_nm/${tag}`]=accel.map(value=>
+        Number.isFinite(value)?Math.abs(value)*inertia:NaN);
+    }
+    const torque=values[`joint_torque_nm/${tag}`];if(!torque)continue;
+    const power=new Array(n);
+    for(let i=0;i<n;i++){
+      const speed=Number(velocity[i]),tau=Number(torque[i]);
+      power[i]=Number.isFinite(speed)&&Number.isFinite(tau)?speed*tau:NaN;
+      if(Number.isFinite(power[i]))totalPower[i]+=power[i];
+    }
+    values[`joint_power_w/${tag}`]=power;hasPower=true;
+    tn[`joint_tn/${tag}`]={speed:velocity,torque,power};
+  }
+  if(hasPower)values['joint_power_w/total']=totalPower;
+  const alias=favoriteAlias(path),label=alias||name;
+  return {name:label,fileName:name,path,time:parsed.time,columns:parsed.columns,values,tn,
+    timeLabel:parsed.timeLabel,timeIsSeconds:parsed.timeIsSeconds,
+    metricKeys:[...Object.keys(values),...Object.keys(tn)]};
+}
+function isTnCompareMetric(name){ return name.startsWith('joint_tn/'); }
+function compareMetricCategory(name){
+  if(isTnCompareMetric(name))return '关节 T-N';
+  return categoryLabel(classifyTerm(name).category);
+}
+
+// ==================== 数据对比面板（左右两来源、多指标卡片） ====================
+// 来源固定后可连续添加共同指标，每个指标拥有独立曲线、分布和统计表。
+let CMP = {
+  left:null,right:null,metric:'',metrics:[],charts:[],renderToken:0,
+};
+
+function disposeCompareCharts(){
+  for(const chart of CMP.charts)chart.dispose();
+  CMP.charts=[];
+}
 
 function openCompare(){
-  const panel=document.getElementById('compare-panel');
-  panel.hidden=false;
-  refreshSourceSelects();           // 重建左右来源下拉（保留已选）
-  fillCompareMetric();              // 按已在加载的两端更新指标下拉
-  panel.scrollIntoView({behavior:'smooth',block:'start'});
+  activateView(SPECIAL_COMPARE);
 }
 function closeCompare(){
-  document.getElementById('compare-panel').hidden=true;
-  if(CMP.line){CMP.line.dispose();CMP.line=null;}
-  if(CMP.box){CMP.box.dispose();CMP.box=null;}
+  CMP.renderToken++;disposeCompareCharts();
+  const fallback=orderedCategories()[0]||'';
+  if(fallback)activateView(fallback);
 }
 function clearCompare(){
-  CMP.left=null;CMP.right=null;CMP.metric='';
+  disposeCompareCharts();
+  CMP.left=null;CMP.right=null;CMP.metric='';CMP.metrics=[];CMP.renderToken++;
   for(const side of ['left','right']){
     const sel=document.getElementById('cmp-src-'+side);
-    sel.innerHTML='<option value="">— 选择来源 —</option>';sel.value='';
+    sel.value='';
   }
-  const sel=document.getElementById('cmp-metric');
-  sel.disabled=true;sel.innerHTML='<option value="">— 选择指标 —</option>';
-  renderCompare();
+  fillCompareMetric();void renderCompare();
 }
 
 function refreshSourceSelects(side){
   const sides=side?[side]:['left','right'];
   for(const s of sides){
-    const sel=document.getElementById('cmp-src-'+s), prev=sel.value;
-    sel.innerHTML='<option value="">— 选择来源 —</option>'+
-      DISCOVERED_FILES.map(f=>'<option value="'+f.path+'">'+f.path+'</option>').join('')+
-      '<option value="__local__">… 从本地选择 CSV</option>';
+    const sel=document.getElementById('cmp-src-'+s),prev=sel.value;
+    populateDiscoveredSelect(sel,{placeholder:'— 选择来源 —',includeLocal:true});
     if(prev&&prev!=='__local__'
       &&DISCOVERED_FILES.some(f=>f.path===prev))sel.value=prev;
+    const selected=DISCOVERED_FILES.find(file=>file.path===sel.value);
+    sel.title=selected?.path||'';
   }
 }
 
 async function loadSideByPath(path){
   const item=DISCOVERED_FILES.find(f=>f.path===path);
+  if(!item)throw new Error('找不到对比来源：'+path);
   const res=await fetch(item.url,{cache:'no-store'});
   if(!res.ok)throw new Error('读取失败：HTTP '+res.status+' '+path);
-  const p=parseCsv(await res.text());
-  return {name:item.name,time:p.time,columns:p.columns,values:p.values};
+  return prepareCompareDataset(parseCsv(await res.text()),item.name,item.path);
 }
 async function loadSideByFile(f){
-  const p=parseCsv(await f.text());
-  return {name:f.name,time:p.time,columns:p.columns,values:p.values};
+  return prepareCompareDataset(parseCsv(await f.text()),f.name,'');
 }
 
 async function onSourceChange(side){
   const sel=document.getElementById('cmp-src-'+side), v=sel.value;
-  if(v===''){CMP[side]=null;renderCompare();return;}
+  if(v===''){
+    CMP[side]=null;fillCompareMetric();void renderCompare();return;
+  }
   if(v==='__local__'){
     sel.value='';                    // 回滚占位，交给文件选择接管
     document.getElementById('cmp-file-'+side).click();
@@ -1874,10 +2545,12 @@ async function onSourceChange(side){
     await waitEcharts();             // 关键：确保 echarts 就绪，否则下面渲染会静默失败
     CMP[side]=await loadSideByPath(v);
     fillCompareMetric();
+    ensureDefaultCompareItem();
     await renderCompare();
     setStatus('已载入'+(side==='left'?'左':'右')+'侧来源：'+CMP[side].name);
   }catch(err){
     CMP[side]=null;
+    fillCompareMetric();void renderCompare();
     setStatus((err.message||String(err))+';可用「本地」手动选择一个 CSV',true);
   }
 }
@@ -1892,114 +2565,263 @@ async function onLocalFile(side,event){
     refreshSourceSelects(side);
     const op=new Option(f.name,'__local__',true,true);sel.prepend(op); // 在下拉顶部选中本地条目
     fillCompareMetric();
+    ensureDefaultCompareItem();
     await renderCompare();
     setStatus('已载入'+(side==='left'?'左':'右')+'侧来源：'+f.name);
   }catch(err){
-    setStatus((err.message||String(err))+';请检查 CSV 是否含单调 time_s 列的数值指标',true);
+    setStatus((err.message||String(err))+';请检查 CSV 是否含可绘制数值列(横轴取 time_s/iter 等,找不到则用样本序号)',true);
   }
 }
 
 function fillCompareMetric(){
   const sel=document.getElementById('cmp-metric'), L=CMP.left,R=CMP.right;
   sel.disabled=true;sel.innerHTML='<option value="">— 选择指标 —</option>';
-  if(!L||!R)return;
+  if(!L||!R){CMP.metric='';CMP.metrics=[];syncCompareAddButton();return;}
   // 两端共同存在的指标（交集）
-  const common=[...new Set(Object.keys(L.values))]
-    .filter(k=>Object.prototype.hasOwnProperty.call(R.values,k)).sort();
-  if(!common.length){sel.innerHTML='<option value="">两端无共同指标</option>';return;}
-  const keep=(CMP.metric&&common.includes(CMP.metric))?CMP.metric:common[0];
+  const common=L.metricKeys.filter(key=>R.metricKeys.includes(key)).sort();
+  CMP.metrics=CMP.metrics.filter(metric=>common.includes(metric));
+  if(!common.length){
+    CMP.metric='';sel.innerHTML='<option value="">两端无共同指标</option>';
+    syncCompareAddButton();return;
+  }
+  const previous=sel.value||CMP.metric;
+  const keep=(previous&&common.includes(previous))?previous:common[0];
   sel.disabled=false;
-  sel.innerHTML=common.map(n=>'<option value="'+n+'"'+(n===keep?' selected':'')+'>'+n+'</option>').join('');
+  sel.innerHTML='';
+  const groups=new Map();
+  for(const name of common){
+    const label=compareMetricCategory(name);
+    if(!groups.has(label))groups.set(label,[]);groups.get(label).push(name);
+  }
+  for(const [label,names] of groups){
+    const group=document.createElement('optgroup');group.label=label;
+    for(const name of names){const option=new Option(name,name,name===keep,name===keep);group.appendChild(option);}
+    sel.appendChild(group);
+  }
   CMP.metric=keep;
+  syncCompareAddButton();
 }
 function onMetricChange(){
   CMP.metric=document.getElementById('cmp-metric').value||'';
-  renderCompare();
+  syncCompareAddButton();
+}
+function syncCompareAddButton(){
+  const button=document.getElementById('cmp-add');
+  const duplicate=CMP.metrics.includes(CMP.metric);
+  button.disabled=!CMP.left||!CMP.right||!CMP.metric||duplicate;
+  button.textContent=duplicate?'已添加':'添加到下方';
+  document.getElementById('cmp-item-count').textContent=`已添加 ${CMP.metrics.length} 项`;
+}
+function ensureDefaultCompareItem(){
+  if(CMP.left&&CMP.right&&!CMP.metrics.length&&CMP.metric){
+    CMP.metrics.push(CMP.metric);syncCompareAddButton();
+  }
+}
+function addCompareMetric(){
+  const metric=document.getElementById('cmp-metric').value;
+  if(!metric||CMP.metrics.includes(metric))return;
+  CMP.metric=metric;CMP.metrics.push(metric);syncCompareAddButton();void renderCompare();
+}
+function removeCompareMetric(metric){
+  CMP.metrics=CMP.metrics.filter(item=>item!==metric);
+  syncCompareAddButton();void renderCompare();
 }
 
 // 每端按 xmode 抽取曲线点。progress 把横轴归一化到 0-100%，让不同时长/采样率
 // 的来源「去掉不同的起终点」对齐；time 用相对起点保留各自真实时长。
-function cmpXSeries(f,xmode){
-  const n=f.time.length, t0=f.time[0], vals=f.values[CMP.metric];
+function cmpXSeries(f,xmode,metric){
+  const n=f.time.length, t0=f.time[0], vals=f.values[metric];
   const stride=Math.max(1,Math.ceil(n/MAX_RENDER_POINTS)), out=[];
-  for(let i=0;i<n;i+=stride)
-    out.push([xmode==='progress'?(n>1?i/(n-1)*100:0):f.time[i]-t0, Number(vals[i])||NaN]);
-  if(n)out.push([xmode==='progress'?100:f.time[n-1]-t0, Number(vals[n-1])||NaN]);
+  for(let i=0;i<n;i+=stride){
+    const value=Number(vals[i]);
+    out.push([xmode==='progress'?(n>1?i/(n-1)*100:0):f.time[i]-t0,
+      Number.isFinite(value)?value:NaN]);
+  }
+  if(n){const value=Number(vals[n-1]);out.push([xmode==='progress'?100:f.time[n-1]-t0,
+    Number.isFinite(value)?value:NaN]);}
   return out;
 }
 
-function boxOne(side,color){
-  const f=CMP[side],vals=f.values[CMP.metric]; if(!vals)return null;
+function boxValues(name,color,vals){
+  if(!vals)return null;
   const a=[]; for(let k=0;k<vals.length;k++){const v=Number(vals[k]);if(Number.isFinite(v))a.push(v);}
   if(!a.length)return null;
   a.sort((x,y)=>x-y);
   const pct=p=>a[Math.min(a.length-1,Math.floor(p*(a.length-1)))];
   const q1=pct(.25),md=pct(.5),q3=pct(.75),mean=a.reduce((s,v)=>s+v,0)/a.length;
   const iqr=q3-q1,lo=q1-1.5*iqr,hi=q3+1.5*iqr;
-  return {name:f.name,color,min:a[0],max:a[a.length-1],mean,
+  return {name,color,min:a[0],max:a[a.length-1],mean,
     box:[Math.max(a[0],lo),q1,md,q3,Math.min(a[a.length-1],hi)],outliers:a.filter(v=>v<lo||v>hi)};
 }
-
 async function renderCompare(){
-  const lineEl=document.getElementById('cmp-line'), boxEl=document.getElementById('cmp-box');
-  if(CMP.line){CMP.line.dispose();CMP.line=null;}
-  if(CMP.box){CMP.box.dispose();CMP.box=null;}
-  lineEl.innerHTML='';boxEl.innerHTML='';
-  const L=CMP.left,R=CMP.right;
-  if(!L||!R||!CMP.metric){
-    boxEl.innerHTML='<div class="empty">箱线分布会在此并排显示</div>';
-    return;
+  const root=document.getElementById('cmp-items'),token=++CMP.renderToken;
+  disposeCompareCharts();root.innerHTML='';syncCompareAddButton();
+  if(!CMP.left||!CMP.right){
+    root.innerHTML='<div class="empty">请先选择来源 A 和来源 B</div>';return;
   }
-  try{await waitEcharts();}catch(err){setStatus(err.message,true);return;}  // echarts 未就绪时不再静默
-  const xmode=document.getElementById('cmp-xaxis').value;
+  if(!CMP.metrics.length){
+    root.innerHTML='<div class="empty">从上方选择指标，然后点击“添加到下方”</div>';return;
+  }
+  try{await waitEcharts();}catch(err){setStatus(err.message,true);return;}
+  if(token!==CMP.renderToken)return;
+  for(const metric of CMP.metrics){
+    const elements=createCompareItem(metric);root.appendChild(elements.card);
+    try{
+      if(isTnCompareMetric(metric))renderCompareTn(metric,elements);
+      else renderCompareScalar(metric,elements);
+    }catch(err){
+      elements.lineEl.innerHTML='<div class="empty">渲染失败：'+escapeHtml(err.message||String(err))+'</div>';
+    }
+  }
+}
 
-  // ---- 曲线：左蓝、右红，同图同横轴，按所选模式对齐 ----
-  CMP.line=echarts.init(lineEl,null,{renderer:'canvas'});
+function createCompareItem(metric){
+  const card=document.createElement('section');card.className='cmp-item';
+  const head=document.createElement('div');head.className='cmp-item-head';
+  const title=document.createElement('div');title.className='cmp-item-title';
+  const name=document.createElement('b');name.textContent=metric;
+  const category=document.createElement('small');category.textContent=compareMetricCategory(metric);
+  title.append(name,category);
+  const remove=document.createElement('button');remove.className='btn small';
+  remove.textContent='移除此项';remove.onclick=()=>removeCompareMetric(metric);
+  head.append(title,remove);
+  const grid=document.createElement('div');grid.className='cmp-grid';
+  const lineEl=document.createElement('div');lineEl.className='cmp-chart';
+  const boxEl=document.createElement('div');boxEl.className='cmp-chart';
+  grid.append(lineEl,boxEl);
+  const statsEl=document.createElement('div');statsEl.className='table-wrap';
+  statsEl.style.maxHeight='380px';
+  card.append(head,grid,statsEl);return {card,lineEl,boxEl,statsEl};
+}
+
+function renderCompareScalar(metric,{lineEl,boxEl,statsEl}){
+  const L=CMP.left,R=CMP.right;
+  const xmode=document.getElementById('cmp-xaxis').value;
+  const line=echarts.init(lineEl,null,{renderer:'canvas'});CMP.charts.push(line);
   const series=[
-    {name:L.name,type:'line',data:cmpXSeries(L,xmode),showSymbol:false,sampling:'lttb',lineStyle:{width:1.8},itemStyle:{color:'#2563eb'},emphasis:{focus:'series'}},
-    {name:R.name,type:'line',data:cmpXSeries(R,xmode),showSymbol:false,sampling:'lttb',lineStyle:{width:1.8},itemStyle:{color:'#dc2626'},emphasis:{focus:'series'}},
+    {name:L.name,type:'line',data:cmpXSeries(L,xmode,metric),showSymbol:false,sampling:'lttb',lineStyle:{width:1.8},itemStyle:{color:'#2563eb'},emphasis:{focus:'series'}},
+    {name:R.name,type:'line',data:cmpXSeries(R,xmode,metric),showSymbol:false,sampling:'lttb',lineStyle:{width:1.8},itemStyle:{color:'#dc2626'},emphasis:{focus:'series'}},
   ];
-  CMP.line.setOption({
+  line.setOption({
     animation:false,backgroundColor:'#fff',
-    title:{text:'对比 · '+CMP.metric,left:12,top:6,textStyle:{fontSize:13}},
+    title:{text:'曲线',left:12,top:6,textStyle:{fontSize:13}},
     grid:{left:78,right:34,top:60,bottom:62},
     tooltip:{trigger:'axis',axisPointer:{type:'cross'},
       formatter:function(params){
         const x0=params[0]?.value?.[0];
-        let html=(xmode==='progress'?'归一化进度 <b>':'相对时间 <b>')+(Number.isFinite(x0)?x0.toFixed(1):'—')+(xmode==='progress'?'%':' s')+'</b><br/>';
+        let html=(xmode==='progress'?'归一化进度 <b>':relativeAxisLabel()+' <b>')+(Number.isFinite(x0)?x0.toFixed(1):'—')+(xmode==='progress'?'%':'')+'</b><br/>';
         for(const p of params)
           html+='<span style="display:inline-block;width:8px;height:8px;background:'+p.color+';border-radius:2px;margin-right:5px"></span><b>'+p.seriesName+'</b>  '+(Number.isFinite(p.value[1])?p.value[1].toPrecision(6):'—')+'<br/>';
         return html;
       }},
     legend:{type:'scroll',top:30,left:12,right:20},
-    xAxis:{type:'value',name:xmode==='progress'?'归一化进度 (%)':'相对时间 (s)',nameLocation:'middle',nameGap:30,scale:true},
+    xAxis:{type:'value',name:xmode==='progress'?'归一化进度 (%)':relativeAxisLabel(),nameLocation:'middle',nameGap:30,scale:true},
     yAxis:{type:'value',scale:true},
     dataZoom:[{type:'inside',filterMode:'none'},{type:'slider',bottom:12,height:18,filterMode:'none'}],
     series,
   });
-
-  renderCompareBox();
-  renderCompareStats();
+  renderCompareBox(metric,boxEl);
+  renderCompareStats(metric,statsEl);
 }
 
-function renderCompareBox(){
-  const boxEl=document.getElementById('cmp-box');
-  if(CMP.box){CMP.box.dispose();CMP.box=null;}
-  boxEl.innerHTML='';
+function cmpTnSeries(dataset,color,side,metric){
+  const data=dataset.tn[metric],n=data.speed.length;
+  const stride=Math.max(1,Math.ceil(n/MAX_RENDER_POINTS));
+  const drive=[],brake=[];
+  for(let i=0;i<n;i+=stride){
+    const speed=Number(data.speed[i]),torque=Number(data.torque[i]);
+    if(!Number.isFinite(speed)||!Number.isFinite(torque))continue;
+    const power=speed*torque,target=power>=0?drive:brake;
+    target.push({value:[speed,torque],power,quadrant:tnQuadrant(speed,torque)});
+  }
+  const driveSymbol=side==='left'?'circle':'diamond';
+  const brakeSymbol=side==='left'?'emptyCircle':'emptyDiamond';
+  return [
+    {name:dataset.name+' · 驱动',type:'scatter',data:drive,symbol:driveSymbol,
+      symbolSize:4,itemStyle:{color,opacity:.62}},
+    {name:dataset.name+' · 制动',type:'scatter',data:brake,symbol:brakeSymbol,
+      symbolSize:5,itemStyle:{color,opacity:.78}},
+  ];
+}
+function tnCompareDatasetStats(dataset,metric){
+  const data=dataset.tn[metric],stats={n:0,drive:0,brake:0,
+    peakSpeed:0,peakTorque:0,peakPower:0,delivered:0,absorbed:0};
+  for(let i=0;i<data.speed.length;i++){
+    const speed=Number(data.speed[i]),torque=Number(data.torque[i]);
+    if(!Number.isFinite(speed)||!Number.isFinite(torque))continue;
+    const power=speed*torque;stats.n++;power>=0?stats.drive++:stats.brake++;
+    stats.peakSpeed=Math.max(stats.peakSpeed,Math.abs(speed));
+    stats.peakTorque=Math.max(stats.peakTorque,Math.abs(torque));
+    stats.peakPower=Math.max(stats.peakPower,Math.abs(power));
+  }
+  for(let i=0;i<data.speed.length-1;i++){
+    const p0=Number(data.power[i]),p1=Number(data.power[i+1]);
+    const dt=dataset.time[i+1]-dataset.time[i];
+    if(!Number.isFinite(p0)||!Number.isFinite(p1)||!Number.isFinite(dt)||dt<=0)continue;
+    const energy=tnPowerEnergyInterval(p0,p1,dt);
+    stats.delivered+=energy.delivered;stats.absorbed+=energy.absorbed;
+  }
+  return stats;
+}
+function renderCompareTn(metric,{lineEl,boxEl,statsEl}){
+  const L=CMP.left,R=CMP.right;
+  const line=echarts.init(lineEl,null,{renderer:'canvas'});CMP.charts.push(line);
+  const series=[...cmpTnSeries(L,'#2563eb','left',metric),
+    ...cmpTnSeries(R,'#dc2626','right',metric)];
+  line.setOption({
+    animation:false,backgroundColor:'#fff',
+    title:{text:'四象限 T-N · '+metric.slice('joint_tn/'.length),left:12,top:6,textStyle:{fontSize:13}},
+    legend:{type:'scroll',top:30,left:12,right:20},
+    grid:{left:72,right:30,top:62,bottom:50},
+    tooltip:{trigger:'item',formatter:param=>{
+      const point=param.data;
+      return `<b>${param.seriesName}</b><br/>${point.quadrant}<br/>ω ${fmt(point.value[0])} rad/s<br/>τ ${fmt(point.value[1])} N·m<br/>P<sub>m</sub> ${fmt(point.power)} W`;
+    }},
+    xAxis:{type:'value',name:'ω (rad/s)',nameLocation:'middle',nameGap:28,scale:true},
+    yAxis:{type:'value',name:'τ (N·m)',scale:true},
+    dataZoom:[{type:'inside',filterMode:'none'}],series,
+  });
+
+  const rows=[
+    boxValues(L.name,'#2563eb',L.tn[metric].power),
+    boxValues(R.name,'#dc2626',R.tn[metric].power),
+  ].filter(Boolean);
+  if(rows.length){
+    const box=echarts.init(boxEl,null,{renderer:'canvas'});CMP.charts.push(box);
+    box.setOption({
+      animation:false,backgroundColor:'#fff',
+      title:{text:'机械功率分布 · τ·ω',left:12,top:6,textStyle:{fontSize:13}},
+      grid:{left:72,right:30,top:58,bottom:92},tooltip:{trigger:'item'},
+      xAxis:{type:'category',data:rows.map(row=>row.name),
+        axisLabel:{interval:0,width:160,overflow:'truncate'}},
+      yAxis:{type:'value',name:'Pₘ (W)',scale:true},
+      series:[{type:'boxplot',data:rows.map(row=>({value:row.box,
+        itemStyle:{color:row.color}})),boxWidth:[35,90]}],
+    });
+  }else boxEl.innerHTML='<div class="empty">没有有效机械功率数据</div>';
+
+  const stats=[L,R].map(dataset=>({dataset,stats:tnCompareDatasetStats(dataset,metric)}));
+  statsEl.innerHTML=
+    '<table><thead><tr><th>Source</th><th>N</th><th>驱动</th><th>制动</th><th>Peak |ω|</th><th>Peak |τ|</th><th>Peak |P|</th><th>输出能量</th><th>吸收能量</th></tr></thead><tbody>'+
+    stats.map(({dataset,stats:value})=>`<tr><td title="${escapeHtml(dataset.path||dataset.fileName)}">${escapeHtml(dataset.name)}</td><td>${value.n}</td><td>${value.n?fmt(100*value.drive/value.n)+'%':'—'}</td><td>${value.n?fmt(100*value.brake/value.n)+'%':'—'}</td><td>${fmt(value.peakSpeed)} rad/s</td><td>${fmt(value.peakTorque)} N·m</td><td>${fmt(value.peakPower)} W</td><td>${fmt(value.delivered)} J</td><td>${fmt(value.absorbed)} J</td></tr>`).join('')+
+    '</tbody></table>';
+}
+
+function renderCompareBox(metric,boxEl){
   const rows=[];
-  const bL=boxOne('left','#2563eb'); if(bL)rows.push(bL);
-  const bR=boxOne('right','#dc2626'); if(bR)rows.push(bR);
+  const bL=boxValues(CMP.left.name,'#2563eb',CMP.left.values[metric]);if(bL)rows.push(bL);
+  const bR=boxValues(CMP.right.name,'#dc2626',CMP.right.values[metric]);if(bR)rows.push(bR);
   if(!rows.length){boxEl.innerHTML='<div class="empty">该指标在两端都无有效数据</div>';return;}
-  CMP.box=echarts.init(boxEl,null,{renderer:'canvas'});
+  const box=echarts.init(boxEl,null,{renderer:'canvas'});CMP.charts.push(box);
   const series=[{name:'分布对比',type:'boxplot',
     data:rows.map(r=>({value:r.box,itemStyle:{color:r.color}})),
     boxWidth:Math.min(90,Math.max(30,280/rows.length)),itemStyle:{borderWidth:1.4}}];
   const outs=rows.flatMap((r,i)=>r.outliers.map(v=>({value:[i,v],itemStyle:{color:r.color}})));
   if(outs.length)series.push({name:'离群',type:'scatter',data:outs,symbol:'cross',symbolSize:6});
   series.push({name:'均值',type:'scatter',data:rows.map((r,i)=>({value:[i,r.mean],itemStyle:{color:r.color}})),symbol:'diamond',symbolSize:7});
-  CMP.box.setOption({
+  box.setOption({
     animation:false,backgroundColor:'#fff',
-    title:{text:'分布对比 · '+CMP.metric,left:12,top:6,textStyle:{fontSize:13}},
+    title:{text:'分布对比',left:12,top:6,textStyle:{fontSize:13}},
     grid:{left:78,right:34,top:58,bottom:96},
     tooltip:{trigger:'item',formatter:p=>{
       if(p.seriesType==='boxplot'){const b=p.data.value;
@@ -2014,22 +2836,149 @@ function renderCompareBox(){
   });
 }
 
-function renderCompareStats(){
-  const root=document.getElementById('cmp-stats');
+function renderCompareStats(metric,root){
   const L=CMP.left,R=CMP.right;
-  if(!L||!R||!CMP.metric){root.innerHTML='<div class="empty">暂无对比统计</div>';return;}
+  if(!L||!R){root.innerHTML='<div class="empty">暂无对比统计</div>';return;}
   const rows=[L,R].map(f=>{
-    const s=statsFor(f.values[CMP.metric],0,f.values[CMP.metric].length);
-    return {name:f.name,s,dur:f.time.at(-1)-f.time[0],n:f.values[CMP.metric].length};
-  });
+    const values=f.values[metric],s=statsFor(values,0,values.length);
+    return {name:f.name,path:f.path||f.fileName,s,
+      dur:f.time.at(-1)-f.time[0],n:values.length};
+  }).filter(row=>row.s);
+  if(!rows.length){root.innerHTML='<div class="empty">该指标没有有效统计数据</div>';return;}
   root.innerHTML='<table><thead><tr><th>Source</th><th>Duration (s)</th><th>Samples</th><th>N</th><th>Min</th><th>Max</th><th>Mean</th><th>RMS</th><th>Peak |x|</th><th>P95 |x|</th></tr></thead><tbody>'+
-    rows.map(r=>'<tr><td title="'+r.name+'">'+r.name+'</td><td>'+fmt(r.dur)+'</td><td>'+r.n+'</td><td>'+r.s.n+'</td><td>'+fmt(r.s.min)+'</td><td>'+fmt(r.s.max)+'</td><td>'+fmt(r.s.mean)+'</td><td>'+fmt(r.s.rms)+'</td><td>'+fmt(r.s.peak)+'</td><td>'+fmt(r.s.p95)+'</td></tr>').join('')+
+    rows.map(r=>`<tr><td title="${escapeHtml(r.path)}">${escapeHtml(r.name)}</td><td>${fmt(r.dur)}</td><td>${r.n}</td><td>${r.s.n}</td><td>${fmt(r.s.min)}</td><td>${fmt(r.s.max)}</td><td>${fmt(r.s.mean)}</td><td>${fmt(r.s.rms)}</td><td>${fmt(r.s.peak)}</td><td>${fmt(r.s.p95)}</td></tr>`).join('')+
+    '</tbody></table>';
+}
+
+// ==================== 收藏管理与跨文件汇总 ====================
+function openFavoriteSummary(){ activateView(SPECIAL_FAVORITES); }
+function closeFavoriteSummary(){
+  if(FAVORITE_CHART){FAVORITE_CHART.dispose();FAVORITE_CHART=null;}
+  const fallback=orderedCategories()[0]||'';
+  if(fallback)activateView(fallback);
+}
+function renderFavoriteManager(){
+  const root=document.getElementById('favorite-manager-list');if(!root)return;
+  root.innerHTML='';
+  const entries=Object.entries(FAVORITES)
+    .sort((a,b)=>(a[1].addedAt||0)-(b[1].addedAt||0));
+  if(!entries.length){
+    root.innerHTML='<div class="empty" style="padding:24px">暂无收藏。先在顶部选择服务端 CSV，再点击“☆ 收藏”。</div>';
+    return;
+  }
+  for(const [path,record] of entries){
+    const file=DISCOVERED_FILES.find(item=>item.path===path);
+    const row=document.createElement('div');row.className='favorite-row';
+    const name=document.createElement('div');name.className='favorite-row-name';
+    const title=document.createElement('b');title.textContent=file?.name||path.split('/').at(-1);
+    const detail=document.createElement('small');
+    detail.textContent=(file?'':'当前服务未发现 · ')+path;name.append(title,detail);
+    const input=document.createElement('input');input.placeholder='设置别名';input.value=record.alias||'';
+    input.onchange=()=>updateFavoriteAlias(path,input.value);
+    input.onkeydown=event=>{if(event.key==='Enter')input.blur();};
+    const remove=document.createElement('button');remove.className='btn small';remove.textContent='移除';
+    remove.onclick=()=>removeFavorite(path);row.append(name,input,remove);root.appendChild(row);
+  }
+}
+function favoriteSummaryLabel(path,fileName){ return favoriteAlias(path)||fileName; }
+async function summarizeFavorites(){
+  const files=favoriteFiles();
+  if(!files.length){setStatus('没有可读取的收藏文件',true);renderFavoriteSummary();return;}
+  setStatus('正在汇总 '+files.length+' 个收藏 CSV…');
+  const settled=await Promise.allSettled(files.map(async file=>{
+    const response=await fetch(file.url,{cache:'no-store'});
+    if(!response.ok)throw new Error('HTTP '+response.status+' '+file.path);
+    return prepareCompareDataset(parseCsv(await response.text()),file.name,file.path);
+  }));
+  const datasets=[],errors=[];
+  settled.forEach((result,index)=>{
+    if(result.status==='fulfilled')datasets.push(result.value);
+    else errors.push(files[index].path+'：'+(result.reason?.message||String(result.reason)));
+  });
+  const rows=[];
+  for(const dataset of datasets){
+    for(const [metric,values] of Object.entries(dataset.values)){
+      const stats=statsFor(values,0,values.length);if(!stats)continue;
+      rows.push({path:dataset.path,fileName:dataset.fileName,metric,
+        category:compareMetricCategory(metric),stats});
+    }
+  }
+  FAVORITE_SUMMARY={datasets,rows,metric:FAVORITE_SUMMARY.metric,errors};
+  renderFavoriteSummary();
+  setStatus(`收藏总结完成：${datasets.length}/${files.length} 个文件 · ${rows.length} 条指标统计${errors.length?' · '+errors.length+' 个失败':''}`,Boolean(errors.length));
+}
+function renderFavoriteSummary(){
+  renderFavoriteManager();
+  const cards=document.getElementById('favorite-summary-cards');if(!cards)return;
+  const uniqueMetrics=new Set(FAVORITE_SUMMARY.rows.map(row=>row.metric));
+  const sampleTotal=FAVORITE_SUMMARY.datasets.reduce((sum,dataset)=>sum+dataset.time.length,0);
+  cards.innerHTML=
+    `<div class="summary-card"><span>收藏文件</span><b>${Object.keys(FAVORITES).length}</b></div>`+
+    `<div class="summary-card"><span>已汇总 / 失败</span><b>${FAVORITE_SUMMARY.datasets.length} / ${FAVORITE_SUMMARY.errors.length}</b></div>`+
+    `<div class="summary-card"><span>不同指标</span><b>${uniqueMetrics.size}</b></div>`+
+    `<div class="summary-card"><span>总采样数</span><b>${sampleTotal.toLocaleString()}</b></div>`;
+  const select=document.getElementById('favorite-summary-metric'),previous=FAVORITE_SUMMARY.metric;
+  select.innerHTML='';
+  const metrics=[...uniqueMetrics].sort();
+  if(!metrics.length){
+    select.disabled=true;select.innerHTML='<option>— 尚未生成总结 —</option>';
+  }else{
+    const groups=new Map();
+    for(const metric of metrics){const category=compareMetricCategory(metric);
+      if(!groups.has(category))groups.set(category,[]);groups.get(category).push(metric);}
+    for(const [category,names] of groups){
+      const group=document.createElement('optgroup');group.label=category;
+      for(const metric of names)group.appendChild(new Option(metric,metric));select.appendChild(group);
+    }
+    select.disabled=false;
+    const selected=metrics.includes(previous)?previous:metrics[0];
+    select.value=selected;FAVORITE_SUMMARY.metric=selected;
+  }
+  renderFavoriteSummaryChart();renderFavoriteSummaryTable();
+}
+function renderFavoriteSummaryChart(){
+  const root=document.getElementById('favorite-summary-chart');if(!root)return;
+  if(FAVORITE_CHART){FAVORITE_CHART.dispose();FAVORITE_CHART=null;}
+  const select=document.getElementById('favorite-summary-metric');
+  const metric=select.disabled?'':select.value;FAVORITE_SUMMARY.metric=metric;
+  const rows=FAVORITE_SUMMARY.rows.filter(row=>row.metric===metric);
+  if(!metric||!rows.length||!window.echarts){
+    root.innerHTML='<div class="empty">点击“一键总结收藏文件”生成跨文件指标对比</div>';return;
+  }
+  root.innerHTML='';FAVORITE_CHART=echarts.init(root,null,{renderer:'canvas'});
+  const labels=rows.map(row=>favoriteSummaryLabel(row.path,row.fileName));
+  FAVORITE_CHART.setOption({
+    animation:false,backgroundColor:'#fff',
+    title:{text:'收藏对比 · '+metric,left:12,top:8,textStyle:{fontSize:13}},
+    legend:{top:32},grid:{left:72,right:30,top:66,bottom:92},
+    tooltip:{trigger:'axis'},
+    xAxis:{type:'category',data:labels,axisLabel:{interval:0,rotate:labels.length>4?24:0,
+      width:150,overflow:'truncate'}},
+    yAxis:{type:'value',scale:true},
+    series:[
+      {name:'RMS',type:'bar',data:rows.map(row=>row.stats.rms),itemStyle:{color:'#2563eb'}},
+      {name:'P95 |x|',type:'bar',data:rows.map(row=>row.stats.p95),itemStyle:{color:'#f59e0b'}},
+      {name:'Peak |x|',type:'bar',data:rows.map(row=>row.stats.peak),itemStyle:{color:'#dc2626'}},
+    ],
+  });
+}
+function renderFavoriteSummaryTable(){
+  const root=document.getElementById('favorite-summary-table');if(!root)return;
+  const query=document.getElementById('favorite-summary-search').value.trim().toLowerCase();
+  const rows=FAVORITE_SUMMARY.rows.filter(row=>{
+    const text=[row.path,row.fileName,favoriteAlias(row.path),row.category,row.metric].join(' ').toLowerCase();
+    return !query||text.includes(query);
+  });
+  if(!rows.length){root.innerHTML='<div class="empty">没有匹配的收藏指标统计</div>';return;}
+  root.innerHTML='<table><thead><tr><th>Source</th><th>分类</th><th>Metric</th><th>N</th><th>Min</th><th>Max</th><th>Mean</th><th>RMS</th><th>Peak |x|</th><th>P95 |x|</th></tr></thead><tbody>'+
+    rows.map(row=>`<tr><td title="${escapeHtml(row.path)}">${escapeHtml(favoriteSummaryLabel(row.path,row.fileName))}</td><td>${escapeHtml(row.category)}</td><td title="${escapeHtml(row.metric)}">${escapeHtml(row.metric)}</td><td>${row.stats.n}</td><td>${fmt(row.stats.min)}</td><td>${fmt(row.stats.max)}</td><td>${fmt(row.stats.mean)}</td><td>${fmt(row.stats.rms)}</td><td>${fmt(row.stats.peak)}</td><td>${fmt(row.stats.p95)}</td></tr>`).join('')+
     '</tbody></table>';
 }
 
 window.addEventListener('resize',()=>{
   OVERVIEW?.resize();BOX?.resize();for(const c of PAIR_CHARTS)c.resize();
-  CMP.line?.resize();CMP.box?.resize();for(const c of TN_CHARTS)c.resize();
+  for(const chart of CMP.charts)chart.resize();
+  FAVORITE_CHART?.resize();for(const c of TN_CHARTS)c.resize();
 });
 discoverCsvs(true);
 </script>
@@ -2038,12 +2987,15 @@ discoverCsvs(true);
 <div id="ref-float" class="ref-float" hidden>
   <div class="ref-float-box" id="ref-float-box">
     <div class="ref-float-head"><span id="ref-float-name"></span>
-      <button class="btn small" onclick="hideRefFloat()" title="关闭放大（图片回到曲线选择框下的原位）">✕ 关闭</button>
+      <div class="ref-float-actions">
+        <button class="btn small" onclick="refReset()" title="恢复完整图片和默认位置">适应窗口</button>
+        <button class="btn small" onclick="hideRefFloat()" title="关闭放大（图片回到曲线选择框下的原位）">✕ 关闭</button>
+      </div>
     </div>
     <div class="ref-zoom" id="ref-zoom-box">
       <img id="ref-float-img" alt="" draggable="false">
     </div>
-    <div class="ref-float-hint">拖动标题栏或图片移动整个窗框 · 滚轮缩放图片 · 可同时操作主界面</div>
+    <div class="ref-float-hint">标题栏拖动窗口 · 滚轮缩放 · 放大后拖动图片查看细节 · 双击图片恢复</div>
   </div>
 </div>
 </body>
