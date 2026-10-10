@@ -100,7 +100,10 @@ def clip_stats(cols: dict[str, list[float]], skip_frac: float = 0.125) -> dict:
     "standing": m("vel/standing"),
     "slip": m("foot_slip_velocity_m_s"),
     "slide_frac": m("foot_slide_fraction"),
-    "peak_power": max((abs(v) for v in cols.get("joint_power_w/left_knee_up_joint", [0.0])), default=float("nan")),
+    "peak_power": max(
+      (abs(v) for v in cols.get("joint_power_w/left_knee_up_joint", [0.0])),
+      default=float("nan"),
+    ),
     "peak_torque_ratio": max(
       (
         abs(v)
@@ -120,7 +123,9 @@ def _f(x: float, nd: int = 2, dash: str = "—") -> str:
 def main() -> int:
   ap = argparse.ArgumentParser()
   ap.add_argument("--metrics-dir", default="docs/pikachu_v03/metrics")
-  ap.add_argument("--tags", required=True, help="逗号分隔，如 r04-best,r05-15000,r06-test")
+  ap.add_argument(
+    "--tags", required=True, help="逗号分隔，如 r04-best,r05-15000,r06-test"
+  )
   ap.add_argument("--out", default="", help="Markdown 输出路径（省略则打印到终端）")
   ap.add_argument("--title", default="跨轮次对比（同一套录制口径，逐档 8 s）")
   args = ap.parse_args()
@@ -139,8 +144,10 @@ def main() -> int:
       print(f"[compare] !! {tag}: 目录里没有任何 CSV")
 
   L: list[str] = [f"### {args.title}", ""]
-  L.append("命令与实测均在 base 系，单位 m/s（第 3 列 rad/s）。"
-           "统计前丢掉每档前 12.5%（起步瞬态，上限 25 帧）。**不读任何奖励**。")
+  L.append(
+    "命令与实测均在 base 系，单位 m/s（第 3 列 rad/s）。"
+    "统计前丢掉每档前 12.5%（起步瞬态，上限 25 帧）。**不读任何奖励**。"
+  )
   L.append("")
 
   for clip in CLIP_ORDER:
@@ -149,7 +156,9 @@ def main() -> int:
       continue
     L.append(f"**{CLIP_LABEL.get(clip, clip)}**")
     L.append("")
-    L.append("| 检查点 | 命令 (x,y,yaw) | 实测 (x,y,yaw) | 跟踪比 | 方向余弦 | 偏航比 | 净位移 (m) | 净转角 (°) | err_xy | err_yaw | 站姿开度 (cm) |")
+    L.append(
+      "| 检查点 | 命令 (x,y,yaw) | 实测 (x,y,yaw) | 跟踪比 | 方向余弦 | 偏航比 | 净位移 (m) | 净转角 (°) | err_xy | err_yaw | 站姿开度 (cm) |"
+    )
     L.append("|---|---|---|---|---|---|---|---|---|---|---|")
     for t in present:
       s = data[t][clip]
@@ -166,7 +175,9 @@ def main() -> int:
   # 全档汇总：站姿开度 + 打滑 + 峰值占用。
   L.append("**全档汇总**")
   L.append("")
-  L.append("| 检查点 | 站立档开度 (cm) | 走路档开度 (cm) | 命令≈0 快照 站档/走档 | 支撑相滑移 (m/s) | 滑移帧占比 | 峰值扭矩占用 |")
+  L.append(
+    "| 检查点 | 站立档开度 (cm) | 走路档开度 (cm) | 命令≈0 快照 站档/走档 | 支撑相滑移 (m/s) | 滑移帧占比 | 峰值扭矩占用 |"
+  )
   L.append("|---|---|---|---|---|---|---|")
   for t in tags:
     pc = data[t]

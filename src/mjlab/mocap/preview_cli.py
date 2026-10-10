@@ -4,19 +4,22 @@
 
 .. code-block:: sh
 
-  uv run python -m mjlab.mocap.preview_cli \
-      src/mjlab/mocap/configs/transition_down.json
-
-  # PD 模式 + 循环播放 + 满速（bool 参数需显式值）
+  # viser（默认）：浏览器 3D 预览，GUI 有进度条 / 切 json / 参数热加载 / 重置，
+  # 无需重开进程。
   uv run python -m mjlab.mocap.preview_cli \
       src/mjlab/mocap/configs/transition_down.json --mode pd --loop True --fast True
 
-交互：空格暂停/继续，关闭窗口退出。
+  # native：原 launch_passive 桌面 viewer（空格暂停/继续，关闭窗口退出）。
+  uv run python -m mjlab.mocap.preview_cli \
+      src/mjlab/mocap/configs/transition_down.json --backend native --mode pd --loop True
+
+viser 后端：浏览器打开打印的 URL；改 easing/fps/mode/json 即时热生效，Reset 回初始。
 """
 
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 from typing import Literal
 
 import tyro
@@ -26,6 +29,8 @@ from mjlab.asset_zoo.robots.pikachu_xml.pikachu_27dof_constants import (
   get_pikachu_27dof_mocap_robot_cfg,
 )
 from mjlab.mocap.preview import preview_keyframes
+
+_JSON_DIR_DEFAULT = str(Path(__file__).resolve().parent / "configs")
 
 
 def main(
@@ -41,6 +46,9 @@ def main(
   show_com: bool = True,
   robot: Literal["flat14", "27dof"] = "flat14",
   pd_gain_multiplier: float = 1.0,
+  loop_reset: bool = True,
+  backend: Literal["viser", "native"] = "viser",
+  json_dir: str | None = None,
 ) -> None:
   """预览 Pikachu 关键帧动作（交互式 viewer 调试）。
 
@@ -63,22 +71,53 @@ def main(
       无需把所有 27 个都写进 ``joint_pos``。
     pd_gain_multiplier: 执行器 Kp/Kd 统一放大倍率。默认 1.0；pd 模式觉得
       跟随太软可调大（如 1.5~3）让动作更"硬"。只影响这次预览。
+    loop_reset: 循环播放时每轮结束把机器人运动学**恢复回初始位姿**（含
+      root pos/rot，即轨迹首帧）再从头播放。**默认 True**；只要
+      ``loop=True`` 就生效——对 pd 模式下 root 由动力学自由演化的动作
+      （如倒地/自起）尤其有用，否则虽然关节角经回退段回到初始，但 base
+      仍然偏离。True 时不附加"末帧→首帧"的回退插值段（轨迹即动作本身）；
+      需要平滑倒放回起的循环可显式 ``--loop-reset False``。
+    backend: 预览后端。``"viser"``（默认，浏览器 3D + 交互面板，无需重开
+      进程）或 ``"native"``（原 launch_passive 桌面窗口，空格暂停）。
+    json_dir: viser 后端 GUI "JSON" 下拉列出的 json 目录；默认
+      ``mocap/configs/``。当前 keyframes 路径自动并入下拉选项。
   """
   robot_cfg = get_pikachu_27dof_mocap_robot_cfg() if robot == "27dof" else None
-  preview_keyframes(
-    keyframes,
-    fps=fps,
-    easing=easing,
-    mode=mode,
-    loop=loop,
-    fast=fast,
-    device=device,
-    physics_dt=physics_dt,
-    write_root=write_root,
-    show_com=show_com,
-    robot_cfg=robot_cfg,
-    pd_gain_multiplier=pd_gain_multiplier,
-  )
+  if backend == "viser":
+    from mjlab.mocap.preview_viser import preview_viser
+
+    preview_viser(
+      keyframes,
+      fps=fps,
+      easing=easing,
+      mode=mode,
+      loop=loop,
+      fast=fast,
+      device=device,
+      physics_dt=physics_dt,
+      write_root=write_root,
+      show_com=show_com,
+      robot_cfg=robot_cfg,
+      pd_gain_multiplier=pd_gain_multiplier,
+      loop_reset=loop_reset,
+      json_dir=json_dir or _JSON_DIR_DEFAULT,
+    )
+  else:
+    preview_keyframes(
+      keyframes,
+      fps=fps,
+      easing=easing,
+      mode=mode,
+      loop=loop,
+      fast=fast,
+      device=device,
+      physics_dt=physics_dt,
+      write_root=write_root,
+      show_com=show_com,
+      robot_cfg=robot_cfg,
+      pd_gain_multiplier=pd_gain_multiplier,
+      loop_reset=loop_reset,
+    )
 
 
 def _normalize_argv(argv: list[str]) -> list[str]:

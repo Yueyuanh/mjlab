@@ -38,11 +38,11 @@ class ViewerConfig:
   max_extra_envs: int = 2
   """Number of neighboring environments to render around env_idx."""
 
-  reward_bar_max_terms: int = 20
+  reward_bar_max_terms: int | None = None
   """Maximum number of reward terms shown in the Viser reward bar panel.
 
-  Terms beyond this limit are dropped (with a warning). Raise it for
-  environments with many reward terms."""
+  ``None`` (the default) shows every term. Set it to keep the panel short;
+  terms beyond the limit are then dropped (with a warning)."""
 
   # Camera placement.
   distance: float = 5.0

@@ -144,13 +144,28 @@ def analyze_clip(clip: str, c: dict[str, np.ndarray]) -> dict:
   }
 
   if has_vel:
-    act = np.array([tail_mean(c["vel/act_x"]), tail_mean(c["vel/act_y"]),
-                    tail_mean(c["vel/act_yaw"])])
+    act = np.array(
+      [
+        tail_mean(c["vel/act_x"]),
+        tail_mean(c["vel/act_y"]),
+        tail_mean(c["vel/act_yaw"]),
+      ]
+    )
     # 命令是常量（ranges 收成一个点），取整段均值即可，且能反过来验证「真的固定住了」。
-    cmd_set = np.array([np.nanmean(c["vel/cmd_x"]), np.nanmean(c["vel/cmd_y"]),
-                        np.nanmean(c["vel/cmd_yaw"])])
-    cmd_std = np.array([np.nanstd(c["vel/cmd_x"]), np.nanstd(c["vel/cmd_y"]),
-                        np.nanstd(c["vel/cmd_yaw"])])
+    cmd_set = np.array(
+      [
+        np.nanmean(c["vel/cmd_x"]),
+        np.nanmean(c["vel/cmd_y"]),
+        np.nanmean(c["vel/cmd_yaw"]),
+      ]
+    )
+    cmd_std = np.array(
+      [
+        np.nanstd(c["vel/cmd_x"]),
+        np.nanstd(c["vel/cmd_y"]),
+        np.nanstd(c["vel/cmd_yaw"]),
+      ]
+    )
     cmd_mag = float(np.hypot(cmd_set[0], cmd_set[1]))
     act_mag = float(np.hypot(act[0], act[1]))
     out.update(
@@ -163,9 +178,15 @@ def analyze_clip(clip: str, c: dict[str, np.ndarray]) -> dict:
       dir_cos=float(np.dot(act[:2], cmd_set[:2]) / (act_mag * cmd_mag))
       if cmd_mag > 1e-6 and act_mag > 1e-6
       else float("nan"),
-      err_xy=tail_mean(c["vel/err_xy_norm"]) if "vel/err_xy_norm" in c else float("nan"),
-      err_yaw=tail_mean(np.abs(c["vel/err_yaw"])) if "vel/err_yaw" in c else float("nan"),
-      standing_frac=float(np.nanmean(c["vel/standing"])) if "vel/standing" in c else float("nan"),
+      err_xy=tail_mean(c["vel/err_xy_norm"])
+      if "vel/err_xy_norm" in c
+      else float("nan"),
+      err_yaw=tail_mean(np.abs(c["vel/err_yaw"]))
+      if "vel/err_yaw" in c
+      else float("nan"),
+      standing_frac=float(np.nanmean(c["vel/standing"]))
+      if "vel/standing" in c
+      else float("nan"),
     )
     if "vel/pos_x_w" in c:
       px, py = c["vel/pos_x_w"], c["vel/pos_y_w"]
@@ -218,7 +239,10 @@ def analyze_joints(clips: dict[str, dict[str, np.ndarray]]) -> list[dict]:
         lo, hi = float(np.nanmin(p)), float(np.nanmax(p))
         pos_lo = lo if math.isnan(pos_lo) else min(pos_lo, lo)
         pos_hi = hi if math.isnan(pos_hi) else max(pos_hi, hi)
-      for key, acc in ((f"joint_velocity_rad_s/{j}", "v"), (f"joint_torque_nm/{j}", "t")):
+      for key, acc in (
+        (f"joint_velocity_rad_s/{j}", "v"),
+        (f"joint_torque_nm/{j}", "t"),
+      ):
         x = c.get(key)
         if x is not None and x.size:
           peak = float(np.nanmax(np.abs(x)))
@@ -252,7 +276,9 @@ def analyze_joints(clips: dict[str, dict[str, np.ndarray]]) -> list[dict]:
         short=j.replace("_joint", "").replace("left_", "").replace("right_", ""),
         pos_lo_rad=pos_lo,
         pos_hi_rad=pos_hi,
-        rom_deg=(pos_hi - pos_lo) * 180.0 / math.pi if not math.isnan(pos_lo) else float("nan"),
+        rom_deg=(pos_hi - pos_lo) * 180.0 / math.pi
+        if not math.isnan(pos_lo)
+        else float("nan"),
         peak_v=peak_v,
         peak_v_ratio=peak_vr,
         v_limit=v_limit,
@@ -303,13 +329,17 @@ def chart_tracking(clip: str, c: dict[str, np.ndarray]) -> str | None:
 
 def chart_separation(clips: dict[str, dict[str, np.ndarray]]) -> str | None:
   """六档的双脚横向间距时序（2×3）。"""
-  have = [k for k in CLIP_ORDER if k in clips and "foot_lateral_separation_m" in clips[k]]
+  have = [
+    k for k in CLIP_ORDER if k in clips and "foot_lateral_separation_m" in clips[k]
+  ]
   if not have:
     return None
   fig, axes = plt.subplots(2, 3, figsize=(11.5, 4.4), sharey=True)
   for ax, clip in zip(axes.ravel(), have, strict=False):
     c = clips[clip]
-    ax.plot(c["time_s"], c["foot_lateral_separation_m"] * 100.0, lw=1.3, color="#198754")
+    ax.plot(
+      c["time_s"], c["foot_lateral_separation_m"] * 100.0, lw=1.3, color="#198754"
+    )
     ax.axhline(20.0, color="#dc3545", lw=1.0, ls=":", label="默认站姿 20 cm")
     ax.set_title(CLIP_LABEL.get(clip, clip), fontsize=9)
     ax.grid(alpha=0.25, lw=0.5)
@@ -322,8 +352,11 @@ def chart_separation(clips: dict[str, dict[str, np.ndarray]]) -> str | None:
     ax.set_xlabel("t (s)", fontsize=8)
   for ax in axes[:, 0]:
     ax.set_ylabel("双脚间距 (cm)", fontsize=8)
-  fig.suptitle("双脚横向间距（base 朝向系 |Δy|）—— 走路档应当接近 0（迈步时并拢）",
-               fontsize=10, y=1.02)
+  fig.suptitle(
+    "双脚横向间距（base 朝向系 |Δy|）—— 走路档应当接近 0（迈步时并拢）",
+    fontsize=10,
+    y=1.02,
+  )
   return fig_uri(fig)
 
 
@@ -336,8 +369,13 @@ def chart_joints(jrows: list[dict]) -> str:
   ax = axes[0]
   lo = [r["pos_lo_rad"] * 180 / math.pi for r in jrows]
   hi = [r["pos_hi_rad"] * 180 / math.pi for r in jrows]
-  ax.barh(y, [h - lo_i for h, lo_i in zip(hi, lo, strict=True)], left=lo,
-          color="#0d6efd", alpha=0.8)
+  ax.barh(
+    y,
+    [h - lo_i for h, lo_i in zip(hi, lo, strict=True)],
+    left=lo,
+    color="#0d6efd",
+    alpha=0.8,
+  )
   ax.set_yticks(y, names, fontsize=7)
   ax.set_xlabel("关节角范围 (°)", fontsize=8)
   ax.set_title("活动范围 ROM", fontsize=9)
@@ -365,10 +403,22 @@ def chart_joints(jrows: list[dict]) -> str:
 
   # 机械功率：选电池/选驱动的依据。峰值（实心）与均值（描边）并排。
   ax = axes[3]
-  ax.barh(y + 0.18, [r["peak_p"] for r in jrows], height=0.34,
-          color="#198754", alpha=0.9, label="峰值")
-  ax.barh(y - 0.18, [r["mean_abs_p"] for r in jrows], height=0.34,
-          color="#198754", alpha=0.35, label="均值")
+  ax.barh(
+    y + 0.18,
+    [r["peak_p"] for r in jrows],
+    height=0.34,
+    color="#198754",
+    alpha=0.9,
+    label="峰值",
+  )
+  ax.barh(
+    y - 0.18,
+    [r["mean_abs_p"] for r in jrows],
+    height=0.34,
+    color="#198754",
+    alpha=0.35,
+    label="均值",
+  )
   ax.set_yticks(y, ["" for _ in jrows])
   ax.set_xlabel("|机械功率| (W)", fontsize=8)
   ax.set_title("关节功率", fontsize=9)
@@ -408,7 +458,9 @@ def chart_curves(curves: dict[str, dict[str, list]]) -> str | None:
   for ax in axes.ravel()[n:]:
     ax.axis("off")
   axes[0, 0].legend(fontsize=7)
-  fig.suptitle("训练曲线对比（r04 无站姿项 / r05 无门控 / r06 带门控）", fontsize=10, y=1.02)
+  fig.suptitle(
+    "训练曲线对比（r04 无站姿项 / r05 无门控 / r06 带门控）", fontsize=10, y=1.02
+  )
   return fig_uri(fig)
 
 
@@ -443,7 +495,9 @@ def read_curves(log_root: Path, cache: Path) -> dict[str, dict[str, list]]:
   want = {t for t, _ in CURVE_TAGS}
   out: dict[str, dict[str, list]] = {}
   for run, pattern, _label in RUN_PATTERNS:
-    dirs = [d for d in sorted(log_root.glob("*")) if d.is_dir() and re.match(pattern, d.name)]
+    dirs = [
+      d for d in sorted(log_root.glob("*")) if d.is_dir() and re.match(pattern, d.name)
+    ]
     if not dirs:
       print(f"  [curves] 跳过 {run}：没有匹配 {pattern} 的目录", file=sys.stderr)
       continue
@@ -467,9 +521,11 @@ def read_curves(log_root: Path, cache: Path) -> dict[str, dict[str, list]]:
     if not n_dirs:
       continue
     out[run] = series
-    print(f"  [curves] {run}: {n_dirs} 个目录（{dirs[0].name} … {dirs[-1].name}）-> " +
-          ", ".join(f"{t.split('/')[-1]}={len(v)}" for t, v in series.items() if v) +
-          f"  ({time.time() - t0:.0f}s)")
+    print(
+      f"  [curves] {run}: {n_dirs} 个目录（{dirs[0].name} … {dirs[-1].name}）-> "
+      + ", ".join(f"{t.split('/')[-1]}={len(v)}" for t, v in series.items() if v)
+      + f"  ({time.time() - t0:.0f}s)"
+    )
   cache.parent.mkdir(parents=True, exist_ok=True)
   cache.write_text(json.dumps(out), encoding="utf-8")
   return out
@@ -518,22 +574,22 @@ def collect_params(task: str) -> dict:
     # ``velocity_stages`` 列表，不是 ``CurriculumTermCfg.stages`` 属性 ——
     # 后者根本不存在）。所以按「参数名 -> 格式化后的 params」通用地导出，
     # 不假设任何具体字段。
-    "curriculum": {name: _fmt_param(term.params) for name, term in cfg.curriculum.items()},
+    "curriculum": {
+      name: _fmt_param(term.params) for name, term in cfg.curriculum.items()
+    },
     "rewards": [],
     "metrics_count": len(cfg.metrics),
     "joints": sorted(
-      {
-        n.split("/", 1)[1]
-        for n in cfg.metrics
-        if n.startswith("joint_position_rad/")
-      }
+      {n.split("/", 1)[1] for n in cfg.metrics if n.startswith("joint_position_rad/")}
     ),
   }
 
   for name, term in cfg.rewards.items():
     fn = getattr(term.func, "__name__", str(term.func))
     ps = {k: _fmt_param(v) for k, v in (term.params or {}).items()}
-    params["rewards"].append({"name": name, "func": fn, "weight": term.weight, "params": ps})
+    params["rewards"].append(
+      {"name": name, "func": fn, "weight": term.weight, "params": ps}
+    )
   return params
 
 
@@ -595,9 +651,7 @@ h2{page-break-after:avoid}
 
 
 def esc(x) -> str:
-  return (
-    str(x).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-  )
+  return str(x).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 def fmt(x, nd=3, dash="—") -> str:
@@ -624,7 +678,9 @@ def table(
   cls: list[str] | None = None,
   table_class: str = "",
 ) -> str:
-  out = [f"<table class='{table_class}'><thead><tr>" if table_class else "<table><thead><tr>"]
+  out = [
+    f"<table class='{table_class}'><thead><tr>" if table_class else "<table><thead><tr>"
+  ]
   out += [f"<th>{esc(h)}</th>" for h in headers]
   out.append("</tr></thead><tbody>")
   for row in rows:
@@ -669,9 +725,15 @@ def build_html(
   worst_v = max((r["peak_v_ratio"] for r in jrows), default=float("nan"))
   stand = next((c for c in per_clip if c["clip"] == "stand"), None)
   P.append("<div class='cards'>")
-  P.append(f"<div class='card'><div class='k'>录制档位</div><div class='v'>{len(per_clip)}</div></div>")
-  P.append(f"<div class='card'><div class='k'>采样点</div><div class='v'>{total_samples:,}</div></div>")
-  P.append(f"<div class='card'><div class='k'>关节数</div><div class='v'>{len(jrows)}</div></div>")
+  P.append(
+    f"<div class='card'><div class='k'>录制档位</div><div class='v'>{len(per_clip)}</div></div>"
+  )
+  P.append(
+    f"<div class='card'><div class='k'>采样点</div><div class='v'>{total_samples:,}</div></div>"
+  )
+  P.append(
+    f"<div class='card'><div class='k'>关节数</div><div class='v'>{len(jrows)}</div></div>"
+  )
   P.append(
     f"<div class='card'><div class='k'>中途终止</div>"
     f"<div class='v {'ok' if n_term == 0 else 'bad'}'>{n_term} 档</div></div>"
@@ -707,33 +769,53 @@ def build_html(
       continue
     cmd, act = c["cmd"], c["act"]
     ratio = c["track_ratio"]
-    rc = "ok" if (not math.isnan(ratio) and 0.8 <= ratio <= 1.2) else (
-      "warn" if (not math.isnan(ratio) and 0.5 <= ratio) else "bad"
+    rc = (
+      "ok"
+      if (not math.isnan(ratio) and 0.8 <= ratio <= 1.2)
+      else ("warn" if (not math.isnan(ratio) and 0.5 <= ratio) else "bad")
     )
     # 被终止的档要标出来：它的均值是「摔之前的平均」，不是稳态性能。
     term = c.get("terminated_at")
     label = esc(c["label"]) + (" <span class='bad'>⚠️</span>" if term else "")
-    rows.append([
-      label,
-      f"{c.get('seconds', float('nan')):.1f}"
-      + (f"<span class='bad'>/{fmt(c.get('requested_seconds'), 0)}</span>"
-         if term and c.get("requested_seconds") else ""),
-      f"{cmd[0]:+.2f}/{cmd[1]:+.2f}/{cmd[2]:+.2f}",
-      f"{act[0]:+.2f}/{act[1]:+.2f}/{act[2]:+.2f}",
-      f"<span class='{rc}'>{fmt(ratio, 2)}</span>" if not math.isnan(ratio) else "—",
-      fmt(c.get("dir_cos"), 2),
-      fmt(c.get("err_xy"), 3),
-      fmt(c.get("err_yaw"), 3),
-      fmt(c.get("net_disp_m"), 2),
-      fmt(c.get("net_yaw_deg"), 1),
-      fmt(c.get("base_height_cm"), 1),
-    ])
-  P.append(table(
-    ["档位", "时长 (s)", "命令 vx/vy/wz", "实测 vx/vy/wz", "跟踪比", "方向余弦",
-     "线速度误差", "偏航误差", "净位移 (m)", "净转角 (°)", "基座高度 (cm)"],
-    rows,
-    table_class="wide",
-  ))
+    rows.append(
+      [
+        label,
+        f"{c.get('seconds', float('nan')):.1f}"
+        + (
+          f"<span class='bad'>/{fmt(c.get('requested_seconds'), 0)}</span>"
+          if term and c.get("requested_seconds")
+          else ""
+        ),
+        f"{cmd[0]:+.2f}/{cmd[1]:+.2f}/{cmd[2]:+.2f}",
+        f"{act[0]:+.2f}/{act[1]:+.2f}/{act[2]:+.2f}",
+        f"<span class='{rc}'>{fmt(ratio, 2)}</span>" if not math.isnan(ratio) else "—",
+        fmt(c.get("dir_cos"), 2),
+        fmt(c.get("err_xy"), 3),
+        fmt(c.get("err_yaw"), 3),
+        fmt(c.get("net_disp_m"), 2),
+        fmt(c.get("net_yaw_deg"), 1),
+        fmt(c.get("base_height_cm"), 1),
+      ]
+    )
+  P.append(
+    table(
+      [
+        "档位",
+        "时长 (s)",
+        "命令 vx/vy/wz",
+        "实测 vx/vy/wz",
+        "跟踪比",
+        "方向余弦",
+        "线速度误差",
+        "偏航误差",
+        "净位移 (m)",
+        "净转角 (°)",
+        "基座高度 (cm)",
+      ],
+      rows,
+      table_class="wide",
+    )
+  )
   P.append(
     "<p class='sub'>跟踪比 = ‖实测 v<sub>xy</sub>‖ / ‖命令 v<sub>xy</sub>‖，"
     "命令为 0 的站立档无意义；方向余弦 +1 = 走对方向、−1 = 反向、0 = 垂直。"
@@ -768,16 +850,20 @@ def build_html(
   for c in per_clip:
     if "sep_mean_cm" not in c:
       continue
-    sep_rows.append([
-      esc(c["label"]),
-      fmt(c.get("sep_mean_cm"), 1),
-      fmt(c.get("sep_p95_cm"), 1),
-      fmt(c.get("standing_frac"), 2),
-    ])
+    sep_rows.append(
+      [
+        esc(c["label"]),
+        fmt(c.get("sep_mean_cm"), 1),
+        fmt(c.get("sep_p95_cm"), 1),
+        fmt(c.get("standing_frac"), 2),
+      ]
+    )
   P.append(table(["档位", "平均间距 (cm)", "95 分位 (cm)", "门控命中比例"], sep_rows))
   if charts.get("separation"):
-    P.append(f"<figure><img src='{charts['separation']}' alt='双脚间距'>"
-             f"<figcaption>六档的双脚横向间距时序（红线 = 默认站姿 20 cm）</figcaption></figure>")
+    P.append(
+      f"<figure><img src='{charts['separation']}' alt='双脚间距'>"
+      f"<figcaption>六档的双脚横向间距时序（红线 = 默认站姿 20 cm）</figcaption></figure>"
+    )
 
   # ---- §4 关节 ----
   P.append("<h2>4. 逐关节负载</h2>")
@@ -794,35 +880,59 @@ def build_html(
   load_rows = []
   for r in jrows:
     label = f"{r['side']} {esc(r['short'])}"
-    kin_rows.append([
-      label,
-      f"{r['pos_lo_rad']:+.3f} … {r['pos_hi_rad']:+.3f}",
-      fmt(r["rom_deg"], 1),
-      fmt(r["peak_v"], 2),
-      f"<span class='{cls_for_ratio(r['peak_v_ratio'])}'>{fmt(r['peak_v_ratio'], 2)}</span>",
-      fmt(r["peak_a"], 1),
-    ])
-    load_rows.append([
-      label,
-      fmt(r["peak_t"], 2),
-      f"<span class='{cls_for_ratio(r['peak_t_ratio'])}'>{fmt(r['peak_t_ratio'], 2)}</span>",
-      fmt(r["mean_abs_t"], 2),
-      fmt(r["peak_p"], 2),
-      fmt(r["mean_abs_p"], 2),
-    ])
+    kin_rows.append(
+      [
+        label,
+        f"{r['pos_lo_rad']:+.3f} … {r['pos_hi_rad']:+.3f}",
+        fmt(r["rom_deg"], 1),
+        fmt(r["peak_v"], 2),
+        f"<span class='{cls_for_ratio(r['peak_v_ratio'])}'>{fmt(r['peak_v_ratio'], 2)}</span>",
+        fmt(r["peak_a"], 1),
+      ]
+    )
+    load_rows.append(
+      [
+        label,
+        fmt(r["peak_t"], 2),
+        f"<span class='{cls_for_ratio(r['peak_t_ratio'])}'>{fmt(r['peak_t_ratio'], 2)}</span>",
+        fmt(r["mean_abs_t"], 2),
+        fmt(r["peak_p"], 2),
+        fmt(r["mean_abs_p"], 2),
+      ]
+    )
   P.append("<h3>4.1 运动学</h3>")
-  P.append(table(
-    ["关节", "位置范围 (rad)", "ROM (°)", "峰值速度 (rad/s)", "速度占用", "峰值加速度 (rad/s²)"],
-    kin_rows,
-  ))
+  P.append(
+    table(
+      [
+        "关节",
+        "位置范围 (rad)",
+        "ROM (°)",
+        "峰值速度 (rad/s)",
+        "速度占用",
+        "峰值加速度 (rad/s²)",
+      ],
+      kin_rows,
+    )
+  )
   P.append("<h3>4.2 负载与功率</h3>")
-  P.append(table(
-    ["关节", "峰值扭矩 (N·m)", "扭矩占用", "均|扭矩| (N·m)", "峰值功率 (W)", "均|功率| (W)"],
-    load_rows,
-  ))
+  P.append(
+    table(
+      [
+        "关节",
+        "峰值扭矩 (N·m)",
+        "扭矩占用",
+        "均|扭矩| (N·m)",
+        "峰值功率 (W)",
+        "均|功率| (W)",
+      ],
+      load_rows,
+    )
+  )
   if charts.get("joints"):
-    P.append(f"<figure><img src='{charts['joints']}' alt='关节负载'>"
-             f"<figcaption>逐关节活动范围、电机占用率与机械功率</figcaption></figure>")
+    P.append(
+      f"<figure><img src='{charts['joints']}' alt='关节负载'>"
+      f"<figcaption>逐关节活动范围、电机占用率与机械功率</figcaption></figure>"
+    )
 
   # ---- §5 训练曲线 ----
   P.append("<h2>5. 训练曲线对比</h2>")
@@ -837,57 +947,69 @@ def build_html(
   P.append("<h2>6. 相关参数</h2>")
   cp = params["command"]
   P.append("<h3>6.1 命令空间</h3>")
-  P.append(table(
-    ["参数", "值"],
-    [
-      ["lin_vel_x", esc(cp["lin_vel_x"])],
-      ["lin_vel_y", esc(cp["lin_vel_y"])],
-      ["ang_vel_z", esc(cp["ang_vel_z"])],
-      ["heading", esc(cp["heading"])],
-      ["heading_command", esc(cp["heading_command"])],
-      ["heading_control_stiffness", fmt(cp["heading_control_stiffness"], 2)],
-      ["resampling_time_range (s)", esc(cp["resampling_time_range"])],
-      ["rel_standing_envs", fmt(cp["rel_standing_envs"], 3)],
-      ["rel_heading_envs", fmt(cp["rel_heading_envs"], 3)],
-      ["rel_world_envs", fmt(cp["rel_world_envs"], 3)],
-      ["rel_forward_envs", fmt(cp["rel_forward_envs"], 3)],
-      ["rel_backward_envs", fmt(cp["rel_backward_envs"], 3)],
-      ["rel_lateral_envs", fmt(cp["rel_lateral_envs"], 3)],
-    ],
-    cls=["", ""],
-  ))
+  P.append(
+    table(
+      ["参数", "值"],
+      [
+        ["lin_vel_x", esc(cp["lin_vel_x"])],
+        ["lin_vel_y", esc(cp["lin_vel_y"])],
+        ["ang_vel_z", esc(cp["ang_vel_z"])],
+        ["heading", esc(cp["heading"])],
+        ["heading_command", esc(cp["heading_command"])],
+        ["heading_control_stiffness", fmt(cp["heading_control_stiffness"], 2)],
+        ["resampling_time_range (s)", esc(cp["resampling_time_range"])],
+        ["rel_standing_envs", fmt(cp["rel_standing_envs"], 3)],
+        ["rel_heading_envs", fmt(cp["rel_heading_envs"], 3)],
+        ["rel_world_envs", fmt(cp["rel_world_envs"], 3)],
+        ["rel_forward_envs", fmt(cp["rel_forward_envs"], 3)],
+        ["rel_backward_envs", fmt(cp["rel_backward_envs"], 3)],
+        ["rel_lateral_envs", fmt(cp["rel_lateral_envs"], 3)],
+      ],
+      cls=["", ""],
+    )
+  )
   P.append("<h3>6.2 奖励项</h3>")
-  P.append(table(
-    ["项", "函数", "权重", "参数"],
-    [
-      [esc(r["name"]), f"<code>{esc(r['func'])}</code>",
-       f"<strong>{fmt(r['weight'], 4)}</strong>", f"<code>{esc(r['params'])}</code>"]
-      for r in params["rewards"]
-    ],
-  ))
+  P.append(
+    table(
+      ["项", "函数", "权重", "参数"],
+      [
+        [
+          esc(r["name"]),
+          f"<code>{esc(r['func'])}</code>",
+          f"<strong>{fmt(r['weight'], 4)}</strong>",
+          f"<code>{esc(r['params'])}</code>",
+        ]
+        for r in params["rewards"]
+      ],
+    )
+  )
   P.append("<h3>6.3 课程项</h3>")
   if params["curriculum"]:
-    P.append(table(
-      ["课程", "阶段 (step, 参数)"],
-      [[esc(k), f"<code>{esc(v)}</code>"] for k, v in params["curriculum"].items()],
-    ))
+    P.append(
+      table(
+        ["课程", "阶段 (step, 参数)"],
+        [[esc(k), f"<code>{esc(v)}</code>"] for k, v in params["curriculum"].items()],
+      )
+    )
   else:
     P.append("<p class='sub'>无课程项。</p>")
   P.append("<h3>6.4 仿真与回合</h3>")
-  P.append(table(
-    ["参数", "值"],
-    [
-      ["task", f"<code>{esc(params['task'])}</code>"],
-      ["num_envs", esc(params["num_envs"])],
-      ["episode_length_s", fmt(params["episode_length_s"], 1)],
-      ["decimation", esc(params["decimation"])],
-      ["sim timestep (s)", esc(params["sim_dt"])],
-      ["控制周期 step_dt (s)", fmt(params["step_dt"], 4)],
-      ["metrics 项数", esc(params["metrics_count"])],
-      ["受控关节", f"<code>{esc(', '.join(params['joints']))}</code>"],
-    ],
-    cls=["", ""],
-  ))
+  P.append(
+    table(
+      ["参数", "值"],
+      [
+        ["task", f"<code>{esc(params['task'])}</code>"],
+        ["num_envs", esc(params["num_envs"])],
+        ["episode_length_s", fmt(params["episode_length_s"], 1)],
+        ["decimation", esc(params["decimation"])],
+        ["sim timestep (s)", esc(params["sim_dt"])],
+        ["控制周期 step_dt (s)", fmt(params["step_dt"], 4)],
+        ["metrics 项数", esc(params["metrics_count"])],
+        ["受控关节", f"<code>{esc(', '.join(params['joints']))}</code>"],
+      ],
+      cls=["", ""],
+    )
+  )
 
   # ---- §7 分析 ----
   if notes_html:
@@ -900,10 +1022,7 @@ def build_html(
     "<p>每个档位一个 CSV，列契约与 "
     "<code>scripts/plot_logs/metrics_csv_dashboard.html</code> 一致：</p>"
   )
-  P.append(
-    "<pre>sample, sim_step, time_s, env_idx, network, "
-    "&lt;指标列…&gt;</pre>"
-  )
+  P.append("<pre>sample, sim_step, time_s, env_idx, network, &lt;指标列…&gt;</pre>")
   P.append(
     "<ul>"
     "<li><code>time_s</code> 必须存在且<strong>单调递增</strong>（dashboard 会校验）；</li>"
@@ -959,9 +1078,14 @@ def export_pdf(html_path: Path, pdf_path: Path) -> bool:
   """
   pdf_path.parent.mkdir(parents=True, exist_ok=True)
   cmd = [
-    "google-chrome", "--headless=new", "--disable-gpu", "--no-sandbox",
-    "--no-pdf-header-footer", "--virtual-time-budget=8000",
-    f"--print-to-pdf={pdf_path}", html_path.resolve().as_uri(),
+    "google-chrome",
+    "--headless=new",
+    "--disable-gpu",
+    "--no-sandbox",
+    "--no-pdf-header-footer",
+    "--virtual-time-budget=8000",
+    f"--print-to-pdf={pdf_path}",
+    html_path.resolve().as_uri(),
   ]
   try:
     proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
@@ -969,7 +1093,10 @@ def export_pdf(html_path: Path, pdf_path: Path) -> bool:
     print("[report] 找不到 google-chrome，跳过 PDF", file=sys.stderr)
     return False
   if proc.returncode != 0 or not pdf_path.exists():
-    print(f"[report] PDF 导出失败 rc={proc.returncode}\n{proc.stderr[-800:]}", file=sys.stderr)
+    print(
+      f"[report] PDF 导出失败 rc={proc.returncode}\n{proc.stderr[-800:]}",
+      file=sys.stderr,
+    )
     return False
   return True
 
@@ -1019,10 +1146,15 @@ def main() -> int:
       rec["requested_seconds"] = idx.get("seconds_per_clip")
     if idx.get("checkpoint") and not args.checkpoint:
       args.checkpoint = idx["checkpoint"]
-    print(f"[report] 索引 {index_path.name}: "
-          f"{sum(1 for c in by_clip.values() if c.get('terminated_at'))} 档被终止")
+    print(
+      f"[report] 索引 {index_path.name}: "
+      f"{sum(1 for c in by_clip.values() if c.get('terminated_at'))} 档被终止"
+    )
   else:
-    print(f"[report] 无索引 {index_path.name}（终止信息缺失，其余不受影响）", file=sys.stderr)
+    print(
+      f"[report] 无索引 {index_path.name}（终止信息缺失，其余不受影响）",
+      file=sys.stderr,
+    )
 
   jrows = analyze_joints(clips)
   params = collect_params(args.task)
@@ -1043,8 +1175,10 @@ def main() -> int:
       curves = read_curves(Path(args.log_root), Path(args.curve_cache))
       uri = chart_curves(curves)
       if uri:
-        curves_html = (f"<figure><img src='{uri}' alt='训练曲线'>"
-                       f"<figcaption>r04 / r05 / r06 关键标量对比</figcaption></figure>")
+        curves_html = (
+          f"<figure><img src='{uri}' alt='训练曲线'>"
+          f"<figcaption>r04 / r05 / r06 关键标量对比</figcaption></figure>"
+        )
     except Exception as exc:  # tensorboard 读失败不该让整份报告出不来
       print(f"[report] 训练曲线跳过：{exc}", file=sys.stderr)
 

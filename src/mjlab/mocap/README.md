@@ -12,8 +12,9 @@ src/mjlab/mocap/
 ├── keyframes.py      # PoseKeyframe + 关键帧插值（lerp/slerp，可配置 fps/时长/easing）
 ├── recorder.py       # record_to_csv：关键帧 → 插值 → PD 执行 → CSV（接口对齐）
 ├── record_cli.py     # CLI：从 JSON 关键帧文件录制
-├── preview.py        # 交互式 viewer 预览关键帧动作（调试姿势/过渡）
-├── preview_cli.py    # 预览的 CLI 入口
+├── preview.py        # native 后端：launch_passive 桌面 viewer 预览关键帧动作
+├── preview_viser.py  # viser（默认）后端：浏览器 3D + 交互面板（进度条/切 json/热加载/重置）
+├── preview_cli.py    # 预览的 CLI 入口（--backend viser/native）
 ├── replay.py         # 回放录出的 CSV/npz 动作（检查录制结果）
 ├── replay_cli.py     # 回放的 CLI 入口
 ├── configs/          # 示例关键帧 + NOTES.md（有意超限项说明）
@@ -70,28 +71,46 @@ uv run python -m mjlab.mocap.record_cli \
 
 ### 可视化预览（调试关键帧）
 
-录制前先在交互式 MuJoCo viewer 里播放动作，确认姿势与过渡符合预期：
+录制前先在交互式 viewer 里播放动作，确认姿势与过渡符合预期。
+
+**默认后端 `viser`**：浏览器 3D 预览，自带进度条 / 切 json / 参数热加载 /
+重置面板，改关键帧或参数不用重开进程；server 只跑 websocket，**无需本地
+GL/显示环境**（headless 服务器也能起，浏览器打开打印的 URL 即可交互）。
+`--backend native` 走原 `launch_passive` 桌面窗口（空格暂停，需 DISPLAY）。
 
 ```sh
-# 默认 kinematic 模式：播放插值目标姿态（快，适合调关键帧）
+# viser（默认）：浏览器打开打印的 URL；GUI 有进度条 / 切 json / 参数热加载 / 重置
 uv run python -m mjlab.mocap.preview_cli \
     src/mjlab/mocap/configs/transition_down.json
 
-# pd 模式：PD 打点执行（与录制一致，更真实）；循环 + 满速
+# pd 模式：PD 打点执行（与录制一致）；循环；每轮结束恢复初始位姿
+# （含 root pos/rot，默认开启，倒地方便反复观察自起）
 uv run python -m mjlab.mocap.preview_cli \
     src/mjlab/mocap/configs/transition_down.json \
     --mode pd --loop True --fast True
 ```
 
+- **viser GUI 面板**（改即生效，无需重开进程）：
+  - Transport：Frame 进度条（拖动即跳帧并暂停）、Play/Pause、Reset（回初始位姿）。
+  - Motion：JSON 下拉（选中即热加载，`--json-dir` 控制选项目录，当前路径自动并入）、
+    Mode（kinematic/pd）、Easing（linear/ease_in_out）、FPS（拖动离手后应用）——改这些
+    即时重建插值轨迹。
+  - Options：loop / loop_reset / write_root / fast / show_com 勾选即时生效。
+    后台 GUI 回调只置 dirty 标志，主循环线程消费后统一重建/跳帧/复位，避免 env/traj 竞态。
 - 两种模式：`kinematic`（默认，直接显示插值目标姿态）与 `pd`（warp
   动力学 PD 执行，与录制结果一致）。
+- **循环恢复初始位姿**（默认）：`--loop True` 时每轮结束把机器人
+  运动学恢复回初始（含 root pos/rot 与关节角，即轨迹首帧）再从头重播。
+  pd 模式下 root 由浮动基底座动力学自由演化（`write_root=False`），普通
+  loop 折回只回关节角、base 不会回位；倒地自起这类 root 偏移动作用它才能
+  干净地反复看。这会让 loop 不再附加"末帧→首帧"回退段（轨迹即动作本身）；
+  想要平滑倒放回起的循环用 `--loop-reset False` 关闭。
 - **COM 投影叠加**（默认开启）：实时显示整机质心 **绿点**、质心到地面
   的竖直 **黄线**、地面投影 **红点**——用于判断机器人是否稳定（投影是否
   落在支撑多边形内），纯关节角模式下调站姿/蹲姿尤其有用。关闭：
   `--show-com False`。
-- 交互：**空格** 暂停/继续；鼠标旋转/缩放视角；关闭窗口退出。
+- native 后端交互：**空格** 暂停/继续；鼠标旋转/缩放视角；关闭窗口退出。
 - 布尔参数需显式值：`--loop True` / `--fast True` / `--show-com False`。
-- 需要本地图形界面（`DISPLAY`/`WAYLAND_DISPLAY`）；无显示环境会报错。
 
 ### 回放录制结果（replay）
 

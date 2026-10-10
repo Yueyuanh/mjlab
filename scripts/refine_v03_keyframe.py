@@ -30,9 +30,11 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
-SRC_XML = Path(
-  "/home/finnox/Pikachu/PikachuRobot/pikachu_urdf/pikachu_v03_base_series"
-) / "mjcf" / "pikachu_v03_base_series.xml"
+SRC_XML = (
+  Path("/home/finnox/Pikachu/PikachuRobot/pikachu_urdf/pikachu_v03_base_series")
+  / "mjcf"
+  / "pikachu_v03_base_series.xml"
+)
 
 KP, KD, KI = 20.0, 0.5, 50.0
 DRIVEN = ("hip_pitch_joint", "knee_up_joint", "ankle_joint")
@@ -93,9 +95,9 @@ def main() -> None:
         integ[j] = float(np.clip(integ[j] + e * m.opt.timestep, -0.4, 0.4))
         d.ctrl[aid[j]] = KP * e - KD * d.qvel[vadr[j]] + KI * integ[j]
       mujoco.mj_step(m, d)
-      if s % 500 == 499 and max(
-        abs(d.qpos[qadr[j]] - targets[j]) for j in joints
-      ) < 1e-6:
+      if (
+        s % 500 == 499 and max(abs(d.qpos[qadr[j]] - targets[j]) for j in joints) < 1e-6
+      ):
         break
     for j in joints:
       d.ctrl[aid[j]] = 0.0
@@ -150,8 +152,10 @@ def main() -> None:
       targets[f"{side}_ankle_joint"] = ank
 
   print("=== 固定点迭代：把脚心解到质心正下方 ===")
-  print(f"{'iter':>5} {'cx_target':>11} {'CoM_x':>10} {'脚心x_R':>10} "
-        f"{'脚心x_L':>10} {'base_z':>9} {'俯仰_R':>9} {'俯仰_L':>9}")
+  print(
+    f"{'iter':>5} {'cx_target':>11} {'CoM_x':>10} {'脚心x_R':>10} "
+    f"{'脚心x_L':>10} {'base_z':>9} {'俯仰_R':>9} {'俯仰_L':>9}"
+  )
 
   cx_target = 0.0
   for it in range(8):

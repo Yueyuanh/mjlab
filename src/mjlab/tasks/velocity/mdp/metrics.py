@@ -85,9 +85,7 @@ def velocity_error(
   刻意不取绝对值：符号里带着「追不上（负）/冲过头（正）」，而均值归零的
   绝对值会把这个信息抹掉。要看幅度在分析脚本里对 CSV 取 abs 即可。
   """
-  return command_velocity(env, command_name, axis) - base_velocity(
-    env, axis, asset_cfg
-  )
+  return command_velocity(env, command_name, axis) - base_velocity(env, axis, asset_cfg)
 
 
 def velocity_error_norm(

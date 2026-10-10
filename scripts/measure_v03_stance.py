@@ -85,9 +85,7 @@ def make_env(task: str, *, vx: float, vy: float, wz: float, seed: int = 42):
 
 def load_policy(task: str, checkpoint: str, device: str, wrapped):
   runner_cls = load_runner_cls(task) or MjlabOnPolicyRunner
-  runner = runner_cls(
-    wrapped, asdict(load_rl_cfg(task)), log_dir=None, device=device
-  )
+  runner = runner_cls(wrapped, asdict(load_rl_cfg(task)), log_dir=None, device=device)
   runner.load(
     checkpoint,
     load_cfg={"actor": True, "critic": False, "optimizer": False, "iteration": False},

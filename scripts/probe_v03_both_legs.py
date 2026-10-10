@@ -38,9 +38,11 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
-SRC_XML = Path(
-  "/home/finnox/Pikachu/PikachuRobot/pikachu_urdf/pikachu_v03_base_series"
-) / "mjcf" / "pikachu_v03_base_series.xml"
+SRC_XML = (
+  Path("/home/finnox/Pikachu/PikachuRobot/pikachu_urdf/pikachu_v03_base_series")
+  / "mjcf"
+  / "pikachu_v03_base_series.xml"
+)
 
 KP, KD, KI = 20.0, 0.5, 50.0  # 关重力下标定，增益可取得很小
 
@@ -94,9 +96,9 @@ def main() -> None:
         integ[j] = float(np.clip(integ[j] + e * m.opt.timestep, -0.4, 0.4))
         d.ctrl[aid[j]] = KP * e - KD * d.qvel[vadr[j]] + KI * integ[j]
       mujoco.mj_step(m, d)
-      if s % 500 == 499 and max(
-        abs(d.qpos[qadr[j]] - targets[j]) for j in joints
-      ) < 1e-6:
+      if (
+        s % 500 == 499 and max(abs(d.qpos[qadr[j]] - targets[j]) for j in joints) < 1e-6
+      ):
         break
     for j in joints:
       d.ctrl[aid[j]] = 0.0
@@ -149,8 +151,10 @@ def main() -> None:
 
   # 右腿 knee_up 的行程是 [-1.22, +0.52]；左腿镜像，用 [-0.52, +1.22]。
   print("=== 双腿站立标定（脚掌水平 & 脚中心 x=0）===")
-  print(f"{'knee_up_R':>10} {'hip_R':>8} {'ank_R':>8} | "
-        f"{'knee_up_L':>10} {'hip_L':>8} {'ank_L':>8} | {'base_z':>8}")
+  print(
+    f"{'knee_up_R':>10} {'hip_R':>8} {'ank_R':>8} | "
+    f"{'knee_up_L':>10} {'hip_L':>8} {'ank_L':>8} | {'base_z':>8}"
+  )
   rows = []
   for k in (0.0, -0.20, -0.40, -0.60):
     hip_r, ank_r = solve_leg("right", k, -k / 2.0, -k / 2.0)
@@ -179,8 +183,10 @@ def main() -> None:
   # ---- 镜像关系验证：左右被动关节值 ----
   print()
   print("=== 镜像关系验证（knee_up 取遍行程，两腿同时摆）===")
-  print(f"{'k_R':>8} {'knee_R':>9} {'knee_L':>9} {'mid_R':>9} {'mid_L':>9} "
-        f"{'ank_R':>8} {'ank_L':>8}  {'L/R 比值':>22}")
+  print(
+    f"{'k_R':>8} {'knee_R':>9} {'knee_L':>9} {'mid_R':>9} {'mid_L':>9} "
+    f"{'ank_R':>8} {'ank_L':>8}  {'L/R 比值':>22}"
+  )
   for k in (0.0, -0.20, -0.40, -0.60, -0.80):
     hip_r, ank_r = solve_leg("right", k, -k / 2.0, -k / 2.0)
     hip_l, ank_l = solve_leg("left", -k, -k / 2.0, -k / 2.0)
@@ -201,8 +207,10 @@ def main() -> None:
     ml = d.qpos[qadr["left_knee_mid_joint"]]
     ar = d.qpos[qadr["right_ankle_joint"]]
     al = d.qpos[qadr["left_ankle_joint"]]
+
     def rat(a: float, b: float) -> str:
       return f"{a / b:+.4f}" if abs(b) > 1e-6 else "n/a"
+
     print(
       f"{k:>8.2f} {np.degrees(kr):>8.3f}° {np.degrees(kl):>8.3f}° "
       f"{np.degrees(mr):>8.3f}° {np.degrees(ml):>8.3f}° "

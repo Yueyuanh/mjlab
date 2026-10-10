@@ -16,11 +16,11 @@
 
 ```python
 joint_pos_action.scale = {
-  r".*_hip_pitch_joint": 0.50,   # 限位 ±2.45，行程最大
-  r".*_knee_up_joint":   0.40,   # 限位 [-1.22,+0.52] 右 / 镜像左，全行程 1.74
-  r".*_hip_roll_joint":  0.20,   # 限位 ±0.26  —— 极小！
-  r".*_hip_yaw_joint":   0.20,   # 限位 ±0.26  —— 极小！
-  r".*_ankle_joint":     0.35,
+  r".*_hip_pitch_joint": 0.50,  # 限位 ±2.45，行程最大
+  r".*_knee_up_joint": 0.40,  # 限位 [-1.22,+0.52] 右 / 镜像左，全行程 1.74
+  r".*_hip_roll_joint": 0.20,  # 限位 ±0.26  —— 极小！
+  r".*_hip_yaw_joint": 0.20,  # 限位 ±0.26  —— 极小！
+  r".*_ankle_joint": 0.35,
 }
 ```
 
@@ -78,15 +78,15 @@ dashboard 契约里的第 9 族 `joint_inertia_torque_nm/` **故意不录**：�
 ```python
 # r04 现值（最终）。r01/r02 是 0.25/0.25/0.25 + heading 0.3 + standing 0.1；
 # r03 短暂试过 0.20/0.15/0.15（已回退，见下方 ⚠️）。
-rel_forward_envs  = 0.25
-rel_backward_envs = 0.25     # ← 显式给后退样本
-rel_lateral_envs  = 0.25     # ← 显式给侧移样本
-rel_heading_envs  = 1.0      # ← 真正控制「有多少环境练转向」的旋钮
+rel_forward_envs = 0.25
+rel_backward_envs = 0.25  # ← 显式给后退样本
+rel_lateral_envs = 0.25  # ← 显式给侧移样本
+rel_heading_envs = 1.0  # ← 真正控制「有多少环境练转向」的旋钮
 rel_standing_envs = 0.05
 ranges.lin_vel_x = (-0.4, 0.5)
 ranges.lin_vel_y = (-0.35, 0.35)
 ranges.ang_vel_z = (-0.3, 0.3)
-ranges.heading   = (-3.14, 3.14)   # heading_command=True
+ranges.heading = (-3.14, 3.14)  # heading_command=True
 ```
 
 > ⚠️ **这三个方向桶的占比直接决定「有多少环境练过转向」**。
@@ -132,8 +132,18 @@ ranges.heading   = (-3.14, 3.14)   # heading_command=True
 
 ```python
 [
-  {"step": 0,         "lin_vel_x": (-0.4, 0.5), "lin_vel_y": (-0.35, 0.35), "ang_vel_z": (-0.3, 0.3)},
-  {"step": 2000 * 24, "lin_vel_x": (-0.6, 0.8), "lin_vel_y": (-0.5, 0.5),   "ang_vel_z": (-0.5, 0.5)},
+  {
+    "step": 0,
+    "lin_vel_x": (-0.4, 0.5),
+    "lin_vel_y": (-0.35, 0.35),
+    "ang_vel_z": (-0.3, 0.3),
+  },
+  {
+    "step": 2000 * 24,
+    "lin_vel_x": (-0.6, 0.8),
+    "lin_vel_y": (-0.5, 0.5),
+    "ang_vel_z": (-0.5, 0.5),
+  },
 ]
 ```
 

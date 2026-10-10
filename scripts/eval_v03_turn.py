@@ -41,9 +41,9 @@ from mjlab.tasks.registry import load_env_cfg, load_rl_cfg, load_runner_cls
 
 # 场景名 -> (lin_vel_x, 目标朝向增量 rad)
 SCENES: dict[str, tuple[float, float]] = {
-  "turn_only": (0.0, np.pi / 2),   # 原地转 90°
+  "turn_only": (0.0, np.pi / 2),  # 原地转 90°
   "walk_turn": (0.30, np.pi / 2),  # 边走边转 90°
-  "turn_180": (0.0, np.pi),        # 原地转 180°
+  "turn_180": (0.0, np.pi),  # 原地转 180°
 }
 
 
@@ -105,7 +105,7 @@ def main() -> int:
     twist.ranges.heading = (float(dpsi), float(dpsi))
     for attr, val in (
       ("rel_standing_envs", 0.0),
-      ("rel_heading_envs", 1.0),   # 唯一的环境 → 必定是 heading 环境
+      ("rel_heading_envs", 1.0),  # 唯一的环境 → 必定是 heading 环境
       ("rel_world_envs", 0.0),
       ("rel_forward_envs", 0.0),
       ("rel_backward_envs", 0.0),
@@ -159,7 +159,9 @@ def main() -> int:
 
     q = robot.data.root_link_quat_w[0]
     w, x, yy, z = (float(q[0]), float(q[1]), float(q[2]), float(q[3]))
-    roll = float(np.degrees(np.arctan2(2 * (w * x + yy * z), 1 - 2 * (x * x + yy * yy))))
+    roll = float(
+      np.degrees(np.arctan2(2 * (w * x + yy * z), 1 - 2 * (x * x + yy * yy)))
+    )
     pitch = float(np.degrees(np.arcsin(np.clip(2 * (w * yy - z * x), -1, 1))))
 
     print(

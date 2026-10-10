@@ -28,7 +28,6 @@ os.environ.setdefault("MUJOCO_GL", "egl")
 os.environ.setdefault("MUJOCO_EGL_DEVICE_ID", "0")
 os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0")
 
-import numpy as np  # noqa: E402
 import torch  # noqa: E402
 
 from mjlab.envs import ManagerBasedRlEnv  # noqa: E402
@@ -166,8 +165,10 @@ def main() -> None:
     r = rollout(env, "B. 零动作 + 完整扰动（push 每 1~3 s）", STEPS)
     print()
     print("=== 判定 ===")
-    print(f"完整扰动下零动作: 最低 {r['min_z']:.5f} m，"
-          f"首次跌破半高 = {r['fell_at']}（这就是策略要解决的问题）")
+    print(
+      f"完整扰动下零动作: 最低 {r['min_z']:.5f} m，"
+      f"首次跌破半高 = {r['fell_at']}（这就是策略要解决的问题）"
+    )
   env.close()
 
 

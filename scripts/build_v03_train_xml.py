@@ -255,7 +255,7 @@ def verify() -> None:
     f"脚底胶囊最低 z = "
     f"{min(d.geom_xpos[g][2] for g in foot_geoms) - FOOT_RADIUS:+.5f} m"
   )
-  print(f"（应等于 mesh 鞋底 z，两者相差 = 建模公差）")
+  print("（应等于 mesh 鞋底 z，两者相差 = 建模公差）")
 
   # 站立高度：base_link 要抬高多少，鞋底才正好落在 z=0。
   print(f"建议 base 站立高度 = {abs(min(zs)):.5f} m")

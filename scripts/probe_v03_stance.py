@@ -33,9 +33,11 @@ from pathlib import Path
 import mujoco
 import numpy as np
 
-SRC_XML = Path(
-  "/home/finnox/Pikachu/PikachuRobot/pikachu_urdf/pikachu_v03_base_series"
-) / "mjcf" / "pikachu_v03_base_series.xml"
+SRC_XML = (
+  Path("/home/finnox/Pikachu/PikachuRobot/pikachu_urdf/pikachu_v03_base_series")
+  / "mjcf"
+  / "pikachu_v03_base_series.xml"
+)
 
 KP, KD, KI = 20.0, 0.5, 50.0
 KNEE_UP_RANGE = (-1.20, 0.50)  # 右腿 knee_up 行程（限位 -1.22..0.52 留裕量）
@@ -96,13 +98,11 @@ def main() -> None:
         # 关重力后仍有 <connect> 约束反力要平衡，纯 PD 有 ~0.2 rad 稳态误差。
         # 加积分项把它消掉（积分限幅防止绕死）。
         integ[j] = float(np.clip(integ[j] + e * m.opt.timestep, -0.4, 0.4))
-        d.ctrl[aid[a]] = (
-          KP * e - KD * d.qvel[vadr[j]] + KI * integ[j]
-        )
+        d.ctrl[aid[a]] = KP * e - KD * d.qvel[vadr[j]] + KI * integ[j]
       mujoco.mj_step(m, d)
-      if s % 500 == 499 and max(
-        abs(d.qpos[qadr[j]] - targets[j]) for _, j in DRV
-      ) < 1e-6:
+      if (
+        s % 500 == 499 and max(abs(d.qpos[qadr[j]] - targets[j]) for _, j in DRV) < 1e-6
+      ):
         break
     for a, _ in DRV:
       d.ctrl[aid[a]] = 0.0
@@ -123,8 +123,9 @@ def main() -> None:
 
   # ---- 1) knee_up -> knee / knee_mid 传动关系 ----
   print("=== knee_up -> 被动关节传动关系（关重力，约束精确收敛）===")
-  print(f"{'knee_up':>9} {'knee':>10} {'knee_mid':>10} {'knee/knee_up':>13} "
-        f"{'收敛err':>10}")
+  print(
+    f"{'knee_up':>9} {'knee':>10} {'knee_mid':>10} {'knee/knee_up':>13} {'收敛err':>10}"
+  )
   ratio = []
   for k in np.linspace(KNEE_UP_RANGE[1], KNEE_UP_RANGE[0], 7):
     err = settle(0.0, float(k), 0.0)
@@ -132,20 +133,26 @@ def main() -> None:
     kmid = float(d.qpos[qadr["right_knee_mid_joint"]])
     if abs(k) > 1e-6:
       ratio.append(knee / k)
-    print(f"{k:>9.3f} {np.degrees(knee):>9.2f}° {np.degrees(kmid):>9.2f}° "
-          f"{knee/k if abs(k)>1e-6 else float('nan'):>13.4f} {err:>10.2e}")
+    print(
+      f"{k:>9.3f} {np.degrees(knee):>9.2f}° {np.degrees(kmid):>9.2f}° "
+      f"{knee / k if abs(k) > 1e-6 else float('nan'):>13.4f} {err:>10.2e}"
+    )
   print(f"传动比范围: {min(ratio):.4f} ~ {max(ratio):.4f}")
 
   settle(0.0, 0.0, 0.0)
-  print(f"零位偏置 (knee_up=0): knee="
-        f"{np.degrees(d.qpos[qadr['right_knee_joint']]):.3f}°  "
-        f"knee_mid={np.degrees(d.qpos[qadr['right_knee_mid_joint']]):.3f}°")
+  print(
+    f"零位偏置 (knee_up=0): knee="
+    f"{np.degrees(d.qpos[qadr['right_knee_joint']]):.3f}°  "
+    f"knee_mid={np.degrees(d.qpos[qadr['right_knee_mid_joint']]):.3f}°"
+  )
 
   # ---- 2) 站立姿态：脚掌水平 + 踝在髋正下方 ----
   print()
   print("=== 站立姿态标定（脚掌水平 & 踝 x 对齐髋）===")
-  print(f"{'knee_up':>9} {'knee':>9} {'hip_pitch':>10} {'ankle':>9} "
-        f"{'base_z':>9} {'俯仰(°)':>9} {'收敛err':>9}")
+  print(
+    f"{'knee_up':>9} {'knee':>9} {'hip_pitch':>10} {'ankle':>9} "
+    f"{'base_z':>9} {'俯仰(°)':>9} {'收敛err':>9}"
+  )
   rows = []
   for k in (0.0, -0.20, -0.40, -0.60, -0.80, -1.00):
     hip, ank = -k / 2.0, -k / 2.0
@@ -174,18 +181,20 @@ def main() -> None:
     knee = float(d.qpos[qadr["right_knee_joint"]])
     kmid = float(d.qpos[qadr["right_knee_mid_joint"]])
     rows.append((k, knee, kmid, hip, ank, -lo))
-    print(f"{k:>9.2f} {np.degrees(knee):>8.2f}° {hip:>10.4f} {ank:>9.4f} "
-          f"{-lo:>9.5f} {np.degrees(pitch):>8.3f}° {err:>9.1e}")
+    print(
+      f"{k:>9.2f} {np.degrees(knee):>8.2f}° {hip:>10.4f} {ank:>9.4f} "
+      f"{-lo:>9.5f} {np.degrees(pitch):>8.3f}° {err:>9.1e}"
+    )
 
   print()
   print("=== 可直接抄进 constants 的 keyframe ===")
   for idx, tag in ((0, "STAND (直立)"), (1, "KNEES_BENT (knee_up=-0.20)")):
     k, knee, kmid, hip, ank, base_z = rows[idx]
     print(f"[{tag}]  pos=(0, 0, {base_z:.5f})")
-    print(f"  right_hip_pitch={hip:+.4f}  right_knee_up={k:+.4f}  "
-          f"right_ankle={ank:+.4f}")
-    print(f"  left_hip_pitch={hip:+.4f}  left_knee_up={-k:+.4f}  "
-          f"left_ankle={ank:+.4f}")
+    print(
+      f"  right_hip_pitch={hip:+.4f}  right_knee_up={k:+.4f}  right_ankle={ank:+.4f}"
+    )
+    print(f"  left_hip_pitch={hip:+.4f}  left_knee_up={-k:+.4f}  left_ankle={ank:+.4f}")
     print(f"  被动 right_knee={knee:+.4f}  right_knee_mid={kmid:+.4f}")
     print(f"       left_knee={knee:+.4f}   left_knee_mid={kmid:+.4f}")
     print()

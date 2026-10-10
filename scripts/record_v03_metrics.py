@@ -192,7 +192,9 @@ def check_columns(rec: dict) -> str | None:
     if all(v in (None, "", "nan") for v in vals):
       bad.append(name)
   missing = [
-    p for p in _EXPECTED_FAMILIES if not any(n.startswith(p) for n in rec["metric_names"])
+    p
+    for p in _EXPECTED_FAMILIES
+    if not any(n.startswith(p) for n in rec["metric_names"])
   ]
   msgs = []
   if bad:
@@ -228,7 +230,11 @@ def summarize(rec: dict) -> str:
   cmd_w, act_w = mean(colb("vel/cmd_yaw")), mean(colb("vel/act_yaw"))
   err_n = mean(colb("vel/err_xy_norm"))
   px, py = col("vel/pos_x_w"), col("vel/pos_y_w")
-  net = ((px[-1] - px[0]) ** 2 + (py[-1] - py[0]) ** 2) ** 0.5 if px and py else float("nan")
+  net = (
+    ((px[-1] - px[0]) ** 2 + (py[-1] - py[0]) ** 2) ** 0.5
+    if px and py
+    else float("nan")
+  )
   return (
     f"{rec['clip']:9s} {rec['seconds']:4.1f}s "
     f"cmd=({cmd_x:+.2f},{cmd_y:+.2f},{cmd_w:+.2f}) "
@@ -273,9 +279,12 @@ def main() -> int:
       args.task, args.checkpoint, clip, steps, args.device, args.seed, tag, dest
     )
     results.append(rec)
-    print(f"[record_v03_metrics] {summarize(rec)}  "
-          f"({rec['path'].name}, {rec['path'].stat().st_size // 1024} KiB, "
-          f"{time.time() - t0:.1f}s)", flush=True)
+    print(
+      f"[record_v03_metrics] {summarize(rec)}  "
+      f"({rec['path'].name}, {rec['path'].stat().st_size // 1024} KiB, "
+      f"{time.time() - t0:.1f}s)",
+      flush=True,
+    )
     warn = check_columns(rec)
     if warn:
       print(f"[record_v03_metrics] ⚠️ 空列告警 {warn}", flush=True)
@@ -304,7 +313,9 @@ def main() -> int:
     ],
   }
   index_path = out_dir / f"metrics_v03_{tag}_index.json"
-  index_path.write_text(json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8")
+  index_path.write_text(
+    json.dumps(index, ensure_ascii=False, indent=2), encoding="utf-8"
+  )
   print(f"  索引 -> {index_path.name}")
 
   print("  把 CSV 拖进 scripts/plot_logs/metrics_csv_dashboard.html 即可看图；")

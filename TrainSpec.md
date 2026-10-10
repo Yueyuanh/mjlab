@@ -201,7 +201,7 @@ uv run play Mjlab-Tracking-Flat-Pikachu-Walk  \
 ```
 
 ## tracking npz 验证
-uv run play Mjlab-Tracking-Flat-Pikachu-Up --agent zero --motion-file src/mjlab/mocap/npz/Pikachu-rmg-walk-0.185.npz --no-terminations True
+uv run play Mjlab-Tracking-Flat-Pikachu-Up --agent zero --motion-file src/mjlab/mocap/npz/pikachu_walk_npz/Pikachu-rmg-walk-0.185.npz --no-terminations True
 
 
 上面的 play 用本地 checkpoint 做**定性**观察。要**定量**指标（MPKPE /

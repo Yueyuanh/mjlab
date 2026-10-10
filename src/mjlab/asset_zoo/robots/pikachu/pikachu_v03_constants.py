@@ -64,7 +64,10 @@ PIKACHU_V03_XML: Path = (
   / "pikachu"
   / "xmls"
   / "mjcf_v03"
-  / "pikachu_v03_base_series_train.xml"
+  # T6（weight 6.3 kg 压舱）训练模型。旧的无配重版
+  # ``pikachu_v03_base_series_train.xml`` 只差 base_link 一行质量
+  # （0.461569 -> 4.461569，总量 2.38 -> 6.38 kg），需要时切回来即可。
+  / "pikachu_v03_base_series_train_weight6.3.xml"
 )
 assert PIKACHU_V03_XML.exists(), f"缺少训练模型: {PIKACHU_V03_XML}"
 
@@ -78,10 +81,13 @@ def get_spec() -> mujoco.MjSpec:
 # Actuator config.
 ##
 
-# 电机规格与 pikachu_constants.py 相同（同一批 DM 电机），
-# 但 effort_limit 用 v03 MJCF 里实际写入的力矩上限：
-#   hip_pitch / knee_up -> DM-J4310P-2EC-V1.1  ±12.5 N·m
-#   hip_roll / hip_yaw / ankle -> DM-J3507-2EC-3R  ±9 N·m
+# 电机规格与 pikachu_constants.py 相同（同一批 DM 电机）。
+# effort_limit 的取法：
+#   hip_pitch / knee_up -> DM-J4310P-2EC-V1.1  ±12.5 N·m（= MJCF ctrlrange）
+#   hip_roll / hip_yaw / ankle -> DM-J3507-2EC-3R  MJCF ctrlrange ±9 N·m，
+#     但 T6 训练档降到 3 N·m —— 这是**降额**设定，不是 ctrlrange。
+#     ``Mjlab-Velocity-Flat-Pikachu-V03-T6`` 的 ``joint_torque_soft_limit``
+#     必须跟着用 3.0，否则 80% 软限位（7.2 N·m）永远达不到、该项恒为 0。
 ROTOR_INERTIAS_J4310 = 2.206e-5
 GEARS_J4310 = (1, 10, 1)
 ARMATURE_J4310 = reflected_inertia(
@@ -101,8 +107,8 @@ ACTUATOR_J4310 = ElectricActuator(
 )
 ACTUATOR_J3507 = ElectricActuator(
   reflected_inertia=ARMATURE_J3507,
-  velocity_limit=30.0 / 3,
-  effort_limit=9.0,  # v03 MJCF ctrlrange ±9
+  velocity_limit=30.0,
+  effort_limit=3.0,  # 降额，低于 MJCF ctrlrange ±9
 )
 
 NATURAL_FREQ = 10 * 2.0 * 3.1415926535  # 10 Hz

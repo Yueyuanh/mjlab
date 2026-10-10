@@ -30,8 +30,8 @@
      hip_yaw   0.20（限位 ±0.26）
      ankle     0.35（限位 -2.36~+0.79，默认 -0.39）
 
-6. **``base_height`` 目标高度按 v03 实测重定**。v03 微屈膝站姿的
-   ``base_link`` 高度是 0.26879 m（``KNEES_BENT_KEYFRAME``），
+6. **``base_height`` 目标高度按 v03 实测重定**。v03 静平衡微屈膝站姿的
+   ``base_link`` 高度是 0.26728 m（``KNEES_BENT_KEYFRAME``），
    沿用 V025 的 0.17 m 会让机器人被奖励压到地上。
 """
 
@@ -66,8 +66,9 @@ SITE_NAMES = ("left_foot", "right_foot")
 # 躯干（基座）body 名。
 TORSO_BODY = "base_link"
 
-# v03 微屈膝站姿下 base_link 的实测高度（见 pikachu_v03_constants.py）。
-STAND_HEIGHT = 0.26879
+# v03 静平衡微屈膝站姿下 base_link 的实测高度（weight 6.3 kg 训练模型，
+# 见 pikachu_v03_constants.py）。
+STAND_HEIGHT = 0.26728
 
 
 def pikachu_v03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
@@ -190,9 +191,9 @@ def pikachu_v03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   ]
 
   # 域随机化：脚底摩擦作用在 v03 的 5 条脚底胶囊上。
-  cfg.events["foot_friction"].params["asset_cfg"].geom_names = (
-    PIKACHU_V03_FOOT_GEOM_NAMES
-  )
+  cfg.events["foot_friction"].params[
+    "asset_cfg"
+  ].geom_names = PIKACHU_V03_FOOT_GEOM_NAMES
   cfg.events["base_com"].params["asset_cfg"].body_names = (TORSO_BODY,)
 
   # pose 奖励：只覆盖 10 个驱动关节（排除被动的 knee / knee_mid）。
@@ -301,7 +302,7 @@ def pikachu_v03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.rewards["base_height"] = RewardTermCfg(
     func=mdp.base_height_penalty,
     weight=-0.2,
-    # v03 微屈膝站姿 base_link 高 0.26879 m；目标比站姿低约 1.9 cm。
+    # v03 微屈膝站姿 base_link 高 0.26728 m；目标比站姿低约 1.7 cm。
     params={"target_height": 0.25, "std": 0.02},
   )
 
@@ -450,5 +451,121 @@ def pikachu_v03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     twist_cmd.ranges.lin_vel_x = (-0.6, 0.8)
     twist_cmd.ranges.lin_vel_y = (-0.5, 0.5)
     twist_cmd.ranges.ang_vel_z = (-0.5, 0.5)
+
+  return cfg
+
+
+def pikachu_v03_t6_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  """T6 fine-tuning profile: accurate tracking without a narrow, shuffling gait.
+
+  R06 remains the reproducible baseline.  This isolated task profile changes
+  only rewards and command coverage, so its actor/critic shapes stay compatible
+  with ``r06-best/model_59997.pt`` for conservative warm-start fine-tuning.
+
+  与服务器上的 ``...-V03-R07`` 同源，差别只有两处：任务名改为 T6，以及
+  ``joint_torque_soft_limit`` 的 J3507 力矩上限跟着
+  ``pikachu_v03_constants.py`` 的降额（9.0 -> 3.0）一起改。原版 R07 沿用
+  9.0，在 effort_limit=3.0 的执行器上 80% 软限位（7.2 N·m）永远达不到，
+  该项奖励恒为 0。
+  """
+  cfg = pikachu_v03_flat_env_cfg(play=play)
+
+  twist_cmd = cfg.commands["twist"]
+  assert isinstance(twist_cmd, UniformVelocityCommandCfg)
+  # Standing-only terms otherwise receive just 5% of samples and converge very
+  # slowly.  Ten percent leaves 22.5% of all envs for heading commands.
+  twist_cmd.rel_standing_envs = 0.10
+
+  driven_joints = SceneEntityCfg("robot", joint_names=PIKACHU_V03_POSE_JOINT_NAMES)
+  foot_sites = SceneEntityCfg("robot", site_names=SITE_NAMES)
+
+  # R06's exponential pose reward was saturated: standing joint RMSE was
+  # 0.183 rad and several hip joints sat on their +/-0.26 rad hard limits.
+  # Use an unbounded, standing-gated cost instead.  It targets the complete
+  # calibrated keyframe, not merely one geometric symptom such as foot width.
+  cfg.rewards["standing_posture_l2"] = RewardTermCfg(
+    func=mdp.standing_posture_l2,
+    weight=-0.25,
+    params={
+      "std": {
+        r".*hip_pitch.*": 0.12,
+        r".*hip_roll.*": 0.08,
+        r".*hip_yaw.*": 0.08,
+        r".*knee_up.*": 0.12,
+        r".*ankle.*": 0.12,
+      },
+      "asset_cfg": driven_joints,
+      "command_name": "twist",
+      "command_threshold": 0.10,
+    },
+  )
+  # The old 0.25 m target explicitly rewarded a crouch.  T6 aligns height with
+  # the requested initial static-equilibrium pose.
+  cfg.rewards["base_height"].params["target_height"] = STAND_HEIGHT
+  cfg.rewards["base_height"].params["std"] = 0.02
+  # Full keyframe regularization already implies the nominal 20 cm stance;
+  # remove the redundant exact-distance force that drove r05 into marching.
+  cfg.rewards.pop("feet_lateral_distance", None)
+
+  # Preserve a useful walking support polygon without pushing the swing leg
+  # outward throughout its trajectory.  This hinge acts only in double support
+  # and only below 14 cm; above the margin it is exactly zero.
+  cfg.rewards["walking_stance_width"] = RewardTermCfg(
+    func=mdp.feet_lateral_separation_min,
+    weight=-0.20,
+    params={
+      "sensor_name": "feet_ground_contact",
+      "min_distance": 0.14,
+      "std": 0.04,
+      "command_name": "twist",
+      "command_threshold": 0.15,
+      "asset_cfg": foot_sites,
+    },
+  )
+
+  # R06 forward gait: per-leg fundamental 3.29 Hz -> about 6.6 alternating
+  # steps/s and only 6.1 cm body progress per step at 0.4 m/s.  Make short
+  # supported swings explicitly costly, then center the landing reward on a
+  # longer 0.28 s swing.  Velocity tracking forces the reduced cadence to turn
+  # into longer steps instead of slower travel.
+  cfg.rewards["air_time"].weight = 0.50
+  cfg.rewards["alternating_air_time"].params["target_air_time"] = 0.28
+  cfg.rewards["alternating_air_time"].params["std"] = 0.10
+  cfg.rewards["short_step_air_time"] = RewardTermCfg(
+    func=mdp.short_step_air_time,
+    weight=-2.0,
+    params={
+      "sensor_name": "feet_ground_contact",
+      "min_air_time": 0.18,
+      "std": 0.08,
+      "command_name": "twist",
+      "command_threshold": 0.15,
+    },
+  )
+
+  # Keep a useful gradient for the weak back/lateral regimes after the
+  # exponential tracker has saturated, while preserving its precision near 0.
+  cfg.rewards["linear_velocity_huber"] = RewardTermCfg(
+    func=mdp.linear_velocity_huber_error,
+    weight=-0.25,
+    params={"command_name": "twist", "delta": 0.20},
+  )
+
+  # R06 touched 100% of the motor torque limit.  Penalize only the top 20% of
+  # utilization so ordinary gait effort is free and the policy retains speed.
+  # 上限必须与 pikachu_v03_constants.py 的 ACTUATOR_* effort_limit 一致：
+  # J4310 = 12.5 N·m，J3507 = 3.0 N·m（降额）。
+  cfg.rewards["torque_soft_limit"] = RewardTermCfg(
+    func=mdp.joint_torque_soft_limit,
+    weight=-0.25,
+    params={
+      "effort_limits": {
+        r".*(hip_pitch|knee_up)_joint": 12.5,
+        r".*(hip_roll|hip_yaw|ankle)_joint": 3.0,
+      },
+      "soft_ratio": 0.80,
+      "asset_cfg": driven_joints,
+    },
+  )
 
   return cfg

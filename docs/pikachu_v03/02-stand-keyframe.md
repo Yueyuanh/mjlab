@@ -102,17 +102,17 @@ cx_target ← 0
 KNEES_BENT_KEYFRAME = EntityCfg.InitialStateCfg(
   pos=(0, 0, 0.26728),
   joint_pos={
-    "right_hip_pitch_joint":  -0.4272,
-    "left_hip_pitch_joint":   -0.4252,
-    "right_knee_up_joint":    -0.2000,
-    "left_knee_up_joint":     +0.2000,   # 左腿 knee_up 反号
-    "right_ankle_joint":      -0.2747,
-    "left_ankle_joint":       +0.2727,   # 左腿 ankle 反号
-    "right_knee_joint":       -0.1775,
-    "left_knee_joint":        -0.1775,   # 左腿 knee 同号
-    "right_knee_mid_joint":   +0.2056,
-    "left_knee_mid_joint":    -0.2056,   # 左腿 knee_mid 反号
-    "hip_roll/hip_yaw":        0.0,
+    "right_hip_pitch_joint": -0.4272,
+    "left_hip_pitch_joint": -0.4252,
+    "right_knee_up_joint": -0.2000,
+    "left_knee_up_joint": +0.2000,  # 左腿 knee_up 反号
+    "right_ankle_joint": -0.2747,
+    "left_ankle_joint": +0.2727,  # 左腿 ankle 反号
+    "right_knee_joint": -0.1775,
+    "left_knee_joint": -0.1775,  # 左腿 knee 同号
+    "right_knee_mid_joint": +0.2056,
+    "left_knee_mid_joint": -0.2056,  # 左腿 knee_mid 反号
+    "hip_roll/hip_yaw": 0.0,
   },
   joint_vel={".*": 0.0},
 )

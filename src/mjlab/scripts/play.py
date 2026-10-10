@@ -104,6 +104,8 @@ class PlayConfig:
   randomization, then recomputes the broadphase bounds."""
   no_terminations: bool = False
   """Disable all termination conditions (useful for viewing motions with dummy agents)."""
+  start_clip_id: int | None = None
+  """多参考库任务里 ``--sampling-mode start`` 固定使用第几条 clip(逐条录像用)。"""
   sampling_mode: Literal["adaptive", "uniform", "start"] | None = None
   """Override the tracking motion command's sampling mode.
 
@@ -137,6 +139,13 @@ class _BaseBalanceWrapper(RslRlVecEnvWrapper):
   # （YRP 屈膝约 0.180，PRY 约 0.168，旧 deep-squat 约 0.14）。
   _KZ, _DZ, _KXY, _DXY, _KAL, _DAL = 1200.0, 120.0, 80.0, 45.0, 40.0, 8.0
   _UP = torch.tensor([0.0, 0.0, 1.0], dtype=torch.float32)
+  # 力/力矩硬上限（力以整机体重 W=m·g 为单位）。Pikachu 整机仅 2.28 kg（W≈22.4 N），
+  # 而 _Z_REF 取自 default_root_state 的 z（0.14，深蹲 keyframe），低于实际站高（≈0.19），
+  # 于是 KZ=1200 会持续输出 −150~−250 N 的向下力（7~11 倍体重）把 base 按穿地面，
+  # 接触冲量把 |ω| 推到 900 rad/s 以上 → obs NaN（基线任务同样中招，与具体任务无关）。
+  # 封顶后任何增益/参考高度组合都不会发散。
+  _FMAX_BW = 1.0  # 合力上限 = 1.0 × 体重
+  _TMAX = 1.0  # 力矩上限 (N·m)
 
   def __init__(
     self, env: Any, clip_actions: float | None = None, body_name: str = "base_link"
@@ -163,6 +172,8 @@ class _BaseBalanceWrapper(RslRlVecEnvWrapper):
     ]
     self._base_id = names.index(f"robot/{self._body_name}")
     self._device = self.unwrapped.device
+    # 整机体重，用于把平衡力封顶在体重的有限倍数内（见 _FMAX_BW 注释）。
+    self._weight = float(model.body_mass.sum()) * 9.81
 
   def step(self, actions):
     self._apply()
@@ -180,8 +191,18 @@ class _BaseBalanceWrapper(RslRlVecEnvWrapper):
     force = torch.empty(3, device=quat.device, dtype=torch.float32)
     force[0] = self._KXY * (-pos[0]) - self._DXY * vel[0]
     force[1] = self._KXY * (-pos[1]) - self._DXY * vel[1]
-    force[2] = self._KZ * (self._Z_REF - pos[2]) - self._DZ * vel[2]
+    # 高度项只上托、不压下：wrapper 的目的是"防止 base 下沉穿地"，而 _Z_REF 来自
+    # keyframe，可能低于实际站高；双向施力会变成持续下压 → 穿地 → 发散。
+    force[2] = (self._KZ * (self._Z_REF - pos[2]) - self._DZ * vel[2]).clamp(min=0.0)
     torque = self._KAL * err - self._DAL * ang_vel
+    # 封顶：力/力矩整体限幅，保证任何增益与参考高度组合下都不会把系统打散。
+    fmax = self._FMAX_BW * self._weight
+    f_norm = float(force.norm())
+    if f_norm > fmax:
+      force *= fmax / f_norm
+    t_norm = float(torque.norm())
+    if t_norm > self._TMAX:
+      torque *= self._TMAX / t_norm
     self._robot.write_external_wrench_to_sim(
       force.reshape(1, 1, 3),
       torque.reshape(1, 1, 3),
@@ -404,6 +425,10 @@ def run_play(task_id: str, cfg: PlayConfig):
     # training initial state). Defaults to the env cfg value (adaptive).
     if cfg.sampling_mode is not None:
       motion_cmd.sampling_mode = cfg.sampling_mode
+    # 多参考库(MultiMotionCommandCfg)专用:``--sampling-mode start`` 时固定用
+    # 第几条 clip,配合逐条录像/评估。单动作任务没有该字段,静默跳过。
+    if cfg.start_clip_id is not None and hasattr(motion_cmd, "start_clip_id"):
+      motion_cmd.start_clip_id = cfg.start_clip_id
 
     # Check for local motion file first (works for both dummy and trained modes).
     if cfg.motion_file is not None and Path(cfg.motion_file).exists():

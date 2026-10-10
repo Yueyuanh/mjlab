@@ -32,3 +32,15 @@ def test_raised_cap_shows_all_terms():
   server = Mock()
   panel = RewardBarPanel(server, _term_names(24), update_dt=1 / 30, max_terms=32)
   assert panel._term_names == _term_names(24)
+
+
+def test_default_cap_shows_every_term(recwarn):
+  """The default (no cap) shows every term, so no task warns on startup.
+
+  ``Mjlab-Velocity-Flat-Pikachu-V03-T6`` carries 24 reward terms; the panel
+  scrolls, so the term count is not a reason to hide any of them.
+  """
+  server = Mock()
+  panel = RewardBarPanel(server, _term_names(24), update_dt=1 / 30)
+  assert panel._term_names == _term_names(24)
+  assert not [w for w in recwarn if "exceed max_terms" in str(w.message)]

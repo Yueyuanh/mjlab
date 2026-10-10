@@ -107,9 +107,9 @@ x ±0.0465（脚长 9.3 cm）、y ±0.0355（脚宽 7.1 cm）、鞋底 z = -0.03
 正好落在 mesh 鞋底平面上，轴线必须抬高一个半径：
 
 ```python
-FOOT_SOLE_Z  = -0.034        # mesh 鞋底
-FOOT_RADIUS  = 0.012
-FOOT_AXIS_Z  = FOOT_SOLE_Z + FOOT_RADIUS   # = -0.022
+FOOT_SOLE_Z = -0.034  # mesh 鞋底
+FOOT_RADIUS = 0.012
+FOOT_AXIS_Z = FOOT_SOLE_Z + FOOT_RADIUS  # = -0.022
 ```
 
 写错会让机器人整体悬空/陷地一个半径（1.2 cm），而站立高度是按鞋底算的 ——
@@ -158,9 +158,10 @@ mjlab 的默认就是 `implicitfast`（`src/mjlab/sim/sim.py:103`），v03 任�
 
 ```python
 # pikachu_v03_constants.py
-ROTOR_INERTIAS_J3507 = 6.69169e-6 ; GEARS_J3507 = (1, 7.0, 3.0)   # 7×3 = 21
-ARMATURE_J3507 = reflected_inertia(6.69169e-6, 21)   # = 2.95e-3
-STIFFNESS_J3507 = ARMATURE_J3507 * NATURAL_FREQ**2   # 刚度由 armature 反推
+ROTOR_INERTIAS_J3507 = 6.69169e-6
+GEARS_J3507 = (1, 7.0, 3.0)  # 7×3 = 21
+ARMATURE_J3507 = reflected_inertia(6.69169e-6, 21)  # = 2.95e-3
+STIFFNESS_J3507 = ARMATURE_J3507 * NATURAL_FREQ**2  # 刚度由 armature 反推
 ```
 
 `2.95e-3` 是踝关节连杆惯量（9.2e-5）的 **32 倍** —— 真机上电机转子反射回来的

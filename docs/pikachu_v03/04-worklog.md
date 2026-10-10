@@ -323,8 +323,8 @@ turn     0.00  0.00  0.30 | -0.062  0.033  0.232 |  nan  5.2  -0.9  0  0.15
 
 ```python
 for stage in velocity_stages:
-    if env.common_step_counter >= stage["step"]:
-        cfg.ranges.lin_vel_x = stage["lin_vel_x"]   # ← 直接写
+  if env.common_step_counter >= stage["step"]:
+    cfg.ranges.lin_vel_x = stage["lin_vel_x"]  # ← 直接写
 ```
 
 stage 0 的 `step=0` **恒满足**，所以在第一次 `_resample_command` 之前，
@@ -526,10 +526,10 @@ iter 150 才降到 1.25），到 2500 迭代看终评。若终评跌倒率仍显
 self.is_heading_env[env_ids] = r.uniform_(0.0, 1.0) <= self.cfg.rel_heading_envs  # 0.3
 ...
 directional = is_forward | is_backward | is_lateral
-self.is_heading_env[env_ids] &= ~directional        # ← 方向桶被踢出 heading
+self.is_heading_env[env_ids] &= ~directional  # ← 方向桶被踢出 heading
 ...
 # _update_command 的最后一步：
-self.vel_command_b[standing_env_ids, :] = 0.0       # ← standing 把整个命令清零
+self.vel_command_b[standing_env_ids, :] = 0.0  # ← standing 把整个命令清零
 ```
 
 所以：
@@ -656,10 +656,10 @@ n_feet.append(int((contact.data.found[0] > 0).sum()))
 ### r04 配置（相对 r03）
 
 ```python
-twist_cmd.rel_forward_envs = 0.25      # 方向桶全恢复
+twist_cmd.rel_forward_envs = 0.25  # 方向桶全恢复
 twist_cmd.rel_backward_envs = 0.25
 twist_cmd.rel_lateral_envs = 0.25
-twist_cmd.rel_heading_envs = 1.0       # ← 真正的旋钮
+twist_cmd.rel_heading_envs = 1.0  # ← 真正的旋钮
 twist_cmd.rel_standing_envs = 0.05
 ```
 
@@ -1355,3 +1355,23 @@ ln -s model_34998.pt model_34999.pt
 2. `--agent.max_iterations` 在 **resume 时是「追加多少」，不是「总共到多少」**。
    r06b 的 `--agent.max_iterations 25000` 打出的是 `35000/59998` ——
    分母 59998 来自加载进来的 `iter`（34998）加上本次的 25000。
+
+**事后验证（2026-10-09 08:06，r06b 跑完）**：最后一个存档是
+**`model_59997.pt`，不是 `model_59998.pt`**。
+
+```
+logs/.../2026-10-09_01-48-29_v03-flat-r06b/model_59997.pt   4683591 bytes  08:05
+```
+
+这正是上面第 1 条在 r06b 上的重演：循环是 `range(start, start + N)`，
+而 `start` 取的是**文件里的 `iter` 字段 = 34998**（软链只骗过了文件名，
+骗不过 `torch.load` 读出来的内容），于是 `range(34998, 59998)` 的终点是 **59997**。
+
+顺带暴露一个之前没注意到的细节：因为 `start` 是 34998 而不是 34999，
+**第 34998 次迭代被训练了两遍**（r06 测试段末尾一次，r06b 开头一次）。
+1 次迭代在 55000 次里可以忽略，但这条「软链让 `start` 比预期小 1」的
+副作用值得记一笔 —— 如果哪天用软链去接一个**学习率调度按 iter 走**的配置，
+这 1 步的偏移就不再是无害的了。
+
+收尾脚本用 `sort -n | tail -1` 选最新检查点，选中的就是 `model_59997.pt`，
+**没有被软链带偏**（软链在另一个 run 目录里）。

@@ -50,7 +50,7 @@ class ViserTermOverlays:
   env: _EnvProtocol
   scene: _SceneProtocol
   frame_time: float
-  reward_bar_max_terms: int = 20
+  reward_bar_max_terms: int | None = None
   metrics_output_dir: Path | None = None
   metrics_source_name: Callable[[], str] | None = None
   reward_plotter: ViserTermPlotter | None = None

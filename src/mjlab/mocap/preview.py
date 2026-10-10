@@ -128,6 +128,7 @@ def preview_keyframes(
   show_com: bool = True,
   robot_cfg: EntityCfg | None = None,
   pd_gain_multiplier: float = 1.0,
+  loop_reset: bool = True,
 ) -> None:
   """在交互 viewer 中预览一组关键帧动作。
 
@@ -151,6 +152,12 @@ def preview_keyframes(
       关键帧 JSON 需含全部 27 个关节的 ``joint_pos``）。
     pd_gain_multiplier: 执行器 Kp/Kd 统一放大倍率（>0）。默认 1.0。
       调到 >1 让 PD 跟随更"硬"，适合动作响应偏软时预览。只影响本预览。
+    loop_reset: 循环播放时每轮结束把机器人运动学**恢复回初始位姿**（含
+      root pos/rot，即轨迹首帧），再从头播放。**默认 True**；只要
+      ``loop=True`` 就生效——对 pd 模式下 root 由动力学自由演化的动作
+      （如倒地/自起）尤其有用，否则虽然关节角经回退段回到初始，但 base
+      仍然偏离。True 时不附加"末帧→首帧"的回退插值段（轨迹即动作本身）；
+      需要这种平滑倒放回起的循环可显式 ``loop_reset=False``。
 
   Raises:
     RuntimeError: 当前环境无法打开原生 MuJoCo viewer（需要本地图形界面）。
@@ -166,7 +173,11 @@ def preview_keyframes(
     cfg.fps = fps
   if easing != "linear":
     cfg.easing = easing
-  traj = build_trajectory(kf_list, env.joint_names, cfg=cfg, loop=loop)
+  # loop_reset 时不附加"末帧→首帧"回退段：轨迹就是动作本身，每轮播完
+  # 直接运动学恢复回初始位姿（base pos/rot + 关节角）再重播。
+  traj = build_trajectory(
+    kf_list, env.joint_names, cfg=cfg, loop=(loop and not loop_reset)
+  )
 
   # 起始姿态：运动学写入第一帧，viewer 打开即可见。
   env.reset(
@@ -239,6 +250,16 @@ def preview_keyframes(
       if frame >= traj.num_frames:
         if not loop:
           break
+        if loop_reset:
+          # 每轮结束运动学恢复初始（含 root pos/rot + 关节角），再从头重播。
+          # pd 模式下 root 由动力学自由演化（write_root=False），loop 折回不会
+          # 自动带 base 回位；这里显式 reset 才满足"一轮跑完恢复初始位姿"。
+          env.reset(
+            joint_pos=traj.dof_pos[0],
+            root_pos=traj.root_pos[0],
+            root_quat_xyzw=traj.root_quat_xyzw[0],
+          )
+          env.sync_to_mj_data()
         frame = 0
       apply(frame)
       if show_com:

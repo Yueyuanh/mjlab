@@ -23,12 +23,13 @@ from __future__ import annotations
 import argparse
 import shutil
 import subprocess
-import time
 from pathlib import Path
 
 from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
 
-LOG_ROOT = Path(__file__).resolve().parent.parent / "logs" / "rsl_rl" / "pikachu_v03_velocity"
+LOG_ROOT = (
+  Path(__file__).resolve().parent.parent / "logs" / "rsl_rl" / "pikachu_v03_velocity"
+)
 
 # 关心的标量（前缀 -> 该组取多少项，None 表示全取）。
 CORE_KEYS = (
@@ -159,13 +160,25 @@ def main() -> None:
   print("=" * 78)
 
   # --- 1. 头部 ---
-  step = acc.Scalars(CORE_KEYS[0])[-1].step if "Train/mean_reward" in acc.Tags()["scalars"] else 0
-  total_steps = acc.Scalars("Train/total_steps")[-1].value if "Train/total_steps" in acc.Tags()["scalars"] else None
+  step = (
+    acc.Scalars(CORE_KEYS[0])[-1].step
+    if "Train/mean_reward" in acc.Tags()["scalars"]
+    else 0
+  )
+  total_steps = (
+    acc.Scalars("Train/total_steps")[-1].value
+    if "Train/total_steps" in acc.Tags()["scalars"]
+    else None
+  )
   print(f"迭代        : {step}")
   if total_steps:
     print(f"总步数      : {total_steps:,.0f}")
 
-  wall = acc.Scalars("Train/time_elapsed_s")[-1].value if "Train/time_elapsed_s" in acc.Tags()["scalars"] else None
+  wall = (
+    acc.Scalars("Train/time_elapsed_s")[-1].value
+    if "Train/time_elapsed_s" in acc.Tags()["scalars"]
+    else None
+  )
   if wall and step > 0:
     per_it = wall / step
     print(f"已用时      : {wall / 3600:.2f} h   （{per_it:.2f} s/迭代）")
@@ -212,13 +225,17 @@ def main() -> None:
     key=lambda p: int(p.stem.split("_")[1]),
   )
   if ckpts:
-    print(f"  checkpoint : {len(ckpts)} 个，最新 {ckpts[-1].name}"
-          f"（{ckpts[-1].stat().st_size / 1e6:.1f} MB）")
+    print(
+      f"  checkpoint : {len(ckpts)} 个，最新 {ckpts[-1].name}"
+      f"（{ckpts[-1].stat().st_size / 1e6:.1f} MB）"
+    )
     print(f"  全部       : {', '.join(p.stem for p in ckpts[-8:])}")
   else:
     print("  checkpoint : 尚无")
 
-  vids = sorted((run / "videos" / "train").glob("*.mp4"), key=lambda p: p.stat().st_mtime)
+  vids = sorted(
+    (run / "videos" / "train").glob("*.mp4"), key=lambda p: p.stat().st_mtime
+  )
   if vids:
     total_mb = sum(p.stat().st_size for p in vids) / 1e6
     print(f"  训练录像   : {len(vids)} 段，共 {total_mb:.1f} MB，最新 {vids[-1].name}")
@@ -226,8 +243,10 @@ def main() -> None:
     print("  训练录像   : 尚无")
 
   du = shutil.disk_usage("/home")
-  print(f"  磁盘 /home : 已用 {du.used / 1e9:.0f} GB / {du.total / 1e9:.0f} GB"
-        f"，剩 {du.free / 1e9:.1f} GB（{du.used / du.total * 100:.0f}%）")
+  print(
+    f"  磁盘 /home : 已用 {du.used / 1e9:.0f} GB / {du.total / 1e9:.0f} GB"
+    f"，剩 {du.free / 1e9:.1f} GB（{du.used / du.total * 100:.0f}%）"
+  )
 
   # 进程是否还活着
   alive = subprocess.run(

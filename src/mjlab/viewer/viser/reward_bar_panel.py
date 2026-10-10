@@ -22,7 +22,7 @@ class RewardBarPanel:
     server: viser.ViserServer,
     term_names: list[str],
     update_dt: float,
-    max_terms: int = 20,
+    max_terms: int | None = None,
   ) -> None:
     """Initialize the reward bar panel.
 
@@ -32,11 +32,13 @@ class RewardBarPanel:
       update_dt: Time in seconds between consecutive ``update()`` calls
         (i.e. the viewer's frame time). Used to size the averaging
         window to ~1 second.
-      max_terms: Maximum number of terms to display. Terms beyond this
-        limit are dropped (with a warning) to keep the panel readable.
+      max_terms: Maximum number of terms to display. ``None`` (the default)
+        shows every term. When set, terms beyond the limit are dropped with
+        a warning — use it to keep the panel short, never to make it fit,
+        since the panel scrolls.
     """
     self._server = server
-    if len(term_names) > max_terms:
+    if max_terms is not None and len(term_names) > max_terms:
       dropped = term_names[max_terms:]
       warnings.warn(
         f"RewardBarPanel: {len(term_names)} reward terms exceed max_terms="
@@ -45,7 +47,7 @@ class RewardBarPanel:
         UserWarning,
         stacklevel=2,
       )
-    self._term_names = term_names[:max_terms]
+    self._term_names = term_names if max_terms is None else term_names[:max_terms]
 
     # ~1 second averaging window, but at least 1 step.
     self._window_steps = max(1, round(1.0 / update_dt))

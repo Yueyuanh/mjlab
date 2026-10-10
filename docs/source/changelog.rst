@@ -18,8 +18,7 @@ Added
   ``time_steps``), so the robot neither teleports when the clip ends nor sees
   a phase jump in ``gait_phase``. Pair it with ``--no-terminations True`` —
   with the default 10 s episodes the robot would be re-seeded to a reference
-  start pose every 10 seconds.
-  By default the slider only **selects** the
+  start pose every 10 seconds. By default the slider only **selects** the
   reference — the command actually handed to the policy is snapped to the
   matched clip's measured steady-state velocity. That is the only command value
   the student ever trained on: this library's Voronoi half-widths collapse to
@@ -59,6 +58,25 @@ Added
   ``pointermove``, and ``setPointerCapture`` did not survive the first move in
   testing, which silently froze "drag past the ring clips to maximum" at
   whatever value it had when the pointer left.
+- Added ``preview_cli --loop-reset`` (default **on**): on looped playback,
+  kinematically reset the robot back to the initial pose (root pos/rot + joint
+  angles, i.e. the trajectory's first frame) before each repeat. The plain
+  ``--loop`` wrap-back segment only eases joint targets back while ``root``
+  keeps evolving freely under ``pd`` mode (``write_root=False``); this instead
+  actually returns the base to its initial position — ideal for repeatedly
+  inspecting root-drift motions like fall-and-get-up. It also skips the
+  end-to-start interpolation segment (the trajectory is just the action); pass
+  ``--loop-reset False`` to restore the smooth rewind loop.
+- Replaced the preview's default backend with a **viser browser viewer**:
+  ``preview_cli`` now opens ``--backend viser`` (browser 3D, no local
+  GL/display required — the server only runs a websocket, so it also works on
+  headless hosts) and ships an interactive panel with a frame progress slider,
+  Play/Pause, Reset, a dropdown to hot-swap keyframes JSON (``--json-dir``
+  controls the listed directory; the current path is folded in automatically),
+  and hot-reload widgets for easing/fps/mode/write_root/loop/loop_reset/fast/
+  show_com — editing keyframes or parameters no longer requires relaunching.
+  The previous ``launch_passive`` desktop viewer stays available as
+  ``--backend native``.
 - Added ``play --weld``: constructs a **true rigid monolith** for the most basic
   static standing on GPU/warp. The scene MjSpec has every internal hinge/ball
   joint replaced by an ``mjEQ_WELD`` equality and all actuators removed, yielding
@@ -198,6 +216,13 @@ Added
 Changed
 ^^^^^^^
 
+- The Viser reward bar panel no longer caps itself at 20 terms:
+  ``ViewerConfig.reward_bar_max_terms`` now defaults to ``None``, which shows
+  every term. ``Mjlab-Velocity-Flat-Pikachu-V03-T6`` carries 24 reward terms and
+  warned on every viewer startup, hiding the four newest ones (the T6 gait and
+  torque terms) — exactly the terms being watched. The panel scrolls, so term
+  count was never a reason to hide any of them; set the field to a number to
+  keep the panel short.
 - The Pikachu 27-dof ``KNEES_BENT_27DOF_KEYFRAME`` is now a real crouch computed
   by a planar analytic IK (``leg_offset = −hip + knee − ankle`` keeps the foot
   level; the symmetric in-limit solution ``hip=+0.52, knee=+1.02, ankle=+0.50``,

@@ -25,7 +25,6 @@ import mujoco
 from mjlab import MJLAB_SRC_PATH
 from mjlab.asset_zoo.robots.pikachu_xml.pikachu_27dof_constants import (
   FEET_ONLY_COLLISION,
-  KNEES_BENT_27DOF_KEYFRAME,
   LEG_ACTION_SCALE,
   LEG_JOINT_NAMES,
   PIKACHU_27DOF_ARTICULATION,
@@ -95,6 +94,7 @@ HOME_27DOF_KEYFRAME = EntityCfg.InitialStateCfg(
   },
   joint_vel={".*": 0.0},
 )
+
 
 def get_yrp_spec() -> mujoco.MjSpec:
   """编译出 YRP 训练体机器人规格（每次调用返回新实例）。"""

@@ -44,8 +44,10 @@
 
 ```python
 if entity_name is None:
-    if len(entities) != 1:
-        raise ValueError(f"Cannot auto-detect entity: scene has {len(entities)} entities ...")
+  if len(entities) != 1:
+    raise ValueError(
+      f"Cannot auto-detect entity: scene has {len(entities)} entities ..."
+    )
 ```
 
 flat 任务里 terrain 也是一个 entity（`Scene._add_terrain` 会
@@ -122,18 +124,6 @@ r04 站立时双脚间距 **9.23 cm**，r05 是 **16.41 cm**（默认 keyframe 2
 > 仓库根的 `.gitignore` 有一条 `videos/`，会连目录一起排除。本目录是**显式
 > 开的口子**（`.gitignore` 里 `!docs/pikachu_v03/videos/`），目的是让录像跟
 > 文档一起进库、事后可 review；其它任何位置的 `videos/` 仍然被忽略。
-
-## 怎么看这两组
-
-`r01-before` 是**修奖励之前的失败形态**：命令前进 0.40 m/s，机器人原地不动
-（实测 0.001 m/s）。`r04-best` 是修好之后并训满 30000 迭代的形态。
-两组并排看，能一眼看出「站着不动」和「真的在走」的区别 ——
-这比看奖励曲线可靠（`Episode_Reward/track_*` 会因为 Jensen 不等式骗人，
-见 [../reports/training-report.md](../reports/training-report.md) §3.4）。
-
-**文件大小本身就是旁证**：r01 的 `fwd` 是 **643 KiB**，r04 的 `fwd` 是 **2768 KiB**
-—— 机器人不动时画面几乎静止，H.264 压缩率自然高。注意这只能当旁证不能当判据
-（`turn` 档 r01 反而更大，因为 r01 在乱晃而 r04 稳定）。
 
 ## ⚠️ `turn` 档是**分布外**输入
 

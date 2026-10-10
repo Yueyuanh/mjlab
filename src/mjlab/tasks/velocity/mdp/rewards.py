@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 import torch
@@ -42,6 +42,34 @@ def track_linear_velocity(
   z_error = torch.square(actual[:, 2])
   lin_vel_error = xy_error + z_error
   return torch.exp(-lin_vel_error / std**2)
+
+
+def linear_velocity_huber_error(
+  env: ManagerBasedRlEnv,
+  command_name: str,
+  delta: float = 0.2,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  """Return a non-saturating Huber cost for planar velocity tracking.
+
+  The exponential tracking reward is precise near the target, but its gradient
+  approaches zero for a large error.  This companion cost keeps a constant
+  corrective gradient outside ``delta`` while remaining quadratic near zero.
+  Errors are normalized by ``delta``, so the result is dimensionless.
+  """
+  if delta <= 0.0:
+    raise ValueError(f"delta must be positive, got {delta}")
+  asset: Entity = env.scene[asset_cfg.name]
+  command = env.command_manager.get_command(command_name)
+  assert command is not None, f"Command '{command_name}' not found."
+  normalized = (command[:, :2] - asset.data.root_link_lin_vel_b[:, :2]) / delta
+  abs_error = torch.abs(normalized)
+  huber = torch.where(
+    abs_error <= 1.0,
+    0.5 * torch.square(normalized),
+    abs_error - 0.5,
+  )
+  return torch.sum(huber, dim=1)
 
 
 def track_angular_velocity(
@@ -293,6 +321,58 @@ def alternating_feet_air_time(
   return reward
 
 
+def short_step_air_time(
+  env: ManagerBasedRlEnv,
+  sensor_name: str,
+  min_air_time: float,
+  std: float,
+  command_name: str | None = None,
+  command_threshold: float = 0.15,
+) -> torch.Tensor:
+  """Penalize supported landings whose swing time is too short.
+
+  This is a lower-bound hinge, not another target reward.  It therefore gives
+  a direct gradient against high-cadence shuffling while leaving sufficiently
+  long steps unpenalized.  A landing is counted only if the other foot already
+  provides established support, matching :func:`alternating_feet_air_time` and
+  excluding simultaneous hopping landings.
+  """
+  if min_air_time <= 0.0:
+    raise ValueError(f"min_air_time must be positive, got {min_air_time}")
+  if std <= 0.0:
+    raise ValueError(f"std must be positive, got {std}")
+
+  sensor: ContactSensor = env.scene[sensor_name]
+  sensor_data = sensor.data
+  last_air_time = sensor_data.last_air_time
+  current_contact_time = sensor_data.current_contact_time
+  assert last_air_time is not None
+  assert current_contact_time is not None
+  # ``Sensor.data`` 的泛型参数在这里解析不出来，显式收窄成 Tensor。
+  air_time = cast("torch.Tensor", last_air_time)
+
+  first_contact = sensor.compute_first_contact(dt=env.step_dt)
+  established_contact = current_contact_time > env.step_dt + 1e-6
+  support_count = torch.sum(established_contact, dim=1, keepdim=True)
+  has_other_support = support_count - established_contact.long() > 0
+  valid_landing = first_contact & has_other_support
+
+  shortfall = torch.clamp((min_air_time - air_time) / std, min=0.0)
+  cost = torch.sum(torch.square(shortfall) * valid_landing.float(), dim=1)
+
+  num_landings = valid_landing.float().sum().clamp(min=1.0)
+  env.extras["log"]["Metrics/short_step_air_time"] = (
+    air_time * valid_landing.float()
+  ).sum() / num_landings
+
+  if command_name is not None:
+    command = env.command_manager.get_command(command_name)
+    if command is not None:
+      linear_speed = torch.norm(command[:, :2], dim=1)
+      cost *= (linear_speed > command_threshold).float()
+  return cost
+
+
 def feet_flight_time(
   env: ManagerBasedRlEnv,
   sensor_name: str,
@@ -505,8 +585,9 @@ def feet_lateral_distance(
   Gated, the walking envs are bit-identical to having no term at all.
   """
   asset: Entity = env.scene[asset_cfg.name]
-  assert len(asset_cfg.site_ids) == 2, (
-    f"feet_lateral_distance needs exactly 2 foot sites, got {len(asset_cfg.site_ids)}"
+  site_ids = asset_cfg.site_ids
+  assert isinstance(site_ids, list) and len(site_ids) == 2, (
+    f"feet_lateral_distance needs exactly 2 foot sites, got {site_ids}"
   )
   pos_w = asset.data.site_pos_w[:, asset_cfg.site_ids, :]  # [B, 2, 3]
   root_quat_w = asset.data.root_link_pose_w[:, 3:7]  # [B, 4] wxyz
@@ -531,6 +612,60 @@ def feet_lateral_distance(
       return cost
 
   env.extras["log"]["Metrics/foot_separation"] = separation.mean()
+  return cost
+
+
+def feet_lateral_separation_min(
+  env: ManagerBasedRlEnv,
+  sensor_name: str,
+  min_distance: float,
+  std: float,
+  command_name: str,
+  command_threshold: float = 0.15,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  """Penalize a narrow walking stance only during double support.
+
+  A constant target distance fights the swing leg as it passes under the body.
+  This lower-bound hinge is active only while both feet contact the ground and
+  a linear command is present.  The policy is free to swing naturally, but it
+  is encouraged to land with a useful support polygon instead of converging to
+  the narrow 9--11 cm stance observed in Pikachu v03 r04/r06.
+  """
+  if min_distance <= 0.0:
+    raise ValueError(f"min_distance must be positive, got {min_distance}")
+  if std <= 0.0:
+    raise ValueError(f"std must be positive, got {std}")
+
+  asset: Entity = env.scene[asset_cfg.name]
+  site_ids = asset_cfg.site_ids
+  assert isinstance(site_ids, list) and len(site_ids) == 2, (
+    f"feet_lateral_separation_min needs exactly 2 foot sites, got {site_ids}"
+  )
+  sensor: ContactSensor = env.scene[sensor_name]
+  assert sensor.data.found is not None
+  assert sensor.data.found.shape[1] == 2, (
+    "feet_lateral_separation_min needs exactly 2 contact primaries, "
+    f"got {sensor.data.found.shape[1]}"
+  )
+
+  pos_w = asset.data.site_pos_w[:, asset_cfg.site_ids, :]
+  root_quat_w = asset.data.root_link_pose_w[:, 3:7]
+  delta_b = quat_apply_inverse(yaw_quat(root_quat_w), pos_w[:, 0] - pos_w[:, 1])
+  separation = torch.abs(delta_b[:, 1])
+  shortfall = torch.clamp((min_distance - separation) / std, min=0.0)
+
+  double_support = torch.all(sensor.data.found > 0, dim=1).float()
+  command = env.command_manager.get_command(command_name)
+  assert command is not None, f"Command '{command_name}' not found."
+  moving = (torch.norm(command[:, :2], dim=1) > command_threshold).float()
+  active = double_support * moving
+  cost = torch.square(shortfall) * active
+
+  n_active = active.sum().clamp(min=1.0)
+  env.extras["log"]["Metrics/walking_double_support_width"] = (
+    separation * active
+  ).sum() / n_active
   return cost
 
 
@@ -645,3 +780,82 @@ class variable_posture:
     error_squared = torch.square(current_joint_pos - desired_joint_pos)
 
     return torch.exp(-torch.mean(error_squared / (std**2), dim=1))
+
+
+class standing_posture_l2:
+  """Unbounded default-pose cost gated to near-zero commands.
+
+  ``variable_posture`` is an exponential reward and can saturate at zero once
+  several joints drift far from their defaults.  This quadratic companion
+  keeps a restoring gradient at large errors and is active only for standing
+  environments, so normal walking joint excursions remain untouched.
+  """
+
+  def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRlEnv):
+    asset: Entity = env.scene[cfg.params["asset_cfg"].name]
+    default_joint_pos = asset.data.default_joint_pos
+    assert default_joint_pos is not None
+    self.default_joint_pos = default_joint_pos
+
+    _, joint_names = asset.find_joints(cfg.params["asset_cfg"].joint_names)
+    _, _, std = resolve_matching_names_values(
+      data=cfg.params["std"],
+      list_of_strings=joint_names,
+    )
+    self.std = torch.tensor(std, device=env.device, dtype=torch.float32)
+    if torch.any(self.std <= 0.0):
+      raise ValueError("standing_posture_l2 std values must all be positive")
+
+  def __call__(
+    self,
+    env: ManagerBasedRlEnv,
+    std,
+    asset_cfg: SceneEntityCfg,
+    command_name: str,
+    command_threshold: float = 0.1,
+  ) -> torch.Tensor:
+    del std  # Resolved once in __init__.
+    asset: Entity = env.scene[asset_cfg.name]
+    command = env.command_manager.get_command(command_name)
+    assert command is not None, f"Command '{command_name}' not found."
+    total_command = torch.norm(command[:, :2], dim=1) + torch.abs(command[:, 2])
+    standing = (total_command < command_threshold).float()
+
+    current = asset.data.joint_pos[:, asset_cfg.joint_ids]
+    desired = self.default_joint_pos[:, asset_cfg.joint_ids]
+    cost = torch.mean(torch.square((current - desired) / self.std), dim=1)
+    return cost * standing
+
+
+class joint_torque_soft_limit:
+  """Penalize only the portion of joint torque above a soft utilization limit."""
+
+  def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRlEnv):
+    asset: Entity = env.scene[cfg.params["asset_cfg"].name]
+    _, joint_names = asset.find_joints(cfg.params["asset_cfg"].joint_names)
+    _, _, limits = resolve_matching_names_values(
+      data=cfg.params["effort_limits"],
+      list_of_strings=joint_names,
+    )
+    self.effort_limits = torch.tensor(limits, device=env.device, dtype=torch.float32)
+    if torch.any(self.effort_limits <= 0.0):
+      raise ValueError("joint_torque_soft_limit effort limits must all be positive")
+
+  def __call__(
+    self,
+    env: ManagerBasedRlEnv,
+    effort_limits,
+    soft_ratio: float,
+    asset_cfg: SceneEntityCfg,
+  ) -> torch.Tensor:
+    del effort_limits  # Resolved once in __init__.
+    if not 0.0 < soft_ratio < 1.0:
+      raise ValueError(f"soft_ratio must be in (0, 1), got {soft_ratio}")
+    asset: Entity = env.scene[asset_cfg.name]
+    torque_ratio = (
+      torch.abs(asset.data.qfrc_actuator[:, asset_cfg.joint_ids]) / self.effort_limits
+    )
+    normalized_excess = torch.clamp(
+      (torque_ratio - soft_ratio) / (1.0 - soft_ratio), min=0.0
+    )
+    return torch.mean(torch.square(normalized_excess), dim=1)

@@ -113,8 +113,7 @@ def main() -> int:
   lines.append("# Pikachu v03 训练曲线（文本快照）")
   lines.append("")
   lines.append(
-    "> 由 `scripts/v03_curve_md.py` 生成，按对数间隔采样 "
-    f"{args.points} 个点。"
+    f"> 由 `scripts/v03_curve_md.py` 生成，按对数间隔采样 {args.points} 个点。"
   )
   lines.append("> 标记 ↓ 的指标**越小越好**，其余越大越好。")
   lines.append("")
@@ -126,9 +125,11 @@ def main() -> int:
         n_iter = max(n_iter, tag[-1][0])
     lines.append(f"## {label}（跑到 iter {n_iter}）")
     lines.append("")
-    lines.append("| iter | " + " | ".join(
-      f"{k}{' ↓' if k in LOWER_IS_BETTER else ''}" for k in KEYS
-    ) + " |")
+    lines.append(
+      "| iter | "
+      + " | ".join(f"{k}{' ↓' if k in LOWER_IS_BETTER else ''}" for k in KEYS)
+      + " |"
+    )
     lines.append("|---|" + "---|" * len(KEYS))
 
     # 以 err_xy 的 step 为骨架对齐各指标（它们都是同一个 log_interval 打的）。

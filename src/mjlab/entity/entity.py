@@ -18,7 +18,7 @@ from mjlab.entity.data import EntityData
 from mjlab.utils import spec_config as spec_cfg
 from mjlab.utils.lab_api.string import resolve_matching_names
 from mjlab.utils.mujoco import dof_width, qpos_width
-from mjlab.utils.spec import auto_wrap_fixed_base_mocap
+from mjlab.utils.spec import auto_wrap_fixed_base_mocap, get_rail_root_joints
 from mjlab.utils.string import resolve_expr
 from mjlab.utils.xml import fix_spec_xml, strip_buffer_textures
 
@@ -185,6 +185,7 @@ class Entity:
   def _identify_joints(self) -> None:
     self._all_joints = self._spec.joints
     self._free_joint = None
+    self._rail_root_njoints = 0
     self._non_free_joints = tuple(self._all_joints)
 
     free_joints = [j for j in self._all_joints if j.type == mujoco.mjtJoint.mjJNT_FREE]
@@ -201,6 +202,17 @@ class Entity:
       if not self._free_joint.name:
         self._free_joint.name = "floating_base_joint"
       self._non_free_joints = tuple(self._all_joints[1:])
+      return
+
+    # Rail root: a slide/ball chain that stands in for the root free joint (see
+    # add_z_rail). It spans the same 7 qpos / 6 dof, so it is treated as the
+    # root joint from here on -- is_fixed_base, the root state and the qpos/qvel
+    # addressing all stay exactly as they are for a free joint.
+    rail_joints = get_rail_root_joints(self._all_joints)
+    if rail_joints is not None:
+      self._rail_root_njoints = len(rail_joints)
+      self._free_joint = rail_joints[-1]
+      self._non_free_joints = tuple(self._all_joints[self._rail_root_njoints :])
 
   def _apply_spec_editors(self) -> None:
     spec_cfg.warn_overlapping_geom_edits(
@@ -438,8 +450,19 @@ class Entity:
   # Names.
 
   @property
+  def _root_body_index(self) -> int:
+    """Index of the root body (the robot's base) within ``spec.bodies``.
+
+    A rail root inserts one body per rail joint above the base, so the base sits
+    further down; a free joint puts it right after the worldbody.
+    """
+    return 1 + self._rail_root_njoints
+
+  @property
   def body_names(self) -> tuple[str, ...]:
-    return tuple(b.name.split("/")[-1] for b in self.spec.bodies[1:])
+    return tuple(
+      b.name.split("/")[-1] for b in self.spec.bodies[self._root_body_index :]
+    )
 
   @property
   def all_joint_names(self) -> tuple[str, ...]:
@@ -533,7 +556,7 @@ class Entity:
 
   @property
   def root_body(self) -> mujoco.MjsBody:
-    return self.spec.bodies[1]
+    return self.spec.bodies[self._root_body_index]
 
   # Find methods.
 
@@ -1268,7 +1291,7 @@ class Entity:
     ).repeat(nworld, 1)
 
   def _compute_indexing(self, model: mujoco.MjModel, device: str) -> EntityIndexing:
-    bodies = tuple([b for b in self.spec.bodies[1:]])
+    bodies = tuple([b for b in self.spec.bodies[self._root_body_index :]])
     joints = self._non_free_joints
     geoms = tuple(self.spec.geoms)
     sites = tuple(self.spec.sites)
@@ -1301,12 +1324,17 @@ class Entity:
     joint_v_adr = []
     free_joint_q_adr = []
     free_joint_v_adr = []
-    for joint in self.spec.joints:
+    for i, joint in enumerate(self.spec.joints):
       jnt = model.joint(joint.name)
       jnt_type = jnt.type[0]
       vadr = jnt.dofadr[0]
       qadr = jnt.qposadr[0]
-      if jnt_type == mujoco.mjtJoint.mjJNT_FREE:
+      if i < self._rail_root_njoints:
+        # Rail root: accumulate the chain's widths, which sum to the 7 qpos /
+        # 6 dof a free joint would have contributed.
+        free_joint_v_adr.extend(range(vadr, vadr + dof_width(jnt_type)))
+        free_joint_q_adr.extend(range(qadr, qadr + qpos_width(jnt_type)))
+      elif jnt_type == mujoco.mjtJoint.mjJNT_FREE:
         free_joint_v_adr.extend(range(vadr, vadr + 6))
         free_joint_q_adr.extend(range(qadr, qadr + 7))
       else:

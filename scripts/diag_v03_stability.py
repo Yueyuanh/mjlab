@@ -44,7 +44,7 @@ def build(*, armature: float | None, actuators: bool, kp: float) -> mujoco.MjMod
     )
   if actuators:
     acts = "".join(
-      f'\n        <position name="p_{j}" joint="{j}" kp="{kp}" kv="{kp/40}" '
+      f'\n        <position name="p_{j}" joint="{j}" kp="{kp}" kv="{kp / 40}" '
       f'ctrlrange="-3 3" />'
       for j in (
         "right_hip_pitch_joint",
@@ -92,7 +92,7 @@ def inertias() -> None:
   for j in range(m.njnt):
     n = mujoco.mj_id2name(m, mujoco.mjtObj.mjOBJ_JOINT, j)
     dof = m.jnt_dofadr[j]
-    print(f"  {n:<26} M[dof,dof]={M[dof,dof]:.4e}  armature={m.dof_armature[dof]:.4e}")
+    print(f"  {n:<26} M[dof,dof]={M[dof, dof]:.4e}  armature={m.dof_armature[dof]:.4e}")
 
 
 if __name__ == "__main__":
@@ -104,10 +104,12 @@ if __name__ == "__main__":
     trial("+ armature(J3507)", armature=ARM_J3507, actuators=False, kp=0)
     trial("+ armature(J4310)", armature=ARM_J4310, actuators=False, kp=0)
     trial("+ position kp=20（无 armature）", armature=None, actuators=True, kp=20)
-    trial("+ position kp=20 + armature(J3507)",
-          armature=ARM_J3507, actuators=True, kp=20)
-    trial("+ position kp=150 + armature(J3507)",
-          armature=ARM_J3507, actuators=True, kp=150)
+    trial(
+      "+ position kp=20 + armature(J3507)", armature=ARM_J3507, actuators=True, kp=20
+    )
+    trial(
+      "+ position kp=150 + armature(J3507)", armature=ARM_J3507, actuators=True, kp=150
+    )
     # ↓ 这一组是结论所在：稳不稳定看**积分器**，不看 armature。
     #   mjlab 默认 implicitfast（src/mjlab/sim/sim.py:103），v03 任务没覆盖它，
     #   所以这个坑在训练里是被默认值挡掉的 —— 换 euler 立刻踩。
@@ -115,7 +117,12 @@ if __name__ == "__main__":
     print("=== 分离「积分器」与「armature」各自的贡献（kp=150）===")
     for integ in ("euler", "implicitfast"):
       for arm, tag in ((None, "无 armature"), (ARM_J3507, "+ armature(J3507)")):
-        trial(f"kp=150  {integ:<13} {tag}",
-              integrator=integ, armature=arm, actuators=True, kp=150)
+        trial(
+          f"kp=150  {integ:<13} {tag}",
+          integrator=integ,
+          armature=arm,
+          actuators=True,
+          kp=150,
+        )
   finally:
     TMP.unlink(missing_ok=True)

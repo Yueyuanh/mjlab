@@ -6,7 +6,7 @@ import shutil
 import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Sequence
 
 import mujoco
 import numpy as np
@@ -172,6 +172,10 @@ def auto_wrap_fixed_base_mocap(
     if free_joint is not None:
       return original_spec  # Floating-base, no wrapping needed.
 
+    # A rail root is floating-base too (see add_z_rail).
+    if get_rail_root_joints(original_spec.joints) is not None:
+      return original_spec
+
     # Check if root body is already mocap.
     root_body = original_spec.bodies[1] if len(original_spec.bodies) > 1 else None
     if root_body and root_body.mocap:
@@ -218,6 +222,140 @@ def get_free_joint(spec: mujoco.MjSpec) -> mujoco.MjsJoint | None:
       joint = jnt
       break
   return joint
+
+
+# A rail root is a chain of 3 slide joints (x, y, z) followed by a ball joint.
+# Together they span the same 7 qpos / 6 dof as a free joint.
+RAIL_JOINT_TYPES: tuple[mujoco.mjtJoint, ...] = (
+  mujoco.mjtJoint.mjJNT_SLIDE,
+  mujoco.mjtJoint.mjJNT_SLIDE,
+  mujoco.mjtJoint.mjJNT_SLIDE,
+  mujoco.mjtJoint.mjJNT_BALL,
+)
+RAIL_AXES: tuple[tuple[float, float, float], ...] = (
+  (1.0, 0.0, 0.0),
+  (0.0, 1.0, 0.0),
+  (0.0, 0.0, 1.0),
+)
+# Rail bodies carry no geometry, so their mass/inertia must be set explicitly and
+# be strictly positive (mjMINVAL rejects zero). Their composite subtree inertia
+# is the whole robot's, so a negligible own-mass does not ill-condition anything.
+RAIL_MASS = 1e-6
+RAIL_INERTIA = 1e-9
+# Index of the z slide within the rail chain, i.e. the one that gets a range.
+RAIL_Z_INDEX = 2
+
+
+def get_rail_root_joints(
+  joints: Sequence[mujoco.MjsJoint],
+) -> tuple[mujoco.MjsJoint, ...] | None:
+  """Returns the rail root's joints if the entity is rail-rooted, else None.
+
+  Recognizes a rail root by its joint signature: 3 slides followed by a ball at
+  the very start of the joint list. See :func:`add_z_rail`.
+  """
+  n = len(RAIL_JOINT_TYPES)
+  if len(joints) < n:
+    return None
+  head = tuple(joints[:n])
+  if tuple(j.type for j in head) != RAIL_JOINT_TYPES:
+    return None
+  return head
+
+
+def _add_rail_body(parent: mujoco.MjsBody, name: str) -> mujoco.MjsBody:
+  """Adds a massless-in-practice rail body (no geoms, explicit tiny inertia)."""
+  body = parent.add_body(name=name, pos=(0.0, 0.0, 0.0), quat=(1.0, 0.0, 0.0, 0.0))
+  body.explicitinertial = True
+  body.mass = RAIL_MASS
+  body.ipos = (0.0, 0.0, 0.0)
+  body.iquat = (1.0, 0.0, 0.0, 0.0)
+  body.inertia = (RAIL_INERTIA, RAIL_INERTIA, RAIL_INERTIA)
+  return body
+
+
+def add_z_rail(
+  spec_fn: Callable[[], mujoco.MjSpec],
+  z_low: float,
+  z_high: float,
+) -> Callable[[], mujoco.MjSpec]:
+  """Replaces the root free joint with a vertical rail that is z-limited.
+
+  The generated joint chain, from the world down, is::
+
+    slide x -> slide y -> slide z (limited to [z_low, z_high]) -> ball -> <root>
+
+  This is the only MuJoCo-native way to limit a floating base's height: a free
+  joint rejects ``limited``/``range`` outright (schema violation), and a body
+  cannot carry a free joint and a slide joint at once ("more than 6 dofs in
+  body"). The chain is *bit-exact* equivalent to the free joint it replaces --
+  same ``nq``/``nv``, same qpos order (x, y, z, qw, qx, qy, qz), same dof order
+  (linear velocity in the world frame, angular velocity in the body frame) --
+  so every downstream index, sensor and reward sees exactly what it saw before.
+  The only difference is that z is hard-clamped by a joint limit.
+
+  x/y translation and all three rotations stay free, so the base can still be
+  driven anywhere horizontally and can still tip; the rail only prevents the
+  base from sinking below ``z_low`` or rising above ``z_high``.
+
+  The root body's authored ``pos``/``quat`` are zeroed, since the rail now
+  defines its frame (a free joint already ignored them).
+
+  Args:
+    spec_fn: The entity's original spec loader.
+    z_low: Lower z limit (m), in the world frame.
+    z_high: Upper z limit (m), in the world frame.
+  """
+  if not z_low < z_high:
+    raise ValueError(f"z_low must be < z_high, got {z_low} >= {z_high}")
+
+  def wrapper() -> mujoco.MjSpec:
+    robot = spec_fn()
+    free_joint = get_free_joint(robot)
+    if free_joint is None:
+      raise ValueError(
+        "add_z_rail requires a floating-base entity, but the spec has no free "
+        "joint to replace."
+      )
+
+    root_body = robot.bodies[1]
+    robot.delete(free_joint)
+    root_body.pos = (0.0, 0.0, 0.0)
+    root_body.quat = (1.0, 0.0, 0.0, 0.0)
+
+    # Keyframes would nest inside the attached spec; re-add them to the rail.
+    keyframes = [(np.array(k.qpos), np.array(k.ctrl), k.name) for k in robot.keys]
+    for k in list(robot.keys):
+      robot.delete(k)
+
+    rail = mujoco.MjSpec()
+    rail.njmax = robot.njmax
+    rail.nconmax = robot.nconmax
+    rail.nstack = robot.nstack
+    rail.nemax = robot.nemax
+
+    body = rail.worldbody
+    for i, axis in enumerate(RAIL_AXES):
+      body = _add_rail_body(body, f"rail_{i}")
+      joint = body.add_joint(
+        name=f"rail_joint_{i}", type=mujoco.mjtJoint.mjJNT_SLIDE, axis=axis
+      )
+      if i == RAIL_Z_INDEX:
+        joint.limited = mujoco.mjtLimited.mjLIMITED_TRUE
+        joint.range = (z_low, z_high)
+
+    body = _add_rail_body(body, "rail_rot")
+    body.add_joint(name="rail_joint_3", type=mujoco.mjtJoint.mjJNT_BALL)
+
+    frame = body.add_frame(pos=(0.0, 0.0, 0.0), quat=(1.0, 0.0, 0.0, 0.0))
+    rail.attach(child=robot, prefix="", frame=frame)
+
+    for qpos, ctrl, name in keyframes:
+      rail.add_key(name=name, qpos=qpos.tolist(), ctrl=ctrl.tolist())
+
+    return rail
+
+  return wrapper
 
 
 def is_joint_limited(jnt: mujoco.MjsJoint) -> bool:

@@ -286,9 +286,7 @@ def add_pikachu_telemetry_metrics(
   )
 
   # 逐关节：位置/速度/扭矩 + 相对电机 spec 的峰值占用比。
-  all_joint_cfg = SceneEntityCfg(
-    "robot", joint_names=joint_names, preserve_order=True
-  )
+  all_joint_cfg = SceneEntityCfg("robot", joint_names=joint_names, preserve_order=True)
   for joint_name, (velocity_limit, effort_limit) in zip(
     joint_names, specs, strict=True
   ):
