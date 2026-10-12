@@ -43,6 +43,38 @@ def world_inertia(m: mujoco.MjModel, body: int) -> np.ndarray:
   return rot @ np.diag(m.body_inertia[body]) @ rot.T
 
 
+def mesh_solid(m: mujoco.MjModel, body_name: str) -> tuple[float, np.ndarray]:
+  """把一个 body 的 STL 当**闭合实体**算 (体积, body frame 下的体积质心)。
+
+  用发散定理对三角网格积分：对每个面 (a,b,c) 与原点围成的四面体，
+  ``V_tet = a·(b×c)/6``、质心 ``(a+b+c)/4``，累加即可。这里取该 body 面数
+  最多的 mesh geom（视觉/碰撞两个 geom 引用同一份 STL，结果相同）。
+
+  为什么要算这个：XML 里的 ``inertial`` 是 CAD 在**精确 B-rep 实体**上算出来的，
+  而 STL 只是它的三角化近似，两者天然差亚毫米级；左右两件的三角化误差还不一样，
+  这个差会直接叠到第 1 节的镜像残差上。把 STL 实体算出来才能把残差拆成
+  "真实几何差异"和"导出误差"两部分。
+  """
+  bid = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, body_name)
+  geoms = [
+    g
+    for g in range(m.ngeom)
+    if m.geom_bodyid[g] == bid and m.geom_type[g] == mujoco.mjtGeom.mjGEOM_MESH
+  ]
+  g = max(geoms, key=lambda i: m.mesh_facenum[m.geom_dataid[i]])
+  mid = m.geom_dataid[g]
+  a0, n = m.mesh_vertadr[mid], m.mesh_vertnum[mid]
+  rot = np.zeros(9)
+  mujoco.mju_quat2Mat(rot, m.geom_quat[g])
+  v = m.mesh_vert[a0 : a0 + n] @ rot.reshape(3, 3).T + m.geom_pos[g]
+  f0, fn = m.mesh_faceadr[mid], m.mesh_facenum[mid]
+  f = m.mesh_face[f0 : f0 + fn]
+  a, b, c = v[f[:, 0]], v[f[:, 1]], v[f[:, 2]]
+  w = np.einsum("ij,ij->i", a, np.cross(b, c)) / 6.0
+  vol = float(w.sum())
+  return vol, ((a + b + c) * w[:, None]).sum(0) / 4.0 / vol
+
+
 def main() -> None:
   m = mujoco.MjModel.from_xml_path(str(PIKACHU_V031_XML))
   d = mujoco.MjData(m)
@@ -297,7 +329,40 @@ def main() -> None:
   print("\n  20 组随机驱动关节配置（±0.4 rad）下的整机镜像残差：")
   print(f"    位置 {worst_p:.9f} mm / 姿态 {worst_q:.3e}")
 
-  print("\n=== 6. 结论 ===")
+  print("\n=== 6. inertial 数据与 STL 几何的一致性 ===")
+  # 第 1 节量到 hip_yaw_link 的质心镜像残差 0.58 mm。这一节回答它从哪来：
+  # 把两个 STL 当实体算出真实几何，就能把残差拆成"几何本来就不同"与
+  # "CAD 精确实体 vs STL 三角化"两层。
+  vL, cL = mesh_solid(m, "left_hip_yaw_link")
+  vR, cR = mesh_solid(m, "right_hip_yaw_link")
+  bL = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, "left_hip_yaw_link")
+  bR = mujoco.mj_name2id(m, mujoco.mjtObj.mjOBJ_BODY, "right_hip_yaw_link")
+  iL, iR = m.body_inertia[bL], m.body_inertia[bR]
+  mL, mR = m.body_mass[bL], m.body_mass[bR]
+
+  print(
+    f"  实体体积      L={vL * 1e6:.3f}  R={vR * 1e6:.3f} cm^3  ({(vL - vR) / vR * 100:+.3f}%)"
+  )
+  print(f"  网格体积质心  L={np.array2string(cL, precision=6)}")
+  print(f"                R={np.array2string(cR, precision=6)}")
+  print(f"  网格质心镜像残差 = {np.linalg.norm(cL - M @ cR) * 1000:.4f} mm")
+  print(
+    f"  XML ipos 镜像残差 = {np.linalg.norm(m.body_ipos[bL] - M @ m.body_ipos[bR]) * 1000:.4f} mm"
+  )
+  print(
+    f"  网格质心 vs XML ipos 距离：L={np.linalg.norm(cL - m.body_ipos[bL]) * 1000:.4f} mm"
+    f"  R={np.linalg.norm(cR - m.body_ipos[bR]) * 1000:.4f} mm"
+  )
+  # 质量与惯量是否自洽：形状相同时 I ∝ m·L² ∝ V^(5/3)，故 m ∝ V ∝ I^(3/5)。
+  # 用**归一化**惯量确认两件形状一致，再用惯量迹反推密度比。
+  tL, tR = float(iL.sum()), float(iR.sum())
+  print(f"\n  归一化惯量形状  L={np.sort(iL)[::-1] / tL}")
+  print(f"                  R={np.sort(iR)[::-1] / tR}")
+  print(f"  惯量迹反推密度比 m_L/m_R = {(tL / tR) ** 0.6:.6f}")
+  print(f"  体积反推质量比   m_L/m_R = {vL / vR:.6f}")
+  print(f"  实际声明质量比   m_L/m_R = {mL / mR:.6f}  ({mL:.6f} / {mR:.6f} kg)")
+
+  print("\n=== 7. 结论 ===")
   worst.sort(reverse=True)
   print("最大的左右差异项（前 5）：")
   for v, label in worst[:5]:
