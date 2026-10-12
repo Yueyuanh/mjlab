@@ -36,3 +36,10 @@ pre_train/**/model_*.pt
 # 它是 read_curves() 的中间产物（从 tensorboard event 里抽出来的曲线），
 # 提交它只会在仓库里堆一个没人 review 的二进制。
 docs/pikachu_v03/reports/.curve-cache.json
+
+# 诊断报告目录下的训练产物：曲线 CSV / 图 / 逐帧指标每次重跑都会重建，
+# 不是交付物（见 CLAUDE.md「Out of scope for git」）。报告本体 REPORT.md
+# 与生成脚本 analyze_run.py 照常入库。
+doc/**/metrics/
+doc/**/plots/
+doc/**/training_selected_scalars.csv
