@@ -43,6 +43,13 @@
 （T6 / Clip / Sym / SymClip / YawHuber，各 4096 env × 5000 iter），每档相对
 基线只改一个因素，矩阵与验收线见下文。结果待训练完成后补入本报告。
 
+**顺带修掉的模型缺陷**：体检中唯一量级超过 1 g 的左右差异是
+`left_hip_yaw_link` 比右侧轻 **10.311 g**（3.09%），已按"两侧同值 0.333676 kg"
+修复（commit `044959e`，URDF / `pikachu_v031.xml` / `pikachu_v031_train.xml`
+三处同步）。它的重力力矩量级只有 hip_yaw 电机 effort_limit 的 0.02%，**不是**
+倾斜现象的原因，属于把模型收拾干净。修完第 1 节所有 `dm(g)` 归零、第 5 节
+镜像残差仍是 0.000000000 mm。
+
 ## 数据与视频
 
 ### 1. 原始异常 rollout
@@ -153,29 +160,43 @@ ctrlrange / forcerange` 左右逐项相同（残差 0）。脚底摩擦随机化
 `<inertial>` 里**（不是 URDF→MJCF 转换引入的），左右件的惯量也同步偏 0.2–0.4%，
 形态上像是 CAD 里左右件各自建模/装配而非同一实体的镜像。
 
+**已修复（commit `044959e`）**：左侧质量改为与右侧同值 0.333676，URDF /
+`pikachu_v031.xml` / `pikachu_v031_train.xml` 三处同步；整机质量
+6.759964 → 6.770275 kg（+0.153%）。复跑 `diag_v031_symmetry.py` 后第 1 节所有
+`dm(g)` 归零，第 5 节整机镜像残差仍是 0.000000000 mm，改动没有破坏原有镜像
+运动学。**残留未改**：该连杆质心镜像残差 0.580 mm、惯量相对差 0.51%
+（`hip_pitch_link` 0.068 mm、`knee_up_link` 0.35%），属左右两件 CAD 零件的固有
+差别，本次只统一了质量项。
+
 换算成 hip_yaw 关节处的重力力矩量级：该关节轴在 body frame 原点、方向
 `[0, 0, 1]`，两侧 COM 到轴的垂直距离约 **2.43 cm**。注意**零位站立时该轴竖直，
 重力绕它的力矩恰好为 0**；只有腿摆动使轴倾斜 θ 时才有 `Δm · g · d · sinθ`，
 最大（θ = 90°）约 `0.010311 × 9.81 × 0.0243 ≈` **2.46 mN·m**，占 hip_yaw 电机
 effort_limit（12.5 N·m）的 **0.02%**。这个量级不足以解释观测到的 0.6–1.0 rad
 目标越界与 12 s 内约 100° 的偏航漂移 —— 它至多是"对称性破缺的种子"，不是原因
-本身。
+本身。修复它属于"把模型收拾干净"，预期不会改变行为；本轮用同种子重跑一档 T6
+（见下）直接量这个差值。
 
 ### 尚不能完全排除的复现风险
 
-V031 的 constants、任务配置和训练 XML 当前都没有被 git 跟踪；run 内的
-`git/mjlab.diff` 因而没有保存这些 untracked 文件，run 目录也没有资产快照。
+2026-10-10 那次训练时，V031 的 constants、任务配置和训练 XML 都还没有被 git
+跟踪，run 内的 `git/mjlab.diff` 因而没有保存这些文件，run 目录也没有资产快照。
 `env.yaml` 保存了大部分有效参数，但没有保存完整 MJCF 惯量、mesh、等式约束和
-碰撞几何。因此本报告能证明“**当前 XML**没有明显 hip_roll 左右错误”，但不能
-密码学地证明 2026-10-10 训练时读取的 XML 与当前文件逐字相同。
+碰撞几何。这些文件已在本次工作中入库（`4fb5e18` 起），但**对历史那次 run 的
+缺口无法事后补上**。因此本报告能证明"**当前 XML** 没有明显 hip_roll 左右错误"，
+但不能密码学地证明 2026-10-10 训练时读取的 XML 与当前文件逐字相同。
 
-本次回放文件 SHA-256：
+本次回放/诊断所用文件的 SHA-256（质量修复后）：
 
 ```text
-4211929cf76cc8c261cb42a035e36f19186ece200333d8a71f2479d7ffb56ee7  pikachu_v031_train.xml
+d68be1ade235303ccc2230dedbfa286051834d1d6728e3453eddf4fd41507866  pikachu_v031_train.xml
 710fe68e4145a04027f576ea13825bcd98010cba8982568839720f043b0f4802  pikachu_v031_constants.py
-82c6415fe22066267ef1678ce52e83adee2db1a027dec0c764bbc1472200879e  pikachu_v031/env_cfgs.py
+10d806adb8063523bc2b4a0ecedeb89da1141195c98f8776b40588fa74fa1625  pikachu_v031/env_cfgs.py
 ```
+
+修复前的 `pikachu_v031_train.xml` 是
+`4211929cf76cc8c261cb42a035e36f19186ece200333d8a71f2479d7ffb56ee7`，与上面的
+差异只有 `left_hip_yaw_link` 一行质量。
 
 ## 改进方向与实验顺序
 
@@ -272,6 +293,15 @@ Huber 项负责大误差恢复。
 五档**同预算**：4096 env × 5000 iter，`save_interval=500`，`WANDB_MODE=disabled`。
 一键脚本：`scripts/run_v031_symmetry_ablation.sh`（前四档串行）、
 `scripts/run_v031_arm.sh <task_id>`（任意档，供追加）。
+
+**资产修复与档次的时序**：T6 档在质量修复落盘前就已启动（进程启动时已把旧模型
+读进显存），Sym / SymClip / Clip / YawHuber 四档加载的是修复后的
+`pikachu_v031_train.xml`。为避免"基线与其他档不是同一份资产"这个方法论漏洞，
+队列尾部追加了一次**修复后的 T6 重跑**（`scripts/run_v031_arm.sh` 同参数、
+种子固定为 `cfg.seed=42`），落进同一个 `pikachu_v031_velocity/` 实验目录的新
+时间戳子夹。因此这张表里 T6 的最终口径与其余四档同资产；修复前的那次 T6 保留
+在原时间戳子夹里，作为"同种子、只差 10.3 g 资产"的**配对对照**，可直接量出这次
+质量修复对指标的影响。差值预期为零（力矩量级 0.02% of effort_limit）。
 
 > **`clip_actions` 是 runner cfg 的字段**，不是 algorithm 的。`train.py` 读
 > `cfg.agent.clip_actions` 传给 `RslRlVecEnvWrapper`；写成
