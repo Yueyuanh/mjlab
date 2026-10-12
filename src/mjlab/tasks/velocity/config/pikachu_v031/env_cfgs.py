@@ -1,6 +1,11 @@
 """Pikachu **v031**（并联四杆膝，6.76 kg 整机）velocity 环境配置。
 
-只注册 **一个** 任务：``Mjlab-Velocity-Flat-Pikachu-V031-T6``（平地 + T6 奖励档）。
+本模块导出两个环境工厂，都基于同一套 T6 奖励档：
+
+- :func:`pikachu_v031_t6_flat_env_cfg` —— T6 基线，供 T6 / Clip / Sym / SymClip
+  四档共用（它们只在 runner 档上不同）。
+- :func:`pikachu_v031_yaw_huber_flat_env_cfg` —— T6 + 偏航 Huber 项。
+
 与 ``config/pikachu_v03/`` **完全解耦** —— 本包只 import
 ``pikachu_v031_constants``，不引用 v03 的任何常量、类或函数。
 
@@ -402,4 +407,25 @@ def pikachu_v031_t6_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     twist_cmd.ranges.lin_vel_y = (-0.5, 0.5)
     twist_cmd.ranges.ang_vel_z = (-0.5, 0.5)
 
+  return cfg
+
+
+def pikachu_v031_yaw_huber_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  """T6 + 偏航 Huber 项（隔离"偏航奖励饱和"这一个因素）。
+
+  ``[T6-9]`` 已经给**线**速度补了 Huber 项，理由写得很清楚：「指数跟踪器在弱档
+  饱和后梯度趋零」。但**角**速度没有对应的项，而 ``track_angular_velocity`` 的
+  std 被放宽到 0.40（见 ``[T6-1]`` 上方的 std 注释），实测失效时偏航率 RMS 达到
+  1.6 rad/s —— ``exp(-(1.6/0.4)²) = exp(-16) ≈ 0``，跟踪奖励与它的梯度双双归零。
+  策略一旦转起来就再也感觉不到任何"转回来"的拉力。
+
+  本档补上对称的那一项：``delta`` 取 ang std 同量级（0.40），权重与线性 Huber
+  一致（-0.25），保证 ``delta`` 之外是一个**恒定**的回复梯度。
+  """
+  cfg = pikachu_v031_t6_flat_env_cfg(play=play)
+  cfg.rewards["angular_velocity_huber"] = RewardTermCfg(
+    func=mdp.angular_velocity_huber_error,
+    weight=-0.25,
+    params={"command_name": "twist", "delta": 0.40},
+  )
   return cfg

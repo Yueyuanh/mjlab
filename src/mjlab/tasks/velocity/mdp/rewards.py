@@ -72,6 +72,37 @@ def linear_velocity_huber_error(
   return torch.sum(huber, dim=1)
 
 
+def angular_velocity_huber_error(
+  env: ManagerBasedRlEnv,
+  command_name: str,
+  delta: float = 0.25,
+  asset_cfg: SceneEntityCfg = _DEFAULT_ASSET_CFG,
+) -> torch.Tensor:
+  """Return a non-saturating Huber cost for yaw-rate tracking.
+
+  The exponential tracking reward has a gradient that vanishes once the yaw
+  error is a few times ``std``; a policy that has already spun up cannot feel
+  a pull back toward the commanded heading.  This companion cost keeps a
+  constant corrective gradient outside ``delta`` while staying quadratic near
+  zero, mirroring :func:`linear_velocity_huber_error` on the yaw axis.
+
+  Only the z (yaw) component is used: roll/pitch rates are handled by
+  ``body_ang_vel`` and are not commanded.
+  """
+  if delta <= 0.0:
+    raise ValueError(f"delta must be positive, got {delta}")
+  asset: Entity = env.scene[asset_cfg.name]
+  command = env.command_manager.get_command(command_name)
+  assert command is not None, f"Command '{command_name}' not found."
+  normalized = (command[:, 2] - asset.data.root_link_ang_vel_b[:, 2]) / delta
+  abs_error = torch.abs(normalized)
+  return torch.where(
+    abs_error <= 1.0,
+    0.5 * torch.square(normalized),
+    abs_error - 0.5,
+  )
+
+
 def track_angular_velocity(
   env: ManagerBasedRlEnv,
   std: float,
