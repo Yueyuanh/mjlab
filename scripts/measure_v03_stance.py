@@ -181,7 +181,7 @@ def main() -> int:
     f"{'档位':<7}{'命令':<20}{'间距均值':>10}{'min':>9}{'max':>9}"
     f"{'std':>7}{'比默认窄':>10}"
   )
-  for name, m, lo, hi, sd, n, _ in rows:
+  for name, m, lo, hi, sd, _n, _ in rows:
     vx, vy, wz = CLIPS[name]
     cmd = f"{vx:+.2f},{vy:+.2f},{wz:+.2f}"
     print(

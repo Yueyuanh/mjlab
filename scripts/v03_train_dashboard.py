@@ -137,7 +137,7 @@ def print_trend(acc: EventAccumulator, n: int = 8) -> None:
   print(head)
   for i in idx:
     row = str(ref[i].step).rjust(7)
-    for k, s in series.items():
+    for s in series.values():
       if i < len(s):
         row += f"{s[i].value:>20.4f}"
       else:
