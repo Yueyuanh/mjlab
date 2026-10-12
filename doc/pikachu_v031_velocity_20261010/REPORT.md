@@ -289,6 +289,22 @@ Huber 项负责大误差恢复。
 | E3 | ±1 | augmentation + loss | 有 | 原配置 | 验证偏航恢复 |
 | E4 | ±1 | augmentation + loss | 有 | 分阶段 | 最终鲁棒方案 |
 
+## 本轮实验的已知局限
+
+在解读五档对比时必须带上这三条，否则容易高估结论强度：
+
+1. **每档只有 1 个训练 seed。** 验收线里写的是"每个候选配置至少 5 个 seed"，
+   但本机只有一块 8 GiB 的 GPU，五档串行已经是约 9 小时，5 seed 需要约 45 小时。
+   因此本轮只能看**档间差异是否大到超出 seed 噪声**，不能对小幅差异下结论。
+   真要判定"某档更好"，必须补 seed。
+2. **只训 5000 iter，而基线跑了 30000 iter。** 这是刻意的同预算单因素对比，
+   但 5000 iter 可能不足以让某一档收敛 —— 尤其 Sym / SymClip 的镜像增强让
+   有效 batch 翻倍，学习动态与基线不同，早停点未必在同一个 iter。若某档曲线
+   到 5000 iter 仍在明显上升，结论应记为"预算不足，待续训"，而不是"该因素无效"。
+3. **评测 seed 只有 2 个（42, 7）。** 单条 rollout 的 yaw 漂移方差不小，跨 seed
+   取均值只压掉一部分。`hr_d`（同向分量）这类跨 seed 全同号的系统量更可信，
+   `heading_drift` 的绝对值则要谨慎。
+
 ## 复现
 
 重新生成曲线、训练标量摘要和异常遥测视频：
@@ -299,3 +315,22 @@ uv run python doc/pikachu_v031_velocity_20261010/analyze_run.py
 ```
 
 报告生成脚本只读取原日志和本报告目录中的回放 CSV，不修改 checkpoint 或训练日志。
+
+对五档消融的 checkpoint 跑同口径评测并汇总成一张对比表（**训练结束后再跑**，
+否则与训练抢 GPU）：
+
+```bash
+cd mjlab
+MUJOCO_GL=egl uv run python scripts/eval_v031_all_arms.py \
+    --checkpoints 1000,3000,4999 --seconds 8 --seeds 42,7 \
+    --out /tmp/v031_eval
+```
+
+它复用 `scripts/eval_v031_symmetry.py` 的评测协议，不重写指标口径，产物为
+`<out>/<档>/model_<ckpt>/eval.json` 与汇总 `<out>/summary.json`。
+
+单项诊断（资产左右对称性，纯 CPU，可与训练并行）：
+
+```bash
+uv run python scripts/diag_v031_symmetry.py
+```
