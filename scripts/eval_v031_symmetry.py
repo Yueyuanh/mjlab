@@ -33,6 +33,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from tensordict import TensorDict
 
 from mjlab.envs import ManagerBasedRlEnv
 from mjlab.rl import RslRlVecEnvWrapper
@@ -68,10 +69,20 @@ def quat_to_rpy(q: np.ndarray) -> np.ndarray:
 
 
 def _actor(obs):
-  return obs["actor"] if isinstance(obs, dict) else obs
+  """取 actor 观测组。wrapper 返回 ``TensorDict``，裸 env 返回 dict。"""
+  if isinstance(obs, (dict, TensorDict)):
+    return obs["actor"]
+  return obs
 
 
-def build(task: str, checkpoint: str, device: str, num_envs: int, seed: int):
+def build(
+  task: str,
+  checkpoint: str,
+  device: str,
+  num_envs: int,
+  seed: int,
+  clip_override: float | None = None,
+):
   cfg = load_env_cfg(task, play=False)
   cfg.scene.num_envs = num_envs
   cfg.episode_length_s = 1.0e9
@@ -95,20 +106,34 @@ def build(task: str, checkpoint: str, device: str, num_envs: int, seed: int):
     setattr(twist, attr, 0.0)
   cfg.events["reset_base"].params["pose_range"]["yaw"] = (0.0, 0.0)
 
+  agent_cfg = load_rl_cfg(task)
+  # **必须与训练时一致**：``train.py`` 把 ``cfg.agent.clip_actions`` 传给
+  # ``RslRlVecEnvWrapper``。不传的话，Clip / SymClip 档会在**没有裁剪**的动作
+  # 管线下被评测 —— 量到的不是它训练出来的那个策略。
+  clip_actions = agent_cfg.clip_actions if clip_override is None else clip_override
+
   env = ManagerBasedRlEnv(cfg=cfg, device=device)
-  wrapped = RslRlVecEnvWrapper(env)
+  wrapped = RslRlVecEnvWrapper(env, clip_actions=clip_actions)
   runner_cls = load_runner_cls(task) or MjlabOnPolicyRunner
-  runner = runner_cls(wrapped, asdict(load_rl_cfg(task)), log_dir=None, device=device)
+  runner = runner_cls(wrapped, asdict(agent_cfg), log_dir=None, device=device)
   runner.load(
     checkpoint,
     load_cfg={"actor": True, "critic": False, "optimizer": False, "iteration": False},
   )
   runner.alg.eval_mode()
-  return env, runner.get_inference_policy(device=device)
+  # 返回 **wrapper** 而不是裸 env：``rollout`` 必须走 ``wrapped.step()``，否则
+  # ``clip_actions`` 完全不生效（裸 env 的 step 不做裁剪）。需要看内部状态时用
+  # ``env.unwrapped``。
+  return wrapped, runner.get_inference_policy(device=device)
+
+
+def _raw(env):
+  """取裸 ``ManagerBasedRlEnv``（wrapper 没有属性转发）。"""
+  return getattr(env, "unwrapped", env)
 
 
 def set_command(env, cmd: tuple[float, float, float]) -> None:
-  term = env.command_manager.get_term("twist")
+  term = _raw(env).command_manager.get_term("twist")
   term.cfg.ranges.lin_vel_x = (cmd[0], cmd[0])
   term.cfg.ranges.lin_vel_y = (cmd[1], cmd[1])
   term.cfg.ranges.ang_vel_z = (cmd[2], cmd[2])
@@ -117,9 +142,9 @@ def set_command(env, cmd: tuple[float, float, float]) -> None:
 def rollout(env, policy, seconds: float, seed: int) -> dict:
   env.seed(seed)
   obs, _ = env.reset()
-  robot = env.scene["robot"]
-  term = env.action_manager.get_term("joint_pos")
-  step_dt = float(env.step_dt)
+  robot = _raw(env).scene["robot"]
+  term = _raw(env).action_manager.get_term("joint_pos")
+  step_dt = float(_raw(env).step_dt)
   steps = int(round(seconds / step_dt))
   rec: dict[str, list] = {
     k: []
@@ -137,23 +162,33 @@ def rollout(env, policy, seconds: float, seed: int) -> dict:
   for i in range(steps):
     with torch.no_grad():
       action = policy(obs)
-    obs, _, term_done, trunc, _ = env.step(action)
+    # ``wrapped.step`` 返回 4 元组，``dones`` 已合并 terminated|truncated，
+    # 且裁剪就发生在这里面。
+    obs, _, dones, _ = env.step(action)
     d = robot.data
     rec["pos_w"].append(d.root_link_pos_w[0].cpu().numpy().copy())
     rec["rpy"].append(quat_to_rpy(d.root_link_quat_w[0].cpu().numpy()))
     rec["lin_vel_b"].append(d.root_link_lin_vel_b[0].cpu().numpy().copy())
     rec["ang_vel_b"].append(d.root_link_ang_vel_b[0].cpu().numpy().copy())
     rec["q"].append(d.joint_pos[0].cpu().numpy().copy())
+    # 记**裁剪前**的原始策略输出：``action_clip_frac`` 要量的是"裁剪会不会
+    # 咬到"；裁剪后的效果已经体现在 ``target`` 里了。
     rec["action"].append(action[0].detach().cpu().numpy().copy())
     processed = getattr(term, "_processed_actions", None)
     if processed is not None:
       rec["target"].append(processed[0].detach().cpu().numpy().copy())
-    if bool(term_done[0]) or bool(trunc[0]):
+    if bool(dones[0]):
       done_at = i
       break
   out = {k: np.asarray(v) for k, v in rec.items()}
   out["done_at"] = done_at
   out["step_dt"] = step_dt
+  # ``_processed_actions`` 的列序由 action term 自己决定，是**第三种**顺序：
+  #   Entity.joint_names   = right 7 个, left 7 个（含被动的 knee / knee_mid）
+  #   Entity.actuator_names= right 髋×4, left 髋×4, right_ankle, left_ankle
+  #   term.target_names    = right_hip_pitch/roll/yaw/ankle/knee_up, left 同序
+  # 三者互不相同，所以只能从 term 读，不能硬编码下标。
+  out["target_names"] = list(term.target_names)
   return out
 
 
@@ -176,12 +211,21 @@ def summarize(r: dict) -> dict:
   tgt = r["target"]
   violation = float("nan")
   if tgt.size:
-    # 目标越界率只看 hip_roll / hip_yaw 这两组限位最紧的关节。
+    # **顺序陷阱**：``_processed_actions`` 的列是 action term 自己的顺序
+    # （``term.target_names``），与 ``Entity.joint_names``（14 项）和
+    # ``Entity.actuator_names``（10 项）**都不一样**。用 JOINT_NAMES 的下标去
+    # 索引它，左腿那两个下标会落到踝 / knee_up 上（scale 0.35 / 0.40 > 0.26），
+    # 把别的关节的越界算成 hip_roll 的越界 —— 这个 bug 一度让越界率虚高到 0.85。
+    target_names = r["target_names"]
+    if tgt.shape[-1] != len(target_names):
+      raise ValueError(f"处理后目标维度应为 {len(target_names)}，实际 {tgt.shape[-1]}")
     idx = [
-      JOINT_NAMES.index(nm)
-      for nm in JOINT_NAMES
+      i
+      for i, nm in enumerate(target_names)
       if nm.endswith(("hip_roll_joint", "hip_yaw_joint"))
     ]
+    if not idx:
+      raise ValueError(f"target_names 里找不到 hip_roll / hip_yaw：{target_names}")
     sel = tgt[:, idx]
     violation = float((np.abs(sel) > HIP_ROLL_LIMIT).any(axis=1).mean())
 
@@ -223,18 +267,16 @@ def mirror_equivariance(env, policy, n_samples: int = 200) -> dict:
     with torch.no_grad():
       action = policy(obs)
     collected.append(_actor(obs)[0].detach().cpu().numpy().copy())
-    obs, _, done, trunc, _ = env.step(action)
-    if bool(done[0]) or bool(trunc[0]):
+    obs, _, dones, _ = env.step(action)
+    if bool(dones[0]):
       break
   x = np.asarray(collected)
   if x.shape[0] == 0:
     return {"n_samples": 0}
-  t = torch.tensor(x, dtype=torch.float32, device=env.device)
+  t = torch.tensor(x, dtype=torch.float32, device=_raw(env).device)
   b = t.shape[0]
   # 用与训练完全相同的镜像函数，保证口径一致。
-  from tensordict import TensorDict
-
-  td = TensorDict({"actor": t}, batch_size=[b], device=env.device)
+  td = TensorDict({"actor": t}, batch_size=[b], device=_raw(env).device)
   td_m, _ = mirror_augmentation(env, td, None)
   assert td_m is not None
   with torch.no_grad():
@@ -242,7 +284,7 @@ def mirror_equivariance(env, policy, n_samples: int = 200) -> dict:
     a_all = policy({"actor": td_m["actor"]}).cpu().numpy()
   # 原动作的镜像
   _, a_orig_mir_t = mirror_augmentation(
-    env, None, torch.tensor(a_all[:b], device=env.device)
+    env, None, torch.tensor(a_all[:b], device=_raw(env).device)
   )
   assert a_orig_mir_t is not None
   a_orig_mir = a_orig_mir_t[b:].cpu().numpy()
@@ -268,6 +310,16 @@ def main() -> int:
   ap.add_argument("--seeds", default="42,7")
   ap.add_argument("--commands", default="", help="逗号分隔的命令名，空=全部")
   ap.add_argument("--skip-mirror", action="store_true")
+  ap.add_argument(
+    "--clip",
+    type=float,
+    default=None,
+    help=(
+      "覆盖动作裁剪上限（默认用任务自己的 clip_actions）。"
+      "用来单独验证「把裁剪加到未裁剪训练出来的策略上会怎样」："
+      "传 1.0 即可在 T6 checkpoint 上强制开裁剪。"
+    ),
+  )
   args = ap.parse_args()
 
   outdir = Path(args.out)
@@ -276,7 +328,9 @@ def main() -> int:
   wanted = set(args.commands.split(",")) if args.commands else None
   cmds = [c for c in COMMANDS if wanted is None or c[0] in wanted]
 
-  env, policy = build(args.task, args.checkpoint, args.device, 1, seeds[0])
+  env, policy = build(
+    args.task, args.checkpoint, args.device, 1, seeds[0], clip_override=args.clip
+  )
   rows: list[dict] = []
   try:
     print(
@@ -314,6 +368,9 @@ def main() -> int:
   agg = {
     "task": args.task,
     "checkpoint": args.checkpoint,
+    "clip_actions": args.clip
+    if args.clip is not None
+    else load_rl_cfg(args.task).clip_actions,
     "seconds": args.seconds,
     "seeds": seeds,
     "rows": rows,
