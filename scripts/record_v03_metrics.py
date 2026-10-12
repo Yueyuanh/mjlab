@@ -76,14 +76,32 @@ def build_policy(task: str, checkpoint: str, device: str, env_cfg):
   return env, runner.get_inference_policy(device=device)
 
 
-def make_env_cfg(task: str, clip: str, seed: int):
-  """单 env + 固定命令 + 无噪声 + 无课程，与录像/评测脚本同一套。"""
+# 启动期域随机化事件（构造 env 时抽一次，不是每步）。``--mode nominal`` 把它们
+# 一起弹掉，用来回答"DC 偏置在完全标称条件下是否仍然存在"。
+STARTUP_DR_EVENTS = ("foot_friction", "encoder_bias", "base_com")
+
+
+def make_env_cfg(task: str, clip: str, seed: int, mode: str = "dr"):
+  """单 env + 固定命令 + 无课程；噪声/推力/启动 DR 由 ``mode`` 决定。
+
+  ``mode``：
+
+  - ``nominal`` —— 关观测噪声、关推力、**并弹掉启动 DR**（摩擦/编码器/COM）。
+  - ``dr`` —— 关观测噪声、关推力，保留启动 DR（默认；旧报告的 "DR" 行）。
+  - ``train`` —— 全部按训练条件（噪声 + 推力 + 启动 DR 都开）。
+  """
+  if mode not in ("nominal", "dr", "train"):
+    raise ValueError(f"未知 mode {mode}，可选 nominal / dr / train")
   vx, vy, wz = CLIPS[clip]
   cfg = load_env_cfg(task, play=False)
   cfg.scene.num_envs = 1
   cfg.episode_length_s = 1.0e9  # 不因超时截断，只可能被「摔倒」终止
-  cfg.observations["actor"].enable_corruption = False
-  cfg.events.pop("push_robot", None)
+  if mode != "train":
+    cfg.observations["actor"].enable_corruption = False
+    cfg.events.pop("push_robot", None)
+  if mode == "nominal":
+    for name in STARTUP_DR_EVENTS:
+      cfg.events.pop(name, None)
   # ⚠️ 必须弹掉，否则 ranges 被课程项冲回默认值（六个档会一模一样）。
   cfg.curriculum.pop("command_vel", None)
   cfg.seed = seed  # base_com 是 startup 事件，构造时就抽完了
@@ -115,9 +133,12 @@ def record_clip(
   seed: int,
   tag: str,
   out_path: Path,
+  mode: str = "dr",
 ) -> dict:
   """跑一个档位并写 CSV，返回该档的摘要（供终端打印）。"""
-  env, policy = build_policy(task, checkpoint, device, make_env_cfg(task, clip, seed))
+  env, policy = build_policy(
+    task, checkpoint, device, make_env_cfg(task, clip, seed, mode)
+  )
   try:
     obs, _ = env.reset()
     step_dt = float(env.step_dt)
@@ -254,6 +275,12 @@ def main() -> int:
   ap.add_argument("--seconds", type=float, default=8.0, help="每档录多少秒")
   ap.add_argument("--device", default="cuda:0")
   ap.add_argument("--seed", type=int, default=42)
+  ap.add_argument(
+    "--mode",
+    default="dr",
+    choices=("nominal", "dr", "train"),
+    help="nominal=无启动DR/噪声/推力；dr=保留启动DR（默认）；train=全训练条件",
+  )
   args = ap.parse_args()
 
   want = [c.strip() for c in args.clips.split(",") if c.strip()]
@@ -266,17 +293,28 @@ def main() -> int:
   tag = args.tag or Path(args.checkpoint).parent.name
 
   print(f"[record_v03_metrics] ckpt={args.checkpoint}")
-  print(f"[record_v03_metrics] tag={tag}  clips={want}  {args.seconds}s/档")
+  print(
+    f"[record_v03_metrics] tag={tag}  clips={want}  {args.seconds}s/档  "
+    f"mode={args.mode}"
+  )
   results = []
   for clip in want:
     t0 = time.time()
     # step_dt = decimation × timestep；先建一次 cfg 拿它，再换算步数。
-    probe = make_env_cfg(args.task, clip, args.seed)
+    probe = make_env_cfg(args.task, clip, args.seed, args.mode)
     step_dt = probe.decimation * probe.sim.mujoco.timestep
     steps = int(args.seconds / step_dt)
     dest = out_dir / f"metrics_v03_{clip}_{tag}.csv"
     rec = record_clip(
-      args.task, args.checkpoint, clip, steps, args.device, args.seed, tag, dest
+      args.task,
+      args.checkpoint,
+      clip,
+      steps,
+      args.device,
+      args.seed,
+      tag,
+      dest,
+      args.mode,
     )
     results.append(rec)
     print(
@@ -300,6 +338,7 @@ def main() -> int:
     "tag": tag,
     "seconds_per_clip": args.seconds,
     "seed": args.seed,
+    "mode": args.mode,
     "clips": [
       {
         "clip": r["clip"],
