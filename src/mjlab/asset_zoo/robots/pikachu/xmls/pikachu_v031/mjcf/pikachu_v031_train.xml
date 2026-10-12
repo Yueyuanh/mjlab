@@ -91,7 +91,7 @@
                     <geom name="left_hip_roll_link_visual" type="mesh" contype="0" conaffinity="0" group="2" rgba="0.498039 0.498039 0.498039 1" mesh="left_hip_roll_link" />
                     <geom name="left_hip_roll_link_collision" type="mesh" group="3" rgba="0.498039 0.498039 0.498039 1" mesh="left_hip_roll_link" />
                     <body name="left_hip_yaw_link" pos="0 0 0">
-                        <inertial pos="0.00776139 -0.0231414 -0.0703878" quat="0.808693 0.0764498 0.0898155 0.576285" mass="0.323365" diaginertia="0.000200594 0.000173735 0.000105821" />
+                        <inertial pos="0.00776139 -0.0231414 -0.0703878" quat="0.808693 0.0764498 0.0898155 0.576285" mass="0.333676" diaginertia="0.000200594 0.000173735 0.000105821" />
                         <joint name="left_hip_yaw_joint" pos="0 0 0" axis="0 0 1" limited="true" range="-0.26 0.26" />
                         <geom name="left_hip_yaw_link_visual" type="mesh" contype="0" conaffinity="0" group="2" rgba="0.498039 0.498039 0.498039 1" mesh="left_hip_yaw_link" />
                         <geom name="left_hip_yaw_link_collision" type="mesh" group="3" rgba="0.498039 0.498039 0.498039 1" mesh="left_hip_yaw_link" />
