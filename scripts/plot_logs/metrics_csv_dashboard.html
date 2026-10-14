@@ -2528,7 +2528,7 @@ function renderFootTable(){
       <tr><td>峰值法向力</td>${rows.map(([,v])=>`<td>${cell(v.peakFn,1,' N')}</td>`).join('')}<td>支撑期内最大地面支持力</td></tr>
       <tr><td>触地冲击峰值 / 上升率</td>${rows.map(([,v])=>`<td>${cell(v.impact,1,' N')} / ${cell(v.rise,0,' N/s')}</td>`).join('')}<td>着地瞬间的力峰值与 dF/dt，越大越"砸"</td></tr>
       <tr><td>最大穿透</td>${rows.map(([,v])=>`<td${warn(v,0.002,true)?' style="color:#b91c1c;font-weight:600"':''}>${cell(v.pen*1e3,2,' mm')}</td>`).join('')}<td>足底 taxel 陷入地面深度</td></tr>
-      <tr><td>最小支撑裕度</td>${rows.map(([,v])=>`<td${warn(v,0.0,false)?' style="color:#b91c1c;font-weight:600"':''}>${cell(v.margin*1e3,2,' mm')}</td>`).join('')}<td>CoP 到支撑多边形边界最近距离；&lt;0 = CoP 出界（要翻）</td></tr>
+      <tr><td>最小支撑裕度</td>${rows.map(([,v])=>`<td${warn(v,-1e-6,false)?' style="color:#b91c1c;font-weight:600"':''}>${cell(v.margin*1e3,2,' mm')}</td>`).join('')}<td>CoP 到支撑多边形边界最近距离；&lt;0 = CoP 出界（要翻）。阈值 -1 µm 是 float32 死区</td></tr>
       <tr><td>最大摩擦锥利用率</td>${rows.map(([,v])=>`<td${warn(v,0.8,true)?' style="color:#b91c1c;font-weight:600"':''}>${cell(v.util,2)}</td>`).join('')}<td>|Ft|/(μ·Fn)；≥1 = 打滑</td></tr>
       <tr><td>峰值滑移速度 / 累计滑移</td>${rows.map(([,v])=>`<td>${cell(v.slip,3,' m/s')} / ${cell(v.slipDist*1e3,1,' mm')}</td>`).join('')}<td>触地期间足端水平位移与速度</td></tr>
       <tr><td>足底与地面夹角</td>${rows.map(([,v])=>`<td>${cell(v.tilt,2,'°')}</td>`).join('')}<td>鞋底法向与地面法向的夹角</td></tr>

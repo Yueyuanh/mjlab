@@ -43,7 +43,7 @@ from mjlab.entity import Entity
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.managers.metrics_manager import MetricsTermCfg
 from mjlab.sensor import ContactMatch, ContactSensor, ContactSensorCfg
-from mjlab.utils.lab_api.math import quat_apply, quat_apply_inverse
+from mjlab.utils.lab_api.math import quat_apply
 
 if TYPE_CHECKING:
   from mjlab.envs import ManagerBasedRlEnv
@@ -362,11 +362,13 @@ class FootTelemetry:
     local_ids, _ = entity.find_geoms(FOOT_GEOM_PATTERN, preserve_order=True)
     self._foot_geom_ids = entity.indexing.geom_ids[local_ids]
     self._side_mask = [self.grid.side == s for s in range(2)]
-    # 每脚 taxel 的局部 xy（[2,N,2]），支撑裕度在踝体系里算。
-    local_xy = self.grid.local_pos[:, :2]
-    self._local_xy_by_side = torch.stack(
-      [local_xy[self._side_mask[s]] for s in range(2)], dim=0
+    # 每脚 taxel 的局部坐标（[2,N,3]）。支撑裕度用它的 xy；CoP 也在这里加权，
+    # 于是 CoP 是接触 taxel 局部坐标的凸组合，不必绕世界系再逆旋转回来。
+    local_xyz = self.grid.local_pos
+    self._local_pos_by_side = torch.stack(
+      [local_xyz[self._side_mask[s]] for s in range(2)], dim=0
     )
+    self._local_xy_by_side = self._local_pos_by_side[..., :2]
 
     self._site_ids = entity.find_sites(FOOT_SITE_NAMES, preserve_order=True)[0]
     self._joint_ids = [
@@ -528,21 +530,24 @@ class FootTelemetry:
     pitch = torch.rad2deg(torch.asin(torch.clamp(sole_up[..., 0], -1.0, 1.0)))
     roll = -torch.rad2deg(torch.asin(torch.clamp(sole_up[..., 1], -1.0, 1.0)))
 
-    # CoP：按压痕加权（非接触点权重为 0），再换算到踝 body 系。
+    # CoP：按压痕加权（非接触点权重为 0）。
+    # 在**踝体系**里对 taxel 局部坐标直接加权平均，而不是"世界系加权后逆旋转"：
+    # 后者得先给 cop_w 补一个 z，补 0 等于把 CoP 当成落在地面高度上，与真实位置
+    # 差一个穿透量（实测最大 5 mm）；脚一倾斜这个 z 误差就经旋转泄漏到 xy
+    # （tilt 28° 时约 0.77 mm），把 CoP 推出接触 taxel 的凸包，支撑裕度出现假负值。
+    # 局部加权平均是凸组合，margin ≥ 0 有保证。
     weight_sum = weight.sum(dim=-1, keepdim=True)
-    taxel_xy_f = _by_side(taxel_w[..., :2])  # [B,2,N,2]
     has_contact = weight_sum > 1e-9
-    cop_w_xy = torch.where(
-      has_contact,
-      (taxel_xy_f * weight.unsqueeze(-1)).sum(dim=-2) / weight_sum.clamp(min=1e-9),
-      torch.zeros_like(taxel_xy_f[:, :, 0, :]),
-    )  # [B,2,2] 世界系 xy
-    cop_w = torch.cat([cop_w_xy, torch.zeros_like(cop_w_xy[..., :1])], dim=-1)
-    cop_local = quat_apply_inverse(body_quat, cop_w - body_pos)  # [B,2,3] 踝体系
+    local_f = self._local_pos_by_side.unsqueeze(0)  # [1,2,N,3]
+    cop_local_raw = (local_f * weight.unsqueeze(-1)).sum(dim=-2) / weight_sum.clamp(
+      min=1e-9
+    )  # [B,2,3] 踝体系
+    cop_w = body_pos + quat_apply(body_quat, cop_local_raw)  # [B,2,3] 世界系
     # 没接触就没有 CoP，报 NaN 而不是让它落在 (0,0) 相对踝的位置上。
-    cop_local = torch.where(
-      has_contact, cop_local, nan_like.unsqueeze(-1).expand_as(cop_local)
-    )
+    no_cop = ~has_contact
+    nan_col = nan_like.unsqueeze(-1)
+    cop_local = torch.where(no_cop, nan_col.expand_as(cop_local_raw), cop_local_raw)
+    cop_w = torch.where(no_cop, nan_col.expand_as(cop_w), cop_w)
 
     # 支撑边界裕度：min_u max_i (p_i - c)·u，p_i 用踝体系下的 taxel 位置。
     rel = self._local_xy_by_side.unsqueeze(0) - cop_local[..., None, :2]  # [B,2,N,2]
