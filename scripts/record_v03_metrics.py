@@ -21,8 +21,10 @@
 v031 任务默认额外注册 ~119 列足底遥测（``foot_*`` / ``base_roll_*`` /
 ``joint_torque_rate_nm_s/*``，见 ``mjlab/tasks/pikachu_foot_telemetry.py``）：
 步态相位与占空比、足底平行度、接触面积与压力分布、CoP 与支撑裕度、滑移、
-穿透、摩擦锥利用率、横滚、触地关节冲击负载。dashboard 把它们归到「足部状态」
-标签页，并额外渲染相位条带 / 压力热力图 / CoP 轨迹 / 逐脚汇总表。
+穿透、摩擦锥利用率、横滚、触地关节冲击负载。dashboard 把这些列按物理量拆成
+十个标签页（步态相位 / 足底接触力 / 足底姿态 / 接触面积 / 压力分布 / CoP 支撑边界 /
+足底滑移 / 足底穿透 / 足底摩擦 / 足部其他），每页再按语义配显示类型：相位条带、
+堆叠面积、百分比面积、taxel 热力图、脚掌平面 CoP 轨迹、摩擦阈值线，外加逐脚汇总表。
 
 ``auto``（默认）只在任务名含 ``V031`` 时开启 —— v031 资产才有
 ``{left,right}_foot[1-5]_collision`` 胶囊与 ``feet_ground_contact`` 传感器；
@@ -105,7 +107,7 @@ def _add_foot_telemetry(task: str, cfg, mode: str) -> None:
 
   ``mode``：``auto`` 只在任务名含 ``V031`` 时开启（v031 的资产才有
   ``{left,right}_foot[1-5]_collision`` 胶囊与 ``feet_ground_contact`` 传感器），
-  ``on``/``off`` 强制开关。这些列是 dashboard「足部状态」标签页的数据源。
+  ``on``/``off`` 强制开关。这些列是 dashboard 足底遥测那十个标签页的数据源。
   """
   on = mode == "on" or (mode == "auto" and "V031" in task)
   if not on:
@@ -335,7 +337,7 @@ def main() -> int:
     "--foot-telemetry",
     default="auto",
     choices=("auto", "on", "off"),
-    help="足底遥测列（~119 列，dashboard「足部状态」标签页）："
+    help="足底遥测列（~119 列，dashboard 足底遥测的十个标签页）："
     "auto=任务名含 V031 时开启（默认），on/off 强制",
   )
   args = ap.parse_args()

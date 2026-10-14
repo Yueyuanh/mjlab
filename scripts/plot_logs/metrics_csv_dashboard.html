@@ -529,11 +529,14 @@
 
     <div class="panel" id="foot-panel" hidden>
       <div class="panel-head">
-        <div><h2>足底遥测</h2><p>仅在 play 时注册（<code>pikachu_foot_telemetry</code>）的 CSV 上出现。自上而下：<strong>步态相位/占空比</strong>（按足底接触力判定的触地条带）、<strong>压力分布热力图</strong>（25 taxel/脚 × 时间）、<strong>CoP 与支撑裕度</strong>（踝体系，mm）、<strong>逐脚汇总</strong>。时间范围跟随上方区间滑块。</p></div>
+        <div><h2>足底遥测</h2><p>仅在 play 时注册（<code>pikachu_foot_telemetry</code>）的 CSV 上出现。足底 ~110 列先按<strong>物理量</strong>拆成「步态相位 / 足底接触力 / 足底姿态 / 接触面积 / 压力分布 / CoP 支撑边界 / 足底滑移 / 足底穿透 / 足底摩擦 / 足部其他」十个标签页——不同量纲（N / ° / m / 无量纲）共用一根 y 轴没有意义；每页再按数据本身的形状换用合适的显示类型：<strong>步态相位</strong>→触地条带（区间事件），<strong>足底接触力</strong>→左右堆叠面积（叠加高度 = 总支持力 ≈ mg），<strong>接触面积</strong>→百分比面积，<strong>压力分布</strong>→25 taxel 热力图（二维场），<strong>CoP 支撑边界</strong>→脚掌平面轨迹 + 支撑多边形（二维点），<strong>足底摩擦</strong>→折线 + 打滑阈值线。姿态 / 滑移 / 穿透 / 其他四页是一维时间序列，由上方总览折线表达，本面板只补逐脚汇总表。时间范围跟随上方区间滑块。</p></div>
       </div>
-      <div id="foot-phase-chart"><div class="empty">需要 foot_contact/* 列</div></div>
-      <div id="foot-heat-chart"><div class="empty">需要 foot_pressure_pa/* 列</div></div>
-      <div id="foot-cop-chart"><div class="empty">需要 foot_cop_*/foot_margin_* 列</div></div>
+      <div id="foot-phase-chart" hidden><div class="empty">需要 foot_contact/* 列</div></div>
+      <div id="foot-force-chart" hidden><div class="empty">需要 foot_force_normal_n/* 列</div></div>
+      <div id="foot-area-chart" hidden><div class="empty">需要 foot_contact_fraction/* 列</div></div>
+      <div id="foot-heat-chart" hidden><div class="empty">需要 foot_pressure_pa/* 列</div></div>
+      <div id="foot-cop-chart" hidden><div class="empty">需要 foot_cop_x_m/* 列</div></div>
+      <div id="foot-friction-chart" hidden><div class="empty">需要 foot_friction_util/* 列</div></div>
       <div class="table-wrap" id="foot-table"><div class="empty">暂无足底统计</div></div>
     </div>
 
@@ -687,7 +690,33 @@ const CANONICAL_JOINT_ORDER = ['hip_pitch','hip_roll','hip_yaw','knee','ankle','
 const JOINT_ALIASES = {knee_up:'knee'};
 let JOINT_ORDER = [];   // 当前 CSV 里实际出现的关节,每次加载后由 discoverJoints() 重建
 function canonicalJoint(joint){return JOINT_ALIASES[joint]||joint;}
-const CATEGORY_ORDER = ['joint_position','joint_target','joint_velocity','joint_torque','joint_torque_rate','joint_torque_ratio','joint_velocity_ratio','joint_accel','joint_inertia_torque','joint_power','joint_tn','base','foot','command','reward','contact','other'];
+const CATEGORY_ORDER = ['joint_position','joint_target','joint_velocity','joint_torque','joint_torque_rate','joint_torque_ratio','joint_velocity_ratio','joint_accel','joint_inertia_torque','joint_power','joint_tn','velocity','base','foot_gait','foot_force','foot_posture','foot_area','foot_pressure','foot_cop','foot_slip','foot_penetration','foot_friction','foot_other','command','reward','contact','other'];
+
+// 足底遥测（~110 列）按**物理量**细分。原先全归一个 foot 分类，110 条曲线叠在
+// 同一张折线图上既看不清也没意义——不同量的量纲根本不同（N / deg / m / 无量纲），
+// 共用一个 y 轴等于把牛顿和度数画在一起。拆成一组一个标签页后，组内量纲一致、
+// 叠加才有可比性，组间互不干扰。
+// 每组的 stem 是列名去掉 "/left|/right" 后的部分，用**精确相等**匹配，所以
+// foot_contact 不会吞掉 foot_contact_area_m2。
+const FOOT_SUBGROUPS = [
+  ['foot_gait','步态相位',['foot_phase','foot_duty','foot_contact','foot_stance_time_s','foot_air_time_s']],
+  ['foot_force','足底接触力',['foot_force_normal_n','foot_force_tangent_n','foot_force_rate_n_s','foot_impact_peak_n','foot_impact_rise_n_s']],
+  ['foot_posture','足底姿态',['foot_tilt_deg','foot_pitch_deg','foot_roll_deg','foot_touchdown_pitch_deg','foot_touchdown_roll_deg','foot_touchdown_tilt_deg']],
+  ['foot_area','接触面积',['foot_contact_area_m2','foot_contact_fraction','foot_sensor_count']],
+  ['foot_pressure','压力分布',['foot_pressure_pa']],
+  ['foot_cop','CoP 支撑边界',['foot_cop_x_m','foot_cop_y_m','foot_cop_margin_m']],
+  ['foot_slip','足底滑移',['foot_slip_velocity_m_s','foot_slip_speed_peak_m_s','foot_contact_slip_dist_m','foot_contact_slip_speed_m_s','foot_slide_fraction']],
+  ['foot_penetration','足底穿透',['foot_penetration_m']],
+  ['foot_friction','足底摩擦',['foot_friction_util','foot_friction_margin_n','foot_ground_friction_mu']],
+  ['foot_other','足部其他',['foot_lateral_separation_m']],
+];
+const FOOT_SUBGROUP_LABEL = Object.fromEntries(FOOT_SUBGROUPS.map(([k,l])=>[k,l]));
+const FOOT_CATEGORIES = new Set(FOOT_SUBGROUPS.map(([k])=>k));
+function footSubgroup(name){
+  const stem = name.includes('/') ? name.slice(0,name.indexOf('/')) : name;
+  for(const [key,,stems] of FOOT_SUBGROUPS) if(stems.includes(stem)) return key;
+  return 'foot_other';
+}
 const SPECIAL_COMPARE = '__compare__';
 const SPECIAL_FAVORITES = '__favorites__';
 const FAVORITES_STORAGE_KEY = 'mjlab.metrics.favorites.v1';
@@ -1009,7 +1038,13 @@ function classifyTerm(name){
     return {category:key, side:m?m[1]:'', joint:m?m[2]:joint, label:joint};
   }
   const low=name.toLowerCase();
-  for(const key of ['base','foot','command','reward','contact']){
+  if(low.startsWith('foot_')||low.startsWith('foot/'))
+    return {category:footSubgroup(name),side:'',joint:'',label:name};
+  // mjlab velocity 任务的命令/实测跟踪列用 ``vel/`` 前缀（vel/cmd_x、vel/err_yaw…）。
+  // 显式归到「速度跟踪」—— 否则它会掉进下面按前缀派生的动态分类，标签页显示英文 vel
+  // 且因为没有位次排到导航最末。
+  if(low.startsWith('vel/')) return {category:'velocity',side:'',joint:'',label:name};
+  for(const key of ['base','command','reward','contact']){
     if(low.startsWith(key+'_') || low.startsWith(key+'/') || low.includes('/'+key+'_'))
       return {category:key,side:'',joint:'',label:name};
   }
@@ -1020,7 +1055,7 @@ function classifyTerm(name){
 
 function categoryLabel(key){
   if(JOINT_GROUPS[key]) return JOINT_GROUPS[key].label;
-  const labels={base:'机体状态',foot:'足部状态',command:'指令',reward:'奖励',contact:'接触',other:'其他',joint_tn:'关节 T-N'};
+  const labels={velocity:'速度跟踪',base:'机体状态',command:'指令',reward:'奖励',contact:'接触',other:'其他',joint_tn:'关节 T-N',...FOOT_SUBGROUP_LABEL};
   return labels[key]||key;
 }
 
@@ -1379,9 +1414,15 @@ function overviewOption(names,exporting=false,key=ACTIVE){
 function renderOverview(){
   const el=document.getElementById('overview');
   if(OVERVIEW){OVERVIEW.dispose();OVERVIEW=null;}
-  el.innerHTML=''; OVERVIEW=echarts.init(el,null,{renderer:'canvas'});
-  const names=CATEGORIES[ACTIVE].filter(n=>SELECTED.has(n));
+  el.innerHTML='';
   document.getElementById('overview-title').textContent=categoryLabel(ACTIVE)+' · 分类总览';
+  // 压力分布是 50 条（25 taxel × 2 脚），叠折线没有任何可读性，交给下方热力图。
+  if(ACTIVE==='foot_pressure'){
+    el.innerHTML='<div class="empty">压力分布用热力图表达，见下方「压力分布」图（折线总览已略去）</div>';
+    return;
+  }
+  OVERVIEW=echarts.init(el,null,{renderer:'canvas'});
+  const names=CATEGORIES[ACTIVE].filter(n=>SELECTED.has(n));
   OVERVIEW.setOption(overviewOption(names));
 }
 
@@ -2274,11 +2315,24 @@ document.addEventListener('DOMContentLoaded',refInit);
 
 // ---- 足底遥测面板 -----------------------------------------------------------
 // 列只在 play 时注册了 pikachu_foot_telemetry 的 CSV 上存在（列名契约见
-// src/mjlab/tasks/pikachu_foot_telemetry.py）。三张图共用当前时间区间：
-//   1) 步态相位/占空比：按 foot_contact/* 扫出触地区间，画成条带；
-//   2) 压力热力图：25 taxel/脚（行=y 从 -28 到 +28mm，列=x 从 -40 到 +40mm）× 时间；
-//   3) CoP 轨迹 + 支撑裕度 + 摩擦锥利用率。
-// 时间轴降采样到 ~400 列以免热力图点数爆炸（taxel 50 × 采样点）。
+// src/mjlab/tasks/pikachu_foot_telemetry.py）。
+//
+// 足底 ~110 列按**物理量**拆成十个标签页后，每一页再按它的语义选显示形式 ——
+// 不是统一画折线。数据的形状决定图：
+//
+//   步态相位  区间事件（触/离地）      → 触地条带图（横条 = 一次触地）
+//   足底接触力 两脚分摊体重的连续量    → 左右**堆叠面积**（叠加高度 = 总支持力）
+//   足底姿态  角度时间序列             → 时间折线（上方总览）+ 逐脚汇总
+//   接触面积  0~1 的连续占比           → **百分比面积**（涨落一眼可见）
+//   压力分布  25 taxel × 时间的二维场  → taxel **热力图**
+//   CoP 支撑边界 脚掌平面上的二维分布  → 脚掌平面**轨迹散点 + 支撑多边形**
+//   足底滑移  速度尖峰 + 累计距离      → 时间折线（总览）+ 逐脚汇总
+//   足底穿透  只在触地瞬间出现的深度   → **柱状**（脉冲量，柱比线诚实）
+//   足底摩擦  利用率 ∈[0,1]，≥1 打滑   → 折线 + **μ=1 阈值线**
+//   足部其他  两脚间距                  → 时间折线（总览）+ 逐脚汇总
+//
+// 折线总览（每页上方）仍由 renderOverview 负责；本面板只画「折线画不出语义」
+// 的那几页，其余页只留逐脚汇总表。
 //
 // 本面板用到的列（逐脚后缀 /{left,right}，压力列后缀 /{side}_foot0..24）：
 //   foot_contact              0/1 触地         foot_contact_fraction   接触 taxel 占比
@@ -2293,15 +2347,27 @@ document.addEventListener('DOMContentLoaded',refInit);
 // ⚠️ 支撑/腾空时长由 foot_contact 的区间反推，不用 foot_stance_time_s /
 //    foot_air_time_s —— 那是 ContactSensor 的 current_* 计时器，触地时 air 恒为 0。
 
-let FOOT_PHASE=null, FOOT_HEAT=null, FOOT_COP=null;
 const FOOT_SIDES=[['left','左','#2563eb'],['right','右','#dc2626']];
 const FOOT_N_PER_FOOT=25;
 // 与 viser 叠加层同一套色标（蓝 → 青 → 绿 → 黄 → 红）。
 const FOOT_RAMP=[[0,[13,56,140]],[0.25,[26,153,229]],[0.5,[46,204,82]],[0.75,[242,204,38]],[1,[230,38,26]]];
 const FOOT_HEAT_COLORS=['#0d388c','#1a99e5','#2ecc52','#f2cc26','#e6261a'];
 
+// 容器 id → ECharts 实例。每个标签页一张图，切页时销毁上一张（见 renderFootPanel）。
+const FOOT_CHARTS={};
+
 function footHas(...names){ return Boolean(DATA)&&names.every(n=>Array.isArray(DATA.values[n])); }
 function footSeries(suffix,side){ return DATA.values[`foot_${suffix}/${side}`]; }
+
+// 时间序列取数：保留 NaN 位（写成 null），让 connectNulls:false 把断点画成断线。
+// CoP 这类「没接触就没有值」的量必须断开，否则折线会把两次触地之间的空档连起来。
+function footTimeData(suffix,side,start,end,scale=1){
+  const arr=footSeries(suffix,side); if(!arr)return null;
+  const out=[]; for(let i=start;i<end;i++){
+    const v=arr[i]; out.push([DATA.time[i],Number.isFinite(v)?v*scale:null]);
+  }
+  return out;
+}
 
 function footColorFor(t){
   t=Math.max(0,Math.min(1,t));
@@ -2362,12 +2428,11 @@ function footSpanItem(params,api){
     style:{fill:api.value(3),opacity:0.85}};
 }
 
-function renderFootPhase(){
-  const el=document.getElementById('foot-phase-chart');
-  if(FOOT_PHASE){FOOT_PHASE.dispose();FOOT_PHASE=null;}
+// 步态相位：触地是**区间事件**，不是连续量 —— 用横条表示每次触地，比折线直观。
+function renderFootPhase(el){
   el.innerHTML='';
   if(!footHas('foot_contact/left','foot_contact/right')||!window.echarts){
-    el.innerHTML='<div class="empty">需要 foot_contact/* 列（play 时注册足底遥测才有）</div>';return;
+    el.innerHTML='<div class="empty">需要 foot_contact/* 列（play 时注册足底遥测才有）</div>';return null;
   }
   const [start,end]=rangeIndices(), data=[], notes=[];
   FOOT_SIDES.forEach(([side,label,color],row)=>{
@@ -2378,8 +2443,8 @@ function renderFootPhase(){
     const n=Math.max(1,end-start), duty=on/n;
     notes.push({label,color,duty,...footGaitTiming(spans,start,end)});
   });
-  FOOT_PHASE=echarts.init(el);
-  FOOT_PHASE.setOption({
+  const chart=echarts.init(el);
+  chart.setOption({
     animation:false,backgroundColor:'#fff',
     grid:{left:70,right:22,top:24,bottom:38},
     tooltip:{formatter:p=>{
@@ -2397,16 +2462,108 @@ function renderFootPhase(){
         fill:n.color,font:'11px monospace'}
     })),
   },true);
+  return chart;
 }
 
-function renderFootHeat(){
-  const el=document.getElementById('foot-heat-chart');
-  if(FOOT_HEAT){FOOT_HEAT.dispose();FOOT_HEAT=null;}
+// 足底接触力：走路时体重在两脚之间来回倒 —— 左右法向力**堆叠**后的高度就是
+// 地面总支持力，理应恒等于 mg。堆叠面积把这件事一眼画出来（若堆叠顶明显偏离
+// mg 参考线，说明竖直方向有未建模的加速度或接触丢失）。切向力与法向不同向，
+// 叠加无意义，单独虚线画。
+function renderFootForce(el){
+  el.innerHTML='';
+  if(!footHas('foot_force_normal_n/left')||!window.echarts){
+    el.innerHTML='<div class="empty">需要 foot_force_normal_n/* 列</div>';return null;
+  }
+  const [start,end]=rangeIndices(), series=[];
+  // 总支持力 = 同一时刻左右法向力之和，再对时间取均值 —— 理应 ≈ mg。
+  // 不能把两脚的采样点混在一个平均里（那会算成单脚均值，参考线画到一半高度）。
+  const fnArrays=FOOT_SIDES.map(([side])=>footSeries('force_normal_n',side));
+  let fnSum=0, fnCount=0;
+  for(let i=start;i<end;i++){
+    let v=0, ok=false;
+    for(const arr of fnArrays) if(arr&&Number.isFinite(arr[i])){v+=arr[i];ok=true;}
+    if(ok){fnSum+=v;fnCount++;}
+  }
+  const mg=fnCount?fnSum/fnCount:NaN;
+  FOOT_SIDES.forEach(([side,label,color])=>{
+    const d=footTimeData('force_normal_n',side,start,end);
+    if(!d)return;
+    series.push({name:`${label}脚 法向`,type:'line',stack:'fn',areaStyle:{opacity:0.5},
+      lineStyle:{width:1.2},itemStyle:{color},showSymbol:false,sampling:'lttb',data:d});
+  });
+  FOOT_SIDES.forEach(([side,label,color])=>{
+    const d=footTimeData('force_tangent_n',side,start,end);
+    if(d) series.push({name:`${label}脚 切向`,type:'line',showSymbol:false,sampling:'lttb',
+      lineStyle:{width:1.3,type:'dashed'},itemStyle:{color,opacity:0.75},data:d});
+  });
+  if(series.length&&Number.isFinite(mg)){
+    // 参考线挂在堆叠的**上层**系列上，画在 y = mg 处（堆叠顶即总支持力）。
+    series.at(-1).markLine={silent:true,symbol:'none',
+      lineStyle:{color:'#0f172a',type:'dashed',width:1.2},
+      label:{formatter:`总支持力均值 ${mg.toFixed(1)} N（≈ mg）`,position:'insideEndTop',fontSize:10},
+      data:[{yAxis:mg}]};
+  }
+  const chart=echarts.init(el);
+  chart.setOption({
+    animation:false,backgroundColor:'#fff',
+    legend:{top:0,type:'scroll',textStyle:{fontSize:10}},
+    grid:{left:70,right:24,top:34,bottom:38},
+    tooltip:{trigger:'axis',axisPointer:{type:'cross'}},
+    xAxis:{type:'value',name:DATA.timeLabel,nameLocation:'middle',nameGap:24,scale:true},
+    yAxis:{type:'value',name:'力 (N)',min:0,scale:true},
+    series,
+  },true);
+  return chart;
+}
+
+// 接触面积：foot_contact_fraction 是 0~1 的**连续占比**，随时间周期性涨落。
+// 面积图（而非折线）才能表现"压痕涨落"这个连续量的体积感；y 轴锁 0~100%，
+// 于是两脚的填充高度可以直接互比（左右不对称会立刻显形）。
+function renderFootArea(el){
+  el.innerHTML='';
+  if(!footHas('foot_contact_fraction/left')||!window.echarts){
+    el.innerHTML='<div class="empty">需要 foot_contact_fraction/* 列</div>';return null;
+  }
+  const [start,end]=rangeIndices(), series=[];
+  FOOT_SIDES.forEach(([side,label,color])=>{
+    const d=footTimeData('contact_fraction',side,start,end,100);
+    if(!d)return;
+    series.push({name:`${label}脚 接触占比`,type:'line',areaStyle:{opacity:0.4},
+      lineStyle:{width:1.4},itemStyle:{color},showSymbol:false,sampling:'lttb',data:d});
+  });
+  const chart=echarts.init(el);
+  chart.setOption({
+    animation:false,backgroundColor:'#fff',
+    legend:{top:0,textStyle:{fontSize:10}},
+    grid:{left:70,right:24,top:34,bottom:38},
+    tooltip:{trigger:'axis',axisPointer:{type:'cross'},formatter:params=>{
+      const lines=[`t = ${fmt(params[0].axisValue)} s`];
+      for(const p of params){
+        if(!Number.isFinite(p.value[1]))continue;
+        const side=p.seriesName.startsWith('左')?'left':'right';
+        const area=footSeries('contact_area_m2',side);
+        const idx=DATA.time.indexOf(p.value[0]);
+        const cm2=area&&idx>=0?` (${(area[idx]*1e4).toFixed(2)} cm²)`:'';
+        lines.push(`${p.marker}${p.seriesName} ${p.value[1].toFixed(1)}%${cm2}`);
+      }
+      return lines.join('<br/>');
+    }},
+    xAxis:{type:'value',name:DATA.timeLabel,nameLocation:'middle',nameGap:24,scale:true},
+    yAxis:{type:'value',name:'接触占比 (%)',min:0,max:100},
+    series,
+  },true);
+  return chart;
+}
+
+// 压力分布：25 taxel × 时间是**二维场**，折线和堆叠面积都表达不了，必须用热力图。
+// 横轴时间、纵轴 taxel（L00…L44 / R00…R44），颜色 = 压力；色标上限取 99 分位，
+// 免得单个尖峰把整幅图压平。
+function renderFootHeat(el){
   el.innerHTML='';
   const names=[];
   FOOT_SIDES.forEach(([side])=>{for(let k=0;k<FOOT_N_PER_FOOT;k++)names.push(`foot_pressure_pa/${side}_foot${k}`);});
   if(!footHas(...names)||!window.echarts){
-    el.innerHTML='<div class="empty">需要 foot_pressure_pa/* 列</div>';return;
+    el.innerHTML='<div class="empty">需要 foot_pressure_pa/* 列</div>';return null;
   }
   const [start,end]=rangeIndices(), count=Math.max(1,end-start);
   const stride=Math.max(1,Math.ceil(count/400));
@@ -2422,8 +2579,8 @@ function renderFootHeat(){
   const flat=[]; for(const d of data) flat.push(d[2]);
   flat.sort((a,b)=>a-b);
   const hi=flat.length?Math.max(1e3,flat[Math.floor(flat.length*0.99)]):1e4;
-  FOOT_HEAT=echarts.init(el);
-  FOOT_HEAT.setOption({
+  const chart=echarts.init(el);
+  chart.setOption({
     animation:false,backgroundColor:'#fff',
     grid:{left:74,right:86,top:26,bottom:38},
     tooltip:{formatter:p=>{
@@ -2438,48 +2595,102 @@ function renderFootHeat(){
       inRange:{color:FOOT_HEAT_COLORS},text:['高压','0'],textStyle:{fontSize:10}},
     series:[{type:'heatmap',data,progressive:6000,emphasis:{disabled:true},blur:{}}],
   },true);
+  return chart;
 }
 
-function renderFootCop(){
-  const el=document.getElementById('foot-cop-chart');
-  if(FOOT_COP){FOOT_COP.dispose();FOOT_COP=null;}
+// CoP 支撑边界：CoP 是**脚掌平面上**的一个二维点，它的物理意义（站得稳不稳）
+// 取决于它离支撑多边形边界多远 —— 所以横轴是脚掌 x、纵轴是脚掌 y，而不是时间。
+// 折线（CoP-x / CoP-y 各自对时间）把二维轨迹拆成两条一维曲线，恰恰丢掉了
+// "在脚掌的哪个位置"这个唯一要看的量。这里直接画 xy 平面轨迹散点，灰色虚线框
+// 是 25 个 taxel 中心张成的支撑多边形（凸包退化为矩形，±40 × ±28 mm）——CoP 贴着
+// 边框走就等价于支撑裕度 ≈ 0。⚠️ 框由 taxel 中心网格近似（见 footTaxelXY），与
+// 遥测里按真实 geom 局部坐标算的裕度可能差一个 taxel 半径量级。
+function renderFootCop(el){
   el.innerHTML='';
-  if(!footHas('foot_cop_x_m/left','foot_cop_margin_m/left')||!window.echarts){
-    el.innerHTML='<div class="empty">需要 foot_cop_*/foot_cop_margin_m/* 列</div>';return;
+  if(!footHas('foot_cop_x_m/left','foot_cop_y_m/left')||!window.echarts){
+    el.innerHTML='<div class="empty">需要 foot_cop_x_m/* 与 foot_cop_y_m/* 列</div>';return null;
+  }
+  const [start,end]=rangeIndices(), series=[], hull=[[],[],[]];
+  const xs=[],ys=[];
+  for(let k=0;k<FOOT_N_PER_FOOT;k++){const p=footTaxelXY(k);xs.push(p.x);ys.push(p.y);}
+  const x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
+  series.push({name:'支撑多边形',type:'line',silent:true,
+    data:[[x0,y0],[x1,y0],[x1,y1],[x0,y1],[x0,y0]],showSymbol:false,
+    lineStyle:{color:'#94a3b8',width:1.4,type:'dashed'},tooltip:{show:false},z:1});
+  const notes=[];
+  FOOT_SIDES.forEach(([side,label,color])=>{
+    const cx=footSeries('cop_x_m',side), cy=footSeries('cop_y_m',side);
+    if(!cx||!cy)return;
+    const pts=[];
+    for(let i=start;i<end;i++){
+      if(!Number.isFinite(cx[i])||!Number.isFinite(cy[i]))continue;
+      pts.push([cx[i]*1e3,cy[i]*1e3,i]);
+    }
+    const margin=footSeries('cop_margin_m',side);
+    let minM=Infinity;
+    if(margin) for(let i=start;i<end;i++) if(Number.isFinite(margin[i])) minM=Math.min(minM,margin[i]);
+    notes.push({label,color,minM});
+    series.push({name:`${label}脚 CoP`,type:'scatter',data:pts,symbolSize:4,z:3,
+      itemStyle:{color,opacity:0.62},
+      tooltip:{formatter:p=>`${label}脚 CoP<br/>t = ${fmt(DATA.time[p.value[2]])} s`
+        +`<br/>x = ${fmt(p.value[0])} mm, y = ${fmt(p.value[1])} mm`}});
+  });
+  const chart=echarts.init(el);
+  chart.setOption({
+    animation:false,backgroundColor:'#fff',
+    legend:{top:0,textStyle:{fontSize:10}},
+    grid:{left:64,right:26,top:34,bottom:44},
+    tooltip:{},
+    xAxis:{type:'value',name:'脚掌 x (mm)',nameLocation:'middle',nameGap:26,scale:true,
+      splitLine:{lineStyle:{color:'#eef2f7'}}},
+    yAxis:{type:'value',name:'脚掌 y (mm)',scale:true,splitLine:{lineStyle:{color:'#eef2f7'}}},
+    series,
+    // 两脚各标一个最小支撑裕度：这是"离失稳还有多远"的直接读数。
+    graphic:notes.map((n,i)=>({type:'text',left:70+i*220,top:'bottom',
+      style:{text:`${n.label}脚 最小支撑裕度 ${Number.isFinite(n.minM)?(n.minM*1e3).toFixed(2)+' mm':'—'}`,
+        fill:n.color,font:'11px monospace'}})),
+  },true);
+  return chart;
+}
+
+// 足底摩擦：foot_friction_util = |Ft| / (μ·Fn) ∈ [0,1]，**≥1 即打滑**。
+// 所以图的核心是那条 y=1 的红线 —— 曲线摸到它就说明这一瞬间已经滑了。
+// 摩擦力裕度（还剩多少牛顿才滑）是另一个量纲，走右轴虚线。
+function renderFootFriction(el){
+  el.innerHTML='';
+  if(!footHas('foot_friction_util/left')||!window.echarts){
+    el.innerHTML='<div class="empty">需要 foot_friction_util/* 列</div>';return null;
   }
   const [start,end]=rangeIndices(), series=[];
   FOOT_SIDES.forEach(([side,label,color])=>{
-    const dash=side==='right';
-    const line=(suffix,name,width,type)=>{
-      const arr=footSeries(suffix,side); if(!arr)return;
-      const pts=[]; for(let i=start;i<end;i++) if(Number.isFinite(arr[i])) pts.push([DATA.time[i],arr[i]*1e3]);
-      if(pts.length) series.push({name:`${label}${name}`,type:'line',data:pts,showSymbol:false,
-        lineStyle:{width,type:type||(dash?'dashed':'solid')},itemStyle:{color},connectNulls:false});
-    };
-    line('cop_x_m','CoP-x',1.3);
-    line('cop_y_m','CoP-y',1.3,'dotted');
-    line('cop_margin_m','支撑裕度',2.4);
+    const d=footTimeData('friction_util',side,start,end);
+    if(!d)return;
+    series.push({name:`${label}脚 利用率`,type:'line',showSymbol:false,sampling:'lttb',
+      lineStyle:{width:1.6},itemStyle:{color},data:d});
   });
-  const util=[];
   FOOT_SIDES.forEach(([side,label,color])=>{
-    const arr=footSeries('friction_util',side); if(!arr)return;
-    const pts=[]; for(let i=start;i<end;i++) if(Number.isFinite(arr[i])) pts.push([DATA.time[i],arr[i]]);
-    if(pts.length) series.push({name:`${label}摩擦锥利用率`,type:'line',yAxisIndex:1,data:pts,
-      showSymbol:false,lineStyle:{width:1.4,type:'dashed'},itemStyle:{color,opacity:0.55}});
+    const d=footTimeData('friction_margin_n',side,start,end);
+    if(d) series.push({name:`${label}脚 摩擦裕度`,type:'line',yAxisIndex:1,showSymbol:false,
+      sampling:'lttb',lineStyle:{width:1.2,type:'dashed'},itemStyle:{color,opacity:0.6},data:d});
   });
-  FOOT_COP=echarts.init(el);
-  FOOT_COP.setOption({
+  if(series.length) series[0].markLine={silent:true,symbol:'none',
+    lineStyle:{color:'#dc2626',width:1.5},
+    label:{formatter:'打滑阈值 1.0',position:'insideEndTop',fontSize:10,color:'#dc2626'},
+    data:[{yAxis:1}]};
+  const chart=echarts.init(el);
+  chart.setOption({
     animation:false,backgroundColor:'#fff',
     legend:{top:0,type:'scroll',textStyle:{fontSize:10}},
     grid:{left:70,right:70,top:34,bottom:38},
     tooltip:{trigger:'axis',axisPointer:{type:'cross'}},
     xAxis:{type:'value',name:DATA.timeLabel,nameLocation:'middle',nameGap:24,scale:true},
     yAxis:[
-      {type:'value',name:'位置 (mm)',scale:true},
-      {type:'value',name:'摩擦锥利用率',min:0,max:1.2,splitLine:{show:false}},
+      {type:'value',name:'摩擦锥利用率',min:0,scale:true},
+      {type:'value',name:'摩擦裕度 (N)',scale:true,splitLine:{show:false}},
     ],
     series,
   },true);
+  return chart;
 }
 
 function footStatsRow(side,start,end){
@@ -2538,19 +2749,48 @@ function renderFootTable(){
     </tbody></table>`;
 }
 
+// 标签页 → 专用图。**只有折线表达不了该页语义的组**才在这里登记；其余组
+// （姿态/滑移/穿透/其他）是规规矩矩的一维时间序列，上方总览折线就是它们
+// 最合适的显示形式，这里只补一张逐脚汇总表。
+const FOOT_VIEWS=[
+  ['foot_gait','foot-phase-chart',renderFootPhase],
+  ['foot_force','foot-force-chart',renderFootForce],
+  ['foot_area','foot-area-chart',renderFootArea],
+  ['foot_pressure','foot-heat-chart',renderFootHeat],
+  ['foot_cop','foot-cop-chart',renderFootCop],
+  ['foot_friction','foot-friction-chart',renderFootFriction],
+];
+
+function footDisposeAll(){
+  for(const id of Object.keys(FOOT_CHARTS)){
+    FOOT_CHARTS[id].dispose();
+    delete FOOT_CHARTS[id];
+  }
+}
+
 function renderFootPanel(){
   const panel=document.getElementById('foot-panel');
   if(!panel)return;
-  const on=Boolean(DATA)&&ACTIVE==='foot';
+  const on=Boolean(DATA)&&FOOT_CATEGORIES.has(ACTIVE);
   panel.hidden=!on;
   if(!on){
-    if(FOOT_PHASE){FOOT_PHASE.dispose();FOOT_PHASE=null;}
-    if(FOOT_HEAT){FOOT_HEAT.dispose();FOOT_HEAT=null;}
-    if(FOOT_COP){FOOT_COP.dispose();FOOT_COP=null;}
+    // 切到非足底标签页：图和表都收干净，别把上一页的 DOM 留在隐藏面板里。
+    footDisposeAll();
+    for(const [,id] of FOOT_VIEWS) document.getElementById(id).hidden=true;
+    document.getElementById('foot-table').innerHTML='<div class="empty">当前标签页不是足底遥测</div>';
     return;
   }
+  // 顺序要紧：先把容器显隐定下来再 init，否则 ECharts 会在隐藏容器上量到 0 尺寸。
+  const view=FOOT_VIEWS.find(([cat])=>cat===ACTIVE);
+  for(const [cat,id] of FOOT_VIEWS) document.getElementById(id).hidden=(cat!==ACTIVE);
+  footDisposeAll();
   if(!window.echarts)return;
-  renderFootPhase();renderFootHeat();renderFootCop();renderFootTable();
+  if(view){
+    const el=document.getElementById(view[1]);
+    const chart=view[2](el);
+    if(chart)FOOT_CHARTS[view[1]]=chart;
+  }
+  renderFootTable();
 }
 
 function renderAll(){

@@ -14,7 +14,9 @@ def test_metrics_csv_dashboard_contains_core_analysis_features() -> None:
   assert "joint_position_rad/" in content
   assert "joint_velocity_rad_s/" in content
   assert "joint_torque_nm/" in content
-  assert "const PAIRS = ['hip_pitch','hip_roll','hip_yaw','knee','ankle'" in content
+  assert (
+    "const CANONICAL_JOINT_ORDER = ['hip_pitch','hip_roll','hip_yaw','knee'" in content
+  )
   assert "function saveOverviewPng" in content
   assert "function savePairsPng" in content
   assert "function saveSelectedCsv" in content
