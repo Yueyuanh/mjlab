@@ -16,6 +16,18 @@
   - 左/右识别靠 ``left_``/``right_`` 前缀，所以 v03 的关节名（``left_hip_pitch_joint``）
     天然满足，不需要改名。
 
+## 足底遥测列（``--foot-telemetry``）
+
+v031 任务默认额外注册 ~119 列足底遥测（``foot_*`` / ``base_roll_*`` /
+``joint_torque_rate_nm_s/*``，见 ``mjlab/tasks/pikachu_foot_telemetry.py``）：
+步态相位与占空比、足底平行度、接触面积与压力分布、CoP 与支撑裕度、滑移、
+穿透、摩擦锥利用率、横滚、触地关节冲击负载。dashboard 把它们归到「足部状态」
+标签页，并额外渲染相位条带 / 压力热力图 / CoP 轨迹 / 逐脚汇总表。
+
+``auto``（默认）只在任务名含 ``V031`` 时开启 —— v031 资产才有
+``{left,right}_foot[1-5]_collision`` 胶囊与 ``feet_ground_contact`` 传感器；
+v03 上注册会在建 env 时抛 ``ValueError``。
+
 ## 命令怎么固定
 
 **在构造 env 之前**把 ``twist`` 的 ranges 收成一个点，并把所有 ``rel_*_envs``
@@ -34,6 +46,13 @@
         --checkpoint logs/rsl_rl/pikachu_v03_velocity/<run>/model_29999.pt \
         --out docs/pikachu_v03/metrics --tag r06-best \
         --clips stand,fwd,fwd_fast,back,lat,turn --seconds 8
+
+    # v031（自动带上足底遥测列）
+    MUJOCO_GL=egl uv run python scripts/record_v03_metrics.py \
+        --task Mjlab-Velocity-Flat-Pikachu-V031-T6 \
+        --checkpoint logs/rsl_rl/<run>/model_4999.pt \
+        --out docs/pikachu_v031/metrics --tag t6-best \
+        --clips stand,fwd,lat,turn --seconds 8
 """
 
 from __future__ import annotations
@@ -81,7 +100,33 @@ def build_policy(task: str, checkpoint: str, device: str, env_cfg):
 STARTUP_DR_EVENTS = ("foot_friction", "encoder_bias", "base_com")
 
 
-def make_env_cfg(task: str, clip: str, seed: int, mode: str = "dr"):
+def _add_foot_telemetry(task: str, cfg, mode: str) -> None:
+  """按需注册足底遥测列（~119 列，见 ``mjlab.tasks.pikachu_foot_telemetry``）。
+
+  ``mode``：``auto`` 只在任务名含 ``V031`` 时开启（v031 的资产才有
+  ``{left,right}_foot[1-5]_collision`` 胶囊与 ``feet_ground_contact`` 传感器），
+  ``on``/``off`` 强制开关。这些列是 dashboard「足部状态」标签页的数据源。
+  """
+  on = mode == "on" or (mode == "auto" and "V031" in task)
+  if not on:
+    if mode == "auto":
+      print("[record_v03_metrics] 足底遥测：跳过（非 V031 任务）")
+    return
+  # 延迟 import：本脚本在无显示环境跑，没必要让 --help 也背上任务包的加载。
+  from mjlab.asset_zoo.robots.pikachu.pikachu_v031_constants import (
+    PIKACHU_V031_JOINT_NAMES,
+  )
+  from mjlab.tasks.pikachu_foot_telemetry import add_pikachu_foot_telemetry_metrics
+
+  add_pikachu_foot_telemetry_metrics(
+    cfg, joint_names=PIKACHU_V031_JOINT_NAMES, entity_name="robot"
+  )
+  print("[record_v03_metrics] 足底遥测：已注册")
+
+
+def make_env_cfg(
+  task: str, clip: str, seed: int, mode: str = "dr", foot_telemetry: str = "auto"
+):
   """单 env + 固定命令 + 无课程；噪声/推力/启动 DR 由 ``mode`` 决定。
 
   ``mode``：
@@ -105,6 +150,7 @@ def make_env_cfg(task: str, clip: str, seed: int, mode: str = "dr"):
   # ⚠️ 必须弹掉，否则 ranges 被课程项冲回默认值（六个档会一模一样）。
   cfg.curriculum.pop("command_vel", None)
   cfg.seed = seed  # base_com 是 startup 事件，构造时就抽完了
+  _add_foot_telemetry(task, cfg, foot_telemetry)
 
   twist = cfg.commands["twist"]
   twist.ranges.lin_vel_x = (vx, vx)
@@ -134,10 +180,14 @@ def record_clip(
   tag: str,
   out_path: Path,
   mode: str = "dr",
+  foot_telemetry: str = "auto",
 ) -> dict:
   """跑一个档位并写 CSV，返回该档的摘要（供终端打印）。"""
   env, policy = build_policy(
-    task, checkpoint, device, make_env_cfg(task, clip, seed, mode)
+    task,
+    checkpoint,
+    device,
+    make_env_cfg(task, clip, seed, mode, foot_telemetry),
   )
   try:
     obs, _ = env.reset()
@@ -281,6 +331,13 @@ def main() -> int:
     choices=("nominal", "dr", "train"),
     help="nominal=无启动DR/噪声/推力；dr=保留启动DR（默认）；train=全训练条件",
   )
+  ap.add_argument(
+    "--foot-telemetry",
+    default="auto",
+    choices=("auto", "on", "off"),
+    help="足底遥测列（~119 列，dashboard「足部状态」标签页）："
+    "auto=任务名含 V031 时开启（默认），on/off 强制",
+  )
   args = ap.parse_args()
 
   want = [c.strip() for c in args.clips.split(",") if c.strip()]
@@ -301,7 +358,7 @@ def main() -> int:
   for clip in want:
     t0 = time.time()
     # step_dt = decimation × timestep；先建一次 cfg 拿它，再换算步数。
-    probe = make_env_cfg(args.task, clip, args.seed, args.mode)
+    probe = make_env_cfg(args.task, clip, args.seed, args.mode, args.foot_telemetry)
     step_dt = probe.decimation * probe.sim.mujoco.timestep
     steps = int(args.seconds / step_dt)
     dest = out_dir / f"metrics_v03_{clip}_{tag}.csv"
@@ -315,6 +372,7 @@ def main() -> int:
       tag,
       dest,
       args.mode,
+      args.foot_telemetry,
     )
     results.append(rec)
     print(

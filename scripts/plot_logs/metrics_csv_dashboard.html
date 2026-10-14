@@ -527,6 +527,16 @@
       <div class="table-wrap" id="stats"><div class="empty">暂无统计数据</div></div>
     </div>
 
+    <div class="panel" id="foot-panel" hidden>
+      <div class="panel-head">
+        <div><h2>足底遥测</h2><p>仅在 play 时注册（<code>pikachu_foot_telemetry</code>）的 CSV 上出现。自上而下：<strong>步态相位/占空比</strong>（按足底接触力判定的触地条带）、<strong>压力分布热力图</strong>（25 taxel/脚 × 时间）、<strong>CoP 与支撑裕度</strong>（踝体系，mm）、<strong>逐脚汇总</strong>。时间范围跟随上方区间滑块。</p></div>
+      </div>
+      <div id="foot-phase-chart"><div class="empty">需要 foot_contact/* 列</div></div>
+      <div id="foot-heat-chart"><div class="empty">需要 foot_pressure_pa/* 列</div></div>
+      <div id="foot-cop-chart"><div class="empty">需要 foot_cop_*/foot_margin_* 列</div></div>
+      <div class="table-wrap" id="foot-table"><div class="empty">暂无足底统计</div></div>
+    </div>
+
     <div class="panel" id="power-panel" hidden>
       <div class="panel-head">
         <div><h2>整机功耗分析</h2><p>下方为瞬时总机械功率 <code title="P_m = Σ(关节扭矩 τ × 关节角速度 ω)，逐采样点累加。正功=电机对外做功，负功=被反向拖动的再生">P_m = Σ τ·ω</code> 曲线。各关节功率曲线、箱线图与区间统计由当前「关节功率」标签的标准视图提供。走路是<span class="tip" title="推行/蹬地做正功、制动/落地被反拖做负功，正负交替">交变负载</span>：正负功在平均里<span class="tip" title="ΣP/N 的算术平均会因正负抵消而接近 0，不能代表真实功耗">对消</span>，故以 <span class="tip" title="RMS = √(mean(P²))，对正负交替负载保留幅值，不会抵消，代表有效功率">RMS</span> 与 <span class="tip" title="∫P·dt，时间积分。这里区分推进功(∫正功)与再生(∫负功)，净能量也会被正负抵消">能量 ∫P·dt</span> 为准。</p></div>
@@ -659,6 +669,7 @@ const JOINT_GROUPS = {
   joint_target:{prefix:'joint_target_rad/', label:'关节目标(设定值)', unit:'rad'},
   joint_velocity:{prefix:'joint_velocity_rad_s/', label:'关节速度', unit:'rad/s'},
   joint_torque:{prefix:'joint_torque_nm/', label:'关节扭矩', unit:'N·m'},
+  joint_torque_rate:{prefix:'joint_torque_rate_nm_s/', label:'关节扭矩变化率', unit:'N·m/s'},
   joint_torque_ratio:{prefix:'joint_torque_ratio/', label:'关节扭矩占用', unit:'ratio'},
   joint_velocity_ratio:{prefix:'joint_velocity_ratio/', label:'关节速度占用', unit:'ratio'},
   joint_accel:{prefix:'joint_accel_rad_s2/', label:'关节加速度', unit:'rad/s²'},
@@ -676,7 +687,7 @@ const CANONICAL_JOINT_ORDER = ['hip_pitch','hip_roll','hip_yaw','knee','ankle','
 const JOINT_ALIASES = {knee_up:'knee'};
 let JOINT_ORDER = [];   // 当前 CSV 里实际出现的关节,每次加载后由 discoverJoints() 重建
 function canonicalJoint(joint){return JOINT_ALIASES[joint]||joint;}
-const CATEGORY_ORDER = ['joint_position','joint_target','joint_velocity','joint_torque','joint_torque_ratio','joint_velocity_ratio','joint_accel','joint_inertia_torque','joint_power','joint_tn','base','foot','command','reward','contact','other'];
+const CATEGORY_ORDER = ['joint_position','joint_target','joint_velocity','joint_torque','joint_torque_rate','joint_torque_ratio','joint_velocity_ratio','joint_accel','joint_inertia_torque','joint_power','joint_tn','base','foot','command','reward','contact','other'];
 const SPECIAL_COMPARE = '__compare__';
 const SPECIAL_FAVORITES = '__favorites__';
 const FAVORITES_STORAGE_KEY = 'mjlab.metrics.favorites.v1';
@@ -2261,6 +2272,287 @@ function refInit(){
 }
 document.addEventListener('DOMContentLoaded',refInit);
 
+// ---- 足底遥测面板 -----------------------------------------------------------
+// 列只在 play 时注册了 pikachu_foot_telemetry 的 CSV 上存在（列名契约见
+// src/mjlab/tasks/pikachu_foot_telemetry.py）。三张图共用当前时间区间：
+//   1) 步态相位/占空比：按 foot_contact/* 扫出触地区间，画成条带；
+//   2) 压力热力图：25 taxel/脚（行=y 从 -28 到 +28mm，列=x 从 -40 到 +40mm）× 时间；
+//   3) CoP 轨迹 + 支撑裕度 + 摩擦锥利用率。
+// 时间轴降采样到 ~400 列以免热力图点数爆炸（taxel 50 × 采样点）。
+//
+// 本面板用到的列（逐脚后缀 /{left,right}，压力列后缀 /{side}_foot0..24）：
+//   foot_contact              0/1 触地         foot_contact_fraction   接触 taxel 占比
+//   foot_contact_area_m2      接触面积         foot_pressure_pa        逐 taxel 压力
+//   foot_force_normal_n       法向力           foot_force_tangent_n    切向力
+//   foot_impact_peak_n        冲击峰值         foot_impact_rise_n_s    冲击上升率
+//   foot_penetration_m        穿透深度         foot_cop_x_m / _y_m     CoP（踝体系）
+//   foot_cop_margin_m         支撑边界裕度     foot_friction_util      摩擦锥利用率
+//   foot_slip_speed_peak_m_s  滑移速度峰值     foot_contact_slip_dist_m 累计滑移
+//   foot_tilt_deg             鞋底-地面夹角    foot_touchdown_tilt_deg 触地瞬间夹角
+//   foot_ground_friction_mu   地面摩擦系数（单列，无后缀）
+// ⚠️ 支撑/腾空时长由 foot_contact 的区间反推，不用 foot_stance_time_s /
+//    foot_air_time_s —— 那是 ContactSensor 的 current_* 计时器，触地时 air 恒为 0。
+
+let FOOT_PHASE=null, FOOT_HEAT=null, FOOT_COP=null;
+const FOOT_SIDES=[['left','左','#2563eb'],['right','右','#dc2626']];
+const FOOT_N_PER_FOOT=25;
+// 与 viser 叠加层同一套色标（蓝 → 青 → 绿 → 黄 → 红）。
+const FOOT_RAMP=[[0,[13,56,140]],[0.25,[26,153,229]],[0.5,[46,204,82]],[0.75,[242,204,38]],[1,[230,38,26]]];
+const FOOT_HEAT_COLORS=['#0d388c','#1a99e5','#2ecc52','#f2cc26','#e6261a'];
+
+function footHas(...names){ return Boolean(DATA)&&names.every(n=>Array.isArray(DATA.values[n])); }
+function footSeries(suffix,side){ return DATA.values[`foot_${suffix}/${side}`]; }
+
+function footColorFor(t){
+  t=Math.max(0,Math.min(1,t));
+  for(let i=1;i<FOOT_RAMP.length;i++){
+    const [t1,c1]=FOOT_RAMP[i];
+    if(t<=t1){
+      const [t0,c0]=FOOT_RAMP[i-1], f=t1>t0?(t-t0)/(t1-t0):0;
+      return `rgb(${Math.round(c0[0]+(c1[0]-c0[0])*f)},${Math.round(c0[1]+(c1[1]-c0[1])*f)},${Math.round(c0[2]+(c1[2]-c0[2])*f)})`;
+    }
+  }
+  return 'rgb(230,38,26)';
+}
+
+// taxel 序号 k = row*5 + col；col 0..4 → x = -40..+40mm，row 0..4 → y = -28..+28mm。
+function footTaxelLabel(k){
+  const side=k<FOOT_N_PER_FOOT?'L':'R', j=k%FOOT_N_PER_FOOT;
+  return side+Math.floor(j/5)+j%5;
+}
+function footTaxelXY(k){
+  const j=k%FOOT_N_PER_FOOT;
+  return {x:(j%5-2)*20, y:(Math.floor(j/5)-2)*14};
+}
+
+// 连续触地区间 [i0,i1)，按 0.5 阈值扫描。
+function footContactSpans(contact,start,end){
+  const spans=[]; let s=null;
+  for(let i=start;i<end;i++){
+    const on=contact[i]>0.5;
+    if(on&&s===null)s=i;
+    else if(!on&&s!==null){spans.push([s,i]);s=null;}
+  }
+  if(s!==null)spans.push([s,end]);
+  return spans;
+}
+
+// 由触地区间反推平均支撑/腾空时长。**不要**用 foot_stance_time_s /
+// foot_air_time_s 求均值：那是 ContactSensor 的 current_* 计时器（触地时
+// air 恒为 0、腾空时 stance 恒为 0），直接平均会被 0 稀释成半个周期。
+function footGaitTiming(spans,start,end){
+  const last=Math.max(start,end-1);
+  const dur=[], gap=[];
+  for(let i=0;i<spans.length;i++){
+    dur.push(DATA.time[Math.min(spans[i][1],last)]-DATA.time[spans[i][0]]);
+    if(i>0) gap.push(DATA.time[spans[i][0]]-DATA.time[Math.min(spans[i-1][1],last)]);
+  }
+  const mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:NaN;
+  const stance=mean(dur), air=mean(gap);
+  return {stance, air, cycle:(Number.isFinite(stance)&&Number.isFinite(air))?stance+air:NaN,
+          count:spans.length};
+}
+
+function footSpanItem(params,api){
+  const row=api.value(0), t0=api.value(1), t1=api.value(2);
+  const x0=api.coord([t0,row])[0], x1=api.coord([t1,row])[0];
+  const y=api.coord([t0,row])[1];
+  const h=Math.max(4,api.size([0,1])[1]*0.42);
+  return {type:'rect',shape:{x:x0,y:y-h/2,width:Math.max(1.5,x1-x0),height:h},
+    style:{fill:api.value(3),opacity:0.85}};
+}
+
+function renderFootPhase(){
+  const el=document.getElementById('foot-phase-chart');
+  if(FOOT_PHASE){FOOT_PHASE.dispose();FOOT_PHASE=null;}
+  el.innerHTML='';
+  if(!footHas('foot_contact/left','foot_contact/right')||!window.echarts){
+    el.innerHTML='<div class="empty">需要 foot_contact/* 列（play 时注册足底遥测才有）</div>';return;
+  }
+  const [start,end]=rangeIndices(), data=[], notes=[];
+  FOOT_SIDES.forEach(([side,label,color],row)=>{
+    const c=footSeries('contact',side);
+    const spans=footContactSpans(c,start,end);
+    for(const [i0,i1] of spans) data.push([row,DATA.time[i0],DATA.time[Math.max(i0,i1-1)],color]);
+    let on=0; for(let i=start;i<end;i++) if(c[i]>0.5) on++;
+    const n=Math.max(1,end-start), duty=on/n;
+    notes.push({label,color,duty,...footGaitTiming(spans,start,end)});
+  });
+  FOOT_PHASE=echarts.init(el);
+  FOOT_PHASE.setOption({
+    animation:false,backgroundColor:'#fff',
+    grid:{left:70,right:22,top:24,bottom:38},
+    tooltip:{formatter:p=>{
+      if(p.seriesType!=='custom')return '';
+      const row=p.value[0], t0=p.value[1], t1=p.value[2];
+      return `${FOOT_SIDES[row][1]}脚触地<br/>${fmt(t0)} – ${fmt(t1)} s<br/>时长 ${fmt(t1-t0)} s`;
+    }},
+    xAxis:{type:'value',name:DATA.timeLabel,nameLocation:'middle',nameGap:24,scale:true},
+    yAxis:{type:'category',data:FOOT_SIDES.map(s=>s[1]+'脚'),boundaryGap:true,axisTick:{show:false}},
+    series:[{type:'custom',renderItem:footSpanItem,encode:{x:[1,2],y:0},data,clip:true}],
+    graphic:notes.map((n,i)=>({
+      type:'text',left:76+i*210,top:4,
+      style:{text:`${n.label}脚 占空比 ${(n.duty*100).toFixed(1)}%  `
+        +`支撑 ${fmt(n.stance)} s / 腾空 ${fmt(n.air)} s  周期 ${fmt(n.cycle)} s  ${n.count} 次触地`,
+        fill:n.color,font:'11px monospace'}
+    })),
+  },true);
+}
+
+function renderFootHeat(){
+  const el=document.getElementById('foot-heat-chart');
+  if(FOOT_HEAT){FOOT_HEAT.dispose();FOOT_HEAT=null;}
+  el.innerHTML='';
+  const names=[];
+  FOOT_SIDES.forEach(([side])=>{for(let k=0;k<FOOT_N_PER_FOOT;k++)names.push(`foot_pressure_pa/${side}_foot${k}`);});
+  if(!footHas(...names)||!window.echarts){
+    el.innerHTML='<div class="empty">需要 foot_pressure_pa/* 列</div>';return;
+  }
+  const [start,end]=rangeIndices(), count=Math.max(1,end-start);
+  const stride=Math.max(1,Math.ceil(count/400));
+  const data=[];
+  for(let i=start;i<end;i+=stride){
+    const t=DATA.time[i];
+    for(let k=0;k<names.length;k++){
+      const v=DATA.values[names[k]][i];
+      if(Number.isFinite(v)&&v>0) data.push([t,k,v]);
+    }
+  }
+  // 色标上限取 99 分位，避免单个尖峰把整幅图压平。
+  const flat=[]; for(const d of data) flat.push(d[2]);
+  flat.sort((a,b)=>a-b);
+  const hi=flat.length?Math.max(1e3,flat[Math.floor(flat.length*0.99)]):1e4;
+  FOOT_HEAT=echarts.init(el);
+  FOOT_HEAT.setOption({
+    animation:false,backgroundColor:'#fff',
+    grid:{left:74,right:86,top:26,bottom:38},
+    tooltip:{formatter:p=>{
+      const k=p.value[1], xy=footTaxelXY(k);
+      return `${footTaxelLabel(k)} (x=${xy.x>=0?'+':''}${xy.x}mm, y=${xy.y>=0?'+':''}${xy.y}mm)`
+        +`<br/>t=${fmt(p.value[0])} s<br/>压力 ${fmt(p.value[2])} Pa`;
+    }},
+    xAxis:{type:'value',name:DATA.timeLabel,nameLocation:'middle',nameGap:24,scale:true},
+    yAxis:{type:'category',data:names.map((_,k)=>footTaxelLabel(k)),inverse:true,
+      axisLabel:{interval:0,fontSize:9},axisTick:{show:false},name:'taxel',nameGap:12},
+    visualMap:{min:0,max:hi,calculable:true,orient:'vertical',right:6,top:40,
+      inRange:{color:FOOT_HEAT_COLORS},text:['高压','0'],textStyle:{fontSize:10}},
+    series:[{type:'heatmap',data,progressive:6000,emphasis:{disabled:true},blur:{}}],
+  },true);
+}
+
+function renderFootCop(){
+  const el=document.getElementById('foot-cop-chart');
+  if(FOOT_COP){FOOT_COP.dispose();FOOT_COP=null;}
+  el.innerHTML='';
+  if(!footHas('foot_cop_x_m/left','foot_cop_margin_m/left')||!window.echarts){
+    el.innerHTML='<div class="empty">需要 foot_cop_*/foot_cop_margin_m/* 列</div>';return;
+  }
+  const [start,end]=rangeIndices(), series=[];
+  FOOT_SIDES.forEach(([side,label,color])=>{
+    const dash=side==='right';
+    const line=(suffix,name,width,type)=>{
+      const arr=footSeries(suffix,side); if(!arr)return;
+      const pts=[]; for(let i=start;i<end;i++) if(Number.isFinite(arr[i])) pts.push([DATA.time[i],arr[i]*1e3]);
+      if(pts.length) series.push({name:`${label}${name}`,type:'line',data:pts,showSymbol:false,
+        lineStyle:{width,type:type||(dash?'dashed':'solid')},itemStyle:{color},connectNulls:false});
+    };
+    line('cop_x_m','CoP-x',1.3);
+    line('cop_y_m','CoP-y',1.3,'dotted');
+    line('cop_margin_m','支撑裕度',2.4);
+  });
+  const util=[];
+  FOOT_SIDES.forEach(([side,label,color])=>{
+    const arr=footSeries('friction_util',side); if(!arr)return;
+    const pts=[]; for(let i=start;i<end;i++) if(Number.isFinite(arr[i])) pts.push([DATA.time[i],arr[i]]);
+    if(pts.length) series.push({name:`${label}摩擦锥利用率`,type:'line',yAxisIndex:1,data:pts,
+      showSymbol:false,lineStyle:{width:1.4,type:'dashed'},itemStyle:{color,opacity:0.55}});
+  });
+  FOOT_COP=echarts.init(el);
+  FOOT_COP.setOption({
+    animation:false,backgroundColor:'#fff',
+    legend:{top:0,type:'scroll',textStyle:{fontSize:10}},
+    grid:{left:70,right:70,top:34,bottom:38},
+    tooltip:{trigger:'axis',axisPointer:{type:'cross'}},
+    xAxis:{type:'value',name:DATA.timeLabel,nameLocation:'middle',nameGap:24,scale:true},
+    yAxis:[
+      {type:'value',name:'位置 (mm)',scale:true},
+      {type:'value',name:'摩擦锥利用率',min:0,max:1.2,splitLine:{show:false}},
+    ],
+    series,
+  },true);
+}
+
+function footStatsRow(side,start,end){
+  const g=s=>footSeries(s,side);
+  const finite=arr=>{const v=[];for(let i=start;i<end;i++)if(Number.isFinite(arr[i]))v.push(arr[i]);return v;};
+  const maxOf=arr=>{const v=finite(arr);return v.length?Math.max(...v):NaN;};
+  const minOf=arr=>{const v=finite(arr);return v.length?Math.min(...v):NaN;};
+  const meanOf=arr=>{const v=finite(arr);return v.length?v.reduce((a,b)=>a+b,0)/v.length:NaN;};
+  const contact=g('contact');
+  const spans=footContactSpans(contact,start,end);
+  const timing=footGaitTiming(spans,start,end);
+  let on=0; for(let i=start;i<end;i++) if(contact[i]>0.5) on++;
+  const n=Math.max(1,end-start);
+  const area=g('contact_area_m2'), areaFrac=g('contact_fraction');
+  const vals={
+    duty:on/n, steps:spans.length,
+    stance:timing.stance, air:timing.air, cycle:timing.cycle,
+    peakFn:maxOf(g('force_normal_n')), impact:maxOf(g('impact_peak_n')),
+    rise:maxOf(g('impact_rise_n_s')),
+    pen:maxOf(g('penetration_m')),
+    margin:minOf(g('cop_margin_m')),
+    util:maxOf(g('friction_util')),
+    slip:maxOf(g('slip_speed_peak_m_s')), slipDist:maxOf(g('contact_slip_dist_m')),
+    tilt:meanOf(g('tilt_deg')), tdTilt:meanOf(g('touchdown_tilt_deg')),
+    frac:meanOf(areaFrac), area:meanOf(area),
+    mu:meanOf(DATA.values['foot_ground_friction_mu']),
+  };
+  return vals;
+}
+
+function renderFootTable(){
+  const el=document.getElementById('foot-table');
+  if(!footHas('foot_contact/left')){
+    el.innerHTML='<div class="empty">暂无足底统计（需要 play 时注册的足底遥测列）</div>';return;
+  }
+  const [start,end]=rangeIndices();
+  const rows=FOOT_SIDES.map(([side,label])=>[label,footStatsRow(side,start,end)]);
+  const cell=(v,d=2,suffix='')=>Number.isFinite(v)?v.toFixed(d)+suffix:'—';
+  const warn=(v,thr,bad)=>Number.isFinite(v)&&(bad?v>thr:v<thr);
+  el.innerHTML=`<table>
+    <thead><tr><th>指标</th><th>左脚</th><th>右脚</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>占空比</td>${rows.map(([,v])=>`<td>${cell(v.duty*100,1,'%')}</td>`).join('')}<td>触地采样占比；左右之和≈100%（双脚支撑时会略高）</td></tr>
+      <tr><td>触地次数</td>${rows.map(([,v])=>`<td>${v.steps}</td>`).join('')}<td>区间内着地事件数</td></tr>
+      <tr><td>平均支撑 / 腾空 / 周期</td>${rows.map(([,v])=>`<td>${cell(v.stance,3)} / ${cell(v.air,3)} / ${cell(v.cycle,3)} s</td>`).join('')}<td>由触地区间直接反推，非 current_* 计时器</td></tr>
+      <tr><td>峰值法向力</td>${rows.map(([,v])=>`<td>${cell(v.peakFn,1,' N')}</td>`).join('')}<td>支撑期内最大地面支持力</td></tr>
+      <tr><td>触地冲击峰值 / 上升率</td>${rows.map(([,v])=>`<td>${cell(v.impact,1,' N')} / ${cell(v.rise,0,' N/s')}</td>`).join('')}<td>着地瞬间的力峰值与 dF/dt，越大越"砸"</td></tr>
+      <tr><td>最大穿透</td>${rows.map(([,v])=>`<td${warn(v,0.002,true)?' style="color:#b91c1c;font-weight:600"':''}>${cell(v.pen*1e3,2,' mm')}</td>`).join('')}<td>足底 taxel 陷入地面深度</td></tr>
+      <tr><td>最小支撑裕度</td>${rows.map(([,v])=>`<td${warn(v,0.0,false)?' style="color:#b91c1c;font-weight:600"':''}>${cell(v.margin*1e3,2,' mm')}</td>`).join('')}<td>CoP 到支撑多边形边界最近距离；&lt;0 = CoP 出界（要翻）</td></tr>
+      <tr><td>最大摩擦锥利用率</td>${rows.map(([,v])=>`<td${warn(v,0.8,true)?' style="color:#b91c1c;font-weight:600"':''}>${cell(v.util,2)}</td>`).join('')}<td>|Ft|/(μ·Fn)；≥1 = 打滑</td></tr>
+      <tr><td>峰值滑移速度 / 累计滑移</td>${rows.map(([,v])=>`<td>${cell(v.slip,3,' m/s')} / ${cell(v.slipDist*1e3,1,' mm')}</td>`).join('')}<td>触地期间足端水平位移与速度</td></tr>
+      <tr><td>足底与地面夹角</td>${rows.map(([,v])=>`<td>${cell(v.tilt,2,'°')}</td>`).join('')}<td>鞋底法向与地面法向的夹角</td></tr>
+      <tr><td>触地瞬间夹角</td>${rows.map(([,v])=>`<td>${cell(v.tdTilt,2,'°')}</td>`).join('')}<td>着地那一刻的姿态，反映"拍地"程度</td></tr>
+      <tr><td>平均接触面积占比</td>${rows.map(([,v])=>`<td>${cell(v.frac*100,1,'%')} (${cell(v.area*1e4,2,' cm²')})</td>`).join('')}<td>压痕 taxel 数 / 25</td></tr>
+      <tr><td>地面摩擦系数 μ</td><td colspan="2">${cell(rows[0][1].mu,3)}</td><td>DR 随机化后的实际足部 geom 摩擦系数</td></tr>
+    </tbody></table>`;
+}
+
+function renderFootPanel(){
+  const panel=document.getElementById('foot-panel');
+  if(!panel)return;
+  const on=Boolean(DATA)&&ACTIVE==='foot';
+  panel.hidden=!on;
+  if(!on){
+    if(FOOT_PHASE){FOOT_PHASE.dispose();FOOT_PHASE=null;}
+    if(FOOT_HEAT){FOOT_HEAT.dispose();FOOT_HEAT=null;}
+    if(FOOT_COP){FOOT_COP.dispose();FOOT_COP=null;}
+    return;
+  }
+  if(!window.echarts)return;
+  renderFootPhase();renderFootHeat();renderFootCop();renderFootTable();
+}
+
 function renderAll(){
   const isCompare=ACTIVE===SPECIAL_COMPARE,isFavorites=ACTIVE===SPECIAL_FAVORITES;
   const special=isCompare||isFavorites;
@@ -2268,7 +2560,7 @@ function renderAll(){
   document.getElementById('favorites-panel').hidden=!isFavorites;
   document.getElementById('range-panel').hidden=special;
   if(special){
-    for(const id of ['ov-panel','tn-panel','pair-section','inertia-panel','power-panel','stats-panel']){
+    for(const id of ['ov-panel','tn-panel','pair-section','inertia-panel','power-panel','stats-panel','foot-panel']){
       const element=document.getElementById(id);if(element)element.hidden=true;
     }
     if(isCompare){refreshSourceSelects();fillCompareMetric();void renderCompare();}
@@ -2282,14 +2574,14 @@ function renderAll(){
   // T-N 为专用散点视图：隐藏所有其它面板(总览/左右对比/惯量/功率/统计对比)，
   // 避免上次标签页的统计摘要残留到 T-N 页下方。非 T-N 时不动它们(由各自 render 决定)。
   if(isTn){
-    for(const id of ['ov-panel','pair-section','inertia-panel','power-panel','stats-panel']){
+    for(const id of ['ov-panel','pair-section','inertia-panel','power-panel','stats-panel','foot-panel']){
       const el=document.getElementById(id); if(el)el.hidden=true;
     }
     return;
   }
   document.getElementById('ov-panel').hidden=false;
   document.getElementById('stats-panel').hidden=false;
-  renderOverview();renderPairs();renderInertiaPanel();renderBox();renderStats();renderPowerPanel();
+  renderOverview();renderPairs();renderInertiaPanel();renderBox();renderStats();renderPowerPanel();renderFootPanel();
 }
 
 function onRangeChange(){

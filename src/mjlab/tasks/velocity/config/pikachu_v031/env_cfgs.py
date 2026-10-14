@@ -51,6 +51,7 @@ from mjlab.sensor import (
   RingPatternCfg,
   TerrainHeightSensorCfg,
 )
+from mjlab.tasks.pikachu_foot_telemetry import add_pikachu_foot_telemetry_metrics
 from mjlab.tasks.pikachu_metrics import add_pikachu_telemetry_metrics
 from mjlab.tasks.velocity import mdp
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
@@ -406,6 +407,14 @@ def pikachu_v031_t6_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     twist_cmd.ranges.lin_vel_x = (-0.6, 0.8)
     twist_cmd.ranges.lin_vel_y = (-0.5, 0.5)
     twist_cmd.ranges.ang_vel_z = (-0.5, 0.5)
+    # 足底遥测（~99 列）：接触力/冲击、鞋底平行度、接触面积与压力分布、CoP 与
+    # 支撑裕度、滑移、穿透、摩擦锥、步态相位/占空比、横滚、触地关节冲击负载。
+    # 只在 play 注册——训练时这些列会灌满 Episode_Metrics 且没人看。
+    add_pikachu_foot_telemetry_metrics(
+      cfg,
+      joint_names=PIKACHU_V031_JOINT_NAMES,
+      entity_name="robot",
+    )
 
   return cfg
 
