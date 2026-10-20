@@ -1,0 +1,14 @@
+{
+  "contact_body_order": [
+    "right_ankle_link",
+    "left_ankle_link"
+  ],
+  "height_scan_frame_order": [
+    "left_foot",
+    "right_foot"
+  ],
+  "slip_site_order": [
+    "right_foot",
+    "left_foot"
+  ]
+}

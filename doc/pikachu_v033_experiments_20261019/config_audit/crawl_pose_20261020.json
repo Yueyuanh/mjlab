@@ -1,0 +1,76 @@
+{
+  "updated": "2026-10-20T20:32:14.493791+08:00",
+  "task": "Mjlab-Velocity-Flat-Pikachu-V033-Crawl",
+  "root_pos_m": [
+    0.0,
+    0.0,
+    0.2344027754812906
+  ],
+  "root_quat_wxyz": [
+    0.7960837985490559,
+    0.0,
+    0.6051864057360395,
+    0.0
+  ],
+  "joint_pos_rad": {
+    "right_hip_pitch_joint": 0.6268899279922713,
+    "right_hip_roll_joint": -0.10212739168737714,
+    "right_hip_yaw_joint": 0.047219709416852246,
+    "right_knee_up_joint": 0.18803520715096875,
+    "right_knee_mid_joint": -0.1883920901551333,
+    "right_knee_joint": 0.164184111166522,
+    "right_ankle_joint": -0.5113024764854394,
+    "right_arm_pitch_joint": 1.4195450459376606,
+    "right_arm_roll_joint": -1.5707963267948966,
+    "right_arm_yaw_joint": -0.34198772480839895,
+    "right_elbow_joint": 0.0,
+    "left_hip_pitch_joint": -0.6268899279922713,
+    "left_hip_roll_joint": 0.10212739168737714,
+    "left_hip_yaw_joint": -0.047219709416852246,
+    "left_knee_up_joint": 0.18803520715096875,
+    "left_knee_mid_joint": -0.1883920901551333,
+    "left_knee_joint": -0.164184111166522,
+    "left_ankle_joint": 0.5113024764854394,
+    "left_arm_pitch_joint": -1.4195450459376606,
+    "left_arm_roll_joint": 1.5707963267948966,
+    "left_arm_yaw_joint": 0.34198772480839895,
+    "left_elbow_joint": -0.0
+  },
+  "requested_joint_degrees": {
+    "right_arm_roll_joint": -90.0,
+    "right_elbow_joint": 0.0,
+    "left_arm_roll_joint": 90.0,
+    "left_elbow_joint": -0.0
+  },
+  "support_sites_world_m": {
+    "right_foot": [
+      -0.10000002691286378,
+      -0.09999993978223608,
+      0.0030000285592541934
+    ],
+    "left_foot": [
+      -0.10000047733752916,
+      0.09999993978223608,
+      0.003000223209489297
+    ],
+    "right_hand": [
+      0.26735594448319144,
+      -0.08800000000000002,
+      0.009083816232823047
+    ],
+    "left_hand": [
+      0.26735594448319144,
+      0.08800000000000002,
+      0.009083816232823047
+    ]
+  },
+  "hand_sphere_bottom_z_m": {
+    "right": -0.005916183767176952,
+    "left": -0.005916183767176952
+  },
+  "four_bar_closure_m": {
+    "right": 5.799883917526041e-09,
+    "left": 5.799883922649128e-09
+  },
+  "note": "User pose edit only; original trained checkpoints and calibration JSON refer to the previous arm pose. No full support recalibration or retraining."
+}

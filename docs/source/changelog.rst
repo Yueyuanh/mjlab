@@ -8,6 +8,35 @@ Upcoming version (not yet released)
 Added
 ^^^^^
 
+- Added frozen-source V033 E1 training workers and a durable 4096-environment,
+  20000-iteration paired queue with checkpoint hashes, nominal evaluations,
+  validated review videos and live reports. Added an isolated three-trial PPO
+  autoresearch workflow demo with preserved candidate commits and rollback.
+
+- Added an independent Pikachu V033 upright E1 task with all 18 policy outputs,
+  asymmetric soft arm-position windows, selective arm-leg mesh contact and a
+  10-mm detection-only proximity penalty. Updated BIPED_KEYFRAME arm roll to
+  left -53 / right +53 degrees. Added command-gated quiet-standing costs,
+  standing-aware pushes, aligned right/left foot-height sensing, and separate
+  biped_e1 experiment logs and validation tools.
+
+- Added an independent Pikachu V033 Crawl velocity task with calibrated
+  four-bar closure, four support contacts, horizontal velocity observations,
+  tilted posture control, and reproducible paired training/video review tools.
+  Organized paired artifacts under ``logs/rsl_rl/pikahcu_v033/<subtask>/``
+  with migration provenance and checkpoint-specific playback instructions.
+  Updated the crawl reset arms to mirrored 90-degree roll and zero elbow;
+  recorded the resulting endpoint heights for posture review.
+  Set both crawl arm yaw joint coordinates to positive 90 degrees and retain
+  all 18 policy actions, including elbows.
+  Added an independent Crawl-E1 variant with a quadratic soft penalty beyond
+  a five-degree arm roll/yaw posture window and a separate crawl_e1 namespace.
+  Allowed pinned dummy-agent reset.
+  Replaced crawl hand spheres with the original elbow STL mesh collision geoms
+  and aligned support reference sites and swing-height rewards to their surface.
+  Removed the inherited V033 biped reset height lift and enabled crawl velocity
+  debug arrows in the horizontal command frame.
+
 - Added ``play --viewer velocity-joystick``: a Viser panel with ``vx`` / ``vy``
   / ``wz`` sliders that drives ``VelocityMatchMotionCommand`` live, so the
   distilled student policy can be verified interactively the way the velocity

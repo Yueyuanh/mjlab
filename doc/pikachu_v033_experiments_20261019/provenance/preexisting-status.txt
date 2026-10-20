@@ -1,0 +1,54 @@
+ M .gitignore
+ M docs/pikachu_v03/README.md
+ M docs/source/changelog.rst
+ M scripts/eval_v03_turn.py
+ M scripts/eval_v03_velocity.py
+ M scripts/plot_logs/README.md
+ M scripts/plot_logs/metrics_csv_dashboard.html
+ M scripts/plot_logs/serve.py
+ M scripts/record_v03_metrics.py
+ M scripts/record_v03_video.py
+ M src/mjlab/asset_zoo/robots/pikachu/pikachu_v031_constants.py
+ M src/mjlab/asset_zoo/robots/pikachu/xmls/mjcf_v03/pikachu_v03_base_series_train.xml
+ M src/mjlab/tasks/pikachu_foot_telemetry.py
+ M src/mjlab/tasks/registry.py
+ M src/mjlab/tasks/velocity/config/pikachu_v03/__init__.py
+ M src/mjlab/tasks/velocity/config/pikachu_v03/env_cfgs.py
+ M src/mjlab/tasks/velocity/config/pikachu_v03/rl_cfg.py
+ M src/mjlab/tasks/velocity/config/pikachu_v031/__init__.py
+ M src/mjlab/tasks/velocity/config/pikachu_v031/env_cfgs.py
+ M src/mjlab/tasks/velocity/config/pikachu_v031/rl_cfg.py
+ M src/mjlab/tasks/velocity/config/pikachu_v031/symmetry.py
+ M src/mjlab/tasks/velocity/mdp/velocity_command.py
+ M src/mjlab/viewer/viser/term_plotter.py
+ M src/mjlab/viewer/viser/viewer.py
+ M tests/test_metrics_csv_dashboard.py
+ M tests/test_plot_logs_dashboards.py
+ M tests/test_velocity_rewards.py
+ M tests/test_velocity_task.py
+?? doc/code_sync_20261015/
+?? doc/pikachu_feet/
+?? doc/pikachu_v031_action_clip_deployment_20261012/
+?? doc/pikachu_v031_beta_bounded_20261013/
+?? doc/pikachu_v031_e0_mirror005_20261012/
+?? doc/pikachu_v031_gait_improvement_20261011/
+?? doc/pikachu_v033_experiments_20261019/
+?? docs/pikachu_v03/05-r07-improvement-plan.md
+?? docs/pikachu_v03/evaluations/
+?? scripts/build_v033_train_xml.py
+?? scripts/plot_logs/ECHARTS_NOTICE.txt
+?? scripts/plot_logs/echarts.min.js
+?? src/mjlab/asset_zoo/robots/pikachu/pikachu_v033_constants.py
+?? src/mjlab/asset_zoo/robots/pikachu/xmls/pikachu_v031/meshes/left_ankle_link_lite.STL
+?? src/mjlab/asset_zoo/robots/pikachu/xmls/pikachu_v031/meshes/right_ankle_link_lite.STL
+?? src/mjlab/asset_zoo/robots/pikachu/xmls/pikachu_v031/mjcf/pikachu_v031_train_fixd_ankle_4310.xml
+?? src/mjlab/asset_zoo/robots/pikachu/xmls/pikachu_v033/
+?? src/mjlab/tasks/velocity/config/pikachu_v031/curriculums.py
+?? src/mjlab/tasks/velocity/config/pikachu_v031/symmetry_legacy.py
+?? src/mjlab/tasks/velocity/config/pikachu_v033/
+?? src/mjlab/viewer/viser/live_metrics.py
+?? src/mjlab/viewer/viser/recording.py
+?? tests/test_live_metrics.py
+?? tests/test_pikachu_foot_telemetry.py
+?? tests/test_pikachu_v031_experiments.py
+?? tests/test_viser_recording.py

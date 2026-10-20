@@ -1,0 +1,105 @@
+{
+  "checked": "2026-10-20T21:18:20.630042+08:00",
+  "task": "Mjlab-Velocity-Flat-Pikachu-V033-Crawl-E1",
+  "root_pos_m": [
+    0.0,
+    0.0,
+    0.2344027754812906
+  ],
+  "robot_mass_kg": 4.7027358,
+  "arms": {
+    "right": {
+      "joint_degrees": {
+        "arm_pitch": 81.33393996093253,
+        "arm_roll": -90.0,
+        "arm_yaw": 90.0,
+        "elbow": 0.0
+      },
+      "yaw_soft_window_degrees": [
+        85.0,
+        95.0
+      ],
+      "yaw_physical_range_degrees": [
+        -90.00021045914971,
+        90.00021045914971
+      ],
+      "elbow_center_world_m": [
+        0.2304893124469958,
+        -0.08800000000000001,
+        0.09118650463160664
+      ],
+      "elbow_positive_axis_world": [
+        -2.220446049250313e-16,
+        1.0,
+        -1.6653345369377348e-16
+      ],
+      "sphere_world_m": [
+        0.26735594448319144,
+        -0.08800000000000002,
+        0.009083816232823075
+      ],
+      "sphere_bottom_world_z_m": -0.005916183767176925,
+      "sphere_local_pos_m": [
+        0.0,
+        -0.09,
+        0.0
+      ],
+      "sphere_radius_m": 0.015,
+      "sphere_contype": 1,
+      "sphere_conaffinity": 1,
+      "sphere_attached_body": "right_elbow_link",
+      "elbow_mesh_contype": 0,
+      "elbow_mesh_conaffinity": 0
+    },
+    "left": {
+      "joint_degrees": {
+        "arm_pitch": -81.33393996093253,
+        "arm_roll": 90.0,
+        "arm_yaw": 90.0,
+        "elbow": -0.0
+      },
+      "yaw_soft_window_degrees": [
+        85.0,
+        95.0
+      ],
+      "yaw_physical_range_degrees": [
+        -90.00021045914971,
+        90.00021045914971
+      ],
+      "elbow_center_world_m": [
+        0.2304893124469958,
+        0.08800000000000001,
+        0.09118650463160664
+      ],
+      "elbow_positive_axis_world": [
+        -2.220446049250313e-16,
+        1.0,
+        2.220446049250313e-16
+      ],
+      "sphere_world_m": [
+        0.26735594448319144,
+        0.08800000000000004,
+        0.009083816232823075
+      ],
+      "sphere_bottom_world_z_m": -0.005916183767176925,
+      "sphere_local_pos_m": [
+        0.0,
+        0.09,
+        0.0
+      ],
+      "sphere_radius_m": 0.015,
+      "sphere_contype": 1,
+      "sphere_conaffinity": 1,
+      "sphere_attached_body": "left_elbow_link",
+      "elbow_mesh_contype": 0,
+      "elbow_mesh_conaffinity": 0
+    }
+  },
+  "closure_residual_m": {
+    "right": 5.799883917526041e-09,
+    "left": 5.799883922649128e-09
+  },
+  "limits_ok": true,
+  "reward_weight": -1.0,
+  "tolerance_degrees": 5.0
+}

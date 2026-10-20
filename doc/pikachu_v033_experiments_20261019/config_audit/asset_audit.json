@@ -1,0 +1,828 @@
+{
+  "Mjlab-Velocity-Flat-Pikachu-V033-E0": {
+    "body_mass_kg": 4.7027358,
+    "num_joints_excluding_free": 22,
+    "num_actuators": 18,
+    "physics_dt": 0.005,
+    "control_dt": 0.02,
+    "nominal_episode_s": 20.0,
+    "registered_num_envs": 1,
+    "registered_iterations": 50000,
+    "action_scale": {
+      ".*_hip_pitch_joint": 0.5,
+      ".*_knee_up_joint": 0.4,
+      ".*_hip_roll_joint": 0.2,
+      ".*_hip_yaw_joint": 0.2,
+      ".*_ankle_joint": 0.35,
+      ".*_arm_pitch_joint": 0.35,
+      ".*_arm_roll_joint": 0.3,
+      ".*_arm_yaw_joint": 0.2,
+      ".*_elbow_joint": 0.3
+    },
+    "joint_limits_rad": {
+      "right_hip_pitch_joint": [
+        -2.44,
+        2.44
+      ],
+      "right_hip_roll_joint": [
+        -0.26,
+        0.26
+      ],
+      "right_hip_yaw_joint": [
+        -0.26,
+        0.26
+      ],
+      "right_knee_up_joint": [
+        -0.65,
+        1.05
+      ],
+      "right_knee_joint": [
+        -0.65,
+        1.05
+      ],
+      "right_ankle_joint": [
+        -0.79,
+        1.05
+      ],
+      "left_hip_pitch_joint": [
+        -2.44,
+        2.44
+      ],
+      "left_hip_roll_joint": [
+        -0.26,
+        0.26
+      ],
+      "left_hip_yaw_joint": [
+        -0.26,
+        0.26
+      ],
+      "left_knee_up_joint": [
+        -0.65,
+        1.05
+      ],
+      "left_knee_joint": [
+        -0.65,
+        1.05
+      ],
+      "left_ankle_joint": [
+        -0.79,
+        1.05
+      ],
+      "right_arm_pitch_joint": [
+        -1.5708,
+        1.5708
+      ],
+      "right_arm_roll_joint": [
+        -1.5708,
+        1.5708
+      ],
+      "right_arm_yaw_joint": [
+        -1.5708,
+        1.5708
+      ],
+      "right_elbow_joint": [
+        -1.5708,
+        1.5708
+      ],
+      "left_arm_pitch_joint": [
+        -1.5708,
+        1.5708
+      ],
+      "left_arm_roll_joint": [
+        -1.5708,
+        1.5708
+      ],
+      "left_arm_yaw_joint": [
+        -1.5708,
+        1.5708
+      ],
+      "left_elbow_joint": [
+        -1.5708,
+        1.5708
+      ]
+    },
+    "actuator_limits_nm": {
+      "right_hip_pitch_joint": [
+        -12.5,
+        12.5
+      ],
+      "right_hip_roll_joint": [
+        -12.5,
+        12.5
+      ],
+      "right_hip_yaw_joint": [
+        -12.5,
+        12.5
+      ],
+      "right_knee_up_joint": [
+        -12.5,
+        12.5
+      ],
+      "right_ankle_joint": [
+        -12.5,
+        12.5
+      ],
+      "left_hip_pitch_joint": [
+        -12.5,
+        12.5
+      ],
+      "left_hip_roll_joint": [
+        -12.5,
+        12.5
+      ],
+      "left_hip_yaw_joint": [
+        -12.5,
+        12.5
+      ],
+      "left_knee_up_joint": [
+        -12.5,
+        12.5
+      ],
+      "left_ankle_joint": [
+        -12.5,
+        12.5
+      ],
+      "right_arm_pitch_joint": [
+        -12.5,
+        12.5
+      ],
+      "right_arm_roll_joint": [
+        -12.5,
+        12.5
+      ],
+      "left_arm_pitch_joint": [
+        -12.5,
+        12.5
+      ],
+      "left_arm_roll_joint": [
+        -12.5,
+        12.5
+      ],
+      "right_arm_yaw_joint": [
+        -3.0,
+        3.0
+      ],
+      "right_elbow_joint": [
+        -3.0,
+        3.0
+      ],
+      "left_arm_yaw_joint": [
+        -3.0,
+        3.0
+      ],
+      "left_elbow_joint": [
+        -3.0,
+        3.0
+      ]
+    },
+    "actuator_gain": [
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        11.65022035371563,
+        0.0,
+        0.0
+      ],
+      [
+        11.65022035371563,
+        0.0,
+        0.0
+      ],
+      [
+        11.65022035371563,
+        0.0,
+        0.0
+      ],
+      [
+        11.65022035371563,
+        0.0,
+        0.0
+      ]
+    ],
+    "actuator_bias": [
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -11.65022035371563,
+        -0.7416760629826594
+      ],
+      [
+        0.0,
+        -11.65022035371563,
+        -0.7416760629826594
+      ],
+      [
+        0.0,
+        -11.65022035371563,
+        -0.7416760629826594
+      ],
+      [
+        0.0,
+        -11.65022035371563,
+        -0.7416760629826594
+      ]
+    ],
+    "enabled_contact_geoms": [
+      "right_foot1_collision",
+      "right_foot2_collision",
+      "right_foot3_collision",
+      "right_foot4_collision",
+      "right_foot5_collision",
+      "left_foot1_collision",
+      "left_foot2_collision",
+      "left_foot3_collision",
+      "left_foot4_collision",
+      "left_foot5_collision"
+    ],
+    "reset_position": [
+      0,
+      0,
+      0.259412
+    ],
+    "reset_quaternion_wxyz": [
+      1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "reset_joint_positions": {
+      ".*": 0.0
+    },
+    "sensors": {
+      "feet_ground_contact": {
+        "primary": "^(left|right)_ankle_link$",
+        "body_order": [
+          "right_ankle_link",
+          "left_ankle_link"
+        ]
+      },
+      "self_collision": {
+        "primary": "base_link",
+        "body_order": [
+          "base_link"
+        ]
+      }
+    },
+    "mujoco_version": "3.11.0"
+  },
+  "Mjlab-Velocity-Flat-Pikachu-V033-Crawl": {
+    "body_mass_kg": 4.7027358,
+    "num_joints_excluding_free": 22,
+    "num_actuators": 18,
+    "physics_dt": 0.005,
+    "control_dt": 0.02,
+    "nominal_episode_s": 20.0,
+    "registered_num_envs": 1024,
+    "registered_iterations": 50000,
+    "action_scale": {
+      ".*_hip_pitch_joint": 0.35,
+      ".*_hip_roll_joint": 0.15,
+      ".*_hip_yaw_joint": 0.15,
+      ".*_knee_up_joint": 0.25,
+      ".*_ankle_joint": 0.25,
+      ".*_arm_pitch_joint": 0.25,
+      ".*_arm_roll_joint": 0.25,
+      ".*_arm_yaw_joint": 0.2,
+      ".*_elbow_joint": 0.25
+    },
+    "joint_limits_rad": {
+      "right_hip_pitch_joint": [
+        -2.44,
+        2.44
+      ],
+      "right_hip_roll_joint": [
+        -0.26,
+        0.26
+      ],
+      "right_hip_yaw_joint": [
+        -0.26,
+        0.26
+      ],
+      "right_knee_up_joint": [
+        -0.65,
+        1.05
+      ],
+      "right_knee_joint": [
+        -0.65,
+        1.05
+      ],
+      "right_ankle_joint": [
+        -0.79,
+        1.05
+      ],
+      "left_hip_pitch_joint": [
+        -2.44,
+        2.44
+      ],
+      "left_hip_roll_joint": [
+        -0.26,
+        0.26
+      ],
+      "left_hip_yaw_joint": [
+        -0.26,
+        0.26
+      ],
+      "left_knee_up_joint": [
+        -0.65,
+        1.05
+      ],
+      "left_knee_joint": [
+        -0.65,
+        1.05
+      ],
+      "left_ankle_joint": [
+        -0.79,
+        1.05
+      ],
+      "right_arm_pitch_joint": [
+        -1.5708,
+        1.5708
+      ],
+      "right_arm_roll_joint": [
+        -1.5708,
+        1.5708
+      ],
+      "right_arm_yaw_joint": [
+        -1.5708,
+        1.5708
+      ],
+      "right_elbow_joint": [
+        -1.5708,
+        1.5708
+      ],
+      "left_arm_pitch_joint": [
+        -1.5708,
+        1.5708
+      ],
+      "left_arm_roll_joint": [
+        -1.5708,
+        1.5708
+      ],
+      "left_arm_yaw_joint": [
+        -1.5708,
+        1.5708
+      ],
+      "left_elbow_joint": [
+        -1.5708,
+        1.5708
+      ]
+    },
+    "actuator_limits_nm": {
+      "right_hip_pitch_joint": [
+        -12.5,
+        12.5
+      ],
+      "right_hip_roll_joint": [
+        -12.5,
+        12.5
+      ],
+      "right_hip_yaw_joint": [
+        -12.5,
+        12.5
+      ],
+      "right_knee_up_joint": [
+        -12.5,
+        12.5
+      ],
+      "right_ankle_joint": [
+        -12.5,
+        12.5
+      ],
+      "left_hip_pitch_joint": [
+        -12.5,
+        12.5
+      ],
+      "left_hip_roll_joint": [
+        -12.5,
+        12.5
+      ],
+      "left_hip_yaw_joint": [
+        -12.5,
+        12.5
+      ],
+      "left_knee_up_joint": [
+        -12.5,
+        12.5
+      ],
+      "left_ankle_joint": [
+        -12.5,
+        12.5
+      ],
+      "right_arm_pitch_joint": [
+        -12.5,
+        12.5
+      ],
+      "right_arm_roll_joint": [
+        -12.5,
+        12.5
+      ],
+      "left_arm_pitch_joint": [
+        -12.5,
+        12.5
+      ],
+      "left_arm_roll_joint": [
+        -12.5,
+        12.5
+      ],
+      "right_arm_yaw_joint": [
+        -3.0,
+        3.0
+      ],
+      "right_elbow_joint": [
+        -3.0,
+        3.0
+      ],
+      "left_arm_yaw_joint": [
+        -3.0,
+        3.0
+      ],
+      "left_elbow_joint": [
+        -3.0,
+        3.0
+      ]
+    },
+    "actuator_gain": [
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        8.708938923023412,
+        0.0,
+        0.0
+      ],
+      [
+        11.65022035371563,
+        0.0,
+        0.0
+      ],
+      [
+        11.65022035371563,
+        0.0,
+        0.0
+      ],
+      [
+        11.65022035371563,
+        0.0,
+        0.0
+      ],
+      [
+        11.65022035371563,
+        0.0,
+        0.0
+      ]
+    ],
+    "actuator_bias": [
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -8.708938923023412,
+        -0.55442827148968
+      ],
+      [
+        0.0,
+        -11.65022035371563,
+        -0.7416760629826594
+      ],
+      [
+        0.0,
+        -11.65022035371563,
+        -0.7416760629826594
+      ],
+      [
+        0.0,
+        -11.65022035371563,
+        -0.7416760629826594
+      ],
+      [
+        0.0,
+        -11.65022035371563,
+        -0.7416760629826594
+      ]
+    ],
+    "enabled_contact_geoms": [
+      "crawl_torso_collision",
+      "right_foot1_collision",
+      "right_foot2_collision",
+      "right_foot3_collision",
+      "right_foot4_collision",
+      "right_foot5_collision",
+      "left_foot1_collision",
+      "left_foot2_collision",
+      "left_foot3_collision",
+      "left_foot4_collision",
+      "left_foot5_collision",
+      "right_hand_collision",
+      "left_hand_collision"
+    ],
+    "reset_position": [
+      0,
+      0,
+      0.2344027754812906
+    ],
+    "reset_quaternion_wxyz": [
+      0.7960837985490559,
+      0,
+      0.6051864057360395,
+      0
+    ],
+    "reset_joint_positions": {
+      "right_hip_pitch_joint": 0.6268899279922713,
+      "right_hip_roll_joint": -0.10212739168737714,
+      "right_hip_yaw_joint": 0.047219709416852246,
+      "right_knee_up_joint": 0.18803520715096875,
+      "right_knee_mid_joint": -0.1883920901551333,
+      "right_knee_joint": 0.164184111166522,
+      "right_ankle_joint": -0.5113024764854394,
+      "right_arm_pitch_joint": 1.4195450459376606,
+      "right_arm_roll_joint": -1.0847061899409765,
+      "right_arm_yaw_joint": -0.34198772480839895,
+      "right_elbow_joint": -0.7835509785541952,
+      "left_hip_pitch_joint": -0.6268899279922713,
+      "left_hip_roll_joint": 0.10212739168737714,
+      "left_hip_yaw_joint": -0.047219709416852246,
+      "left_knee_up_joint": 0.18803520715096875,
+      "left_knee_mid_joint": -0.1883920901551333,
+      "left_knee_joint": -0.164184111166522,
+      "left_ankle_joint": 0.5113024764854394,
+      "left_arm_pitch_joint": -1.4195450459376606,
+      "left_arm_roll_joint": 1.0847061899409765,
+      "left_arm_yaw_joint": 0.34198772480839895,
+      "left_elbow_joint": 0.7835509785541952
+    },
+    "sensors": {
+      "feet_ground_contact": {
+        "primary": "(right|left)_(ankle|elbow)_link",
+        "body_order": [
+          "right_ankle_link",
+          "left_ankle_link",
+          "right_elbow_link",
+          "left_elbow_link"
+        ]
+      }
+    },
+    "mujoco_version": "3.11.0"
+  }
+}
