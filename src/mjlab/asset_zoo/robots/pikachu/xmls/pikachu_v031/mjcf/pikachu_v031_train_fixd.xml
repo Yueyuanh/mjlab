@@ -50,7 +50,7 @@
                             <geom name="right_knee_link_visual" type="mesh" contype="0" conaffinity="0" group="2" rgba="0.498039 0.498039 0.498039 1" mesh="right_knee_link" />
                             <geom name="right_knee_link_collision" type="mesh" group="3" rgba="0.498039 0.498039 0.498039 1" mesh="right_knee_link" />
                             <site name="right_knee_mid" pos="0 0 -0.042" type="sphere" size="0.014" rgba="1 0.15 0 1" group="2" />
-                            
+
                             <body name="right_ankle_link" pos="0 0 -0.086" quat="0.965213 0 0.261465 0">
                                 <inertial pos="9.21109e-08 0.00145204 -0.0181392" quat="0.485411 0.514177 -0.514185 0.485399" mass="0.105372" diaginertia="0.000135405 0.00010155 8.48321e-05" />
                                 <joint name="right_ankle_joint" pos="0 0 0" axis="0 -1 0" limited="true" range="-0.79 1.05" />
@@ -75,7 +75,7 @@
                                 <geom name="right_knee_mid_link_visual" type="mesh" contype="0" conaffinity="0" group="2" rgba="0.792157 0.819608 0.933333 1" mesh="right_knee_mid_link" />
                                 <geom name="right_knee_mid_link_collision" type="mesh" group="3" rgba="0.792157 0.819608 0.933333 1" mesh="right_knee_mid_link" />
                                 <site name="right_knee_mid_closure" pos="-0.084 0 0" type="sphere" size="0.01" rgba="0 0.4 1 1" group="2" />
-                            
+
                             </body>
                         </body>
                     </body>
@@ -102,7 +102,7 @@
                             <geom name="left_knee_link_visual" type="mesh" contype="0" conaffinity="0" group="2" rgba="0.498039 0.498039 0.498039 1" mesh="left_knee_link" />
                             <geom name="left_knee_link_collision" type="mesh" group="3" rgba="0.498039 0.498039 0.498039 1" mesh="left_knee_link" />
                             <site name="left_knee_mid" pos="0 0 -0.042" type="sphere" size="0.014" rgba="1 0.15 0 1" group="2" />
-                            
+
                             <body name="left_ankle_link" pos="0 0 -0.086" quat="0.965213 0 0.261465 0">
                                 <inertial pos="-9.22566e-08 -0.00145204 -0.0181392" quat="0.514185 0.485399 -0.485411 0.514177" mass="0.105372" diaginertia="0.000135405 0.00010155 8.48321e-05" />
                                 <joint name="left_ankle_joint" pos="0 0 0" axis="0 1 0" limited="true" range="-0.79 1.05" />
@@ -127,7 +127,7 @@
                                 <geom name="left_knee_mid_link_visual" type="mesh" contype="0" conaffinity="0" group="2" rgba="0.792157 0.819608 0.933333 1" mesh="left_knee_mid_link" />
                                 <geom name="left_knee_mid_link_collision" type="mesh" group="3" rgba="0.792157 0.819608 0.933333 1" mesh="left_knee_mid_link" />
                                 <site name="left_knee_mid_closure" pos="-0.084 0 0" type="sphere" size="0.01" rgba="0 0.4 1 1" group="2" />
-                            
+
                             </body>
                         </body>
                     </body>
