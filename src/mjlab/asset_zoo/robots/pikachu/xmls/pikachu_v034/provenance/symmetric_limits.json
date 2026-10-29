@@ -1,0 +1,23 @@
+{
+  "reason": "mirror left-leg hinge limits under axis reversal",
+  "source": {
+    "pikachu_v034.xml": "1f5e73acb4f7e53be3b9d50efec0800b46ef7227f3b7122736cdbcd0016635cf",
+    "pikachu_v034_train.xml": "d6c6492ecce09154054040209eab346b6dbb954a601671a67728f501057edc5a",
+    "pikachu_v034.urdf": "9c090dd12f1f1d971fd8e6e4284016ca7c8171ff2fc5db81fd71fd9a98f0f4ab"
+  },
+  "variant_sha256": {
+    "pikachu_v034_symmetric.xml": "e270d42691dd8561e2f2e83e7fc336c1f370a3f286d1b966bbda11e61f286ddb",
+    "pikachu_v034_train_symmetric.xml": "b9fe158041311932d207ed1259fc054c73161c4d082e515d13dd421d4accaf39",
+    "pikachu_v034_symmetric.urdf": "4b8c4e97979be39b99e84ec94a84e41d25f870d09b72559ac58b25e592d52f16"
+  },
+  "foot_z_span_m": {
+    "original_right_left": [
+      0.10168922481083636,
+      0.05717407307276989
+    ],
+    "symmetric_right_left": [
+      0.10168922481083636,
+      0.10168922915947273
+    ]
+  }
+}

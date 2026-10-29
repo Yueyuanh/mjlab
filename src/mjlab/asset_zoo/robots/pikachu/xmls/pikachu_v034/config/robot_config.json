@@ -1,0 +1,78 @@
+{
+  "motor_types": {
+    "4310": {
+      "torque_limit_nm": 12.5,
+      "velocity_limit_rad_s": 12.57
+    },
+    "3507": {
+      "torque_limit_nm": 3.0,
+      "velocity_limit_rad_s": 15.71
+    }
+  },
+  "joints": {
+    "hip_pitch": {
+      "type": "revolute",
+      "motor_type": "4310",
+      "lower_rad": -2.44,
+      "upper_rad": 2.44
+    },
+    "hip_roll": {
+      "type": "revolute",
+      "motor_type": "4310",
+      "lower_rad": -0.26,
+      "upper_rad": 0.26
+    },
+    "hip_yaw": {
+      "type": "revolute",
+      "motor_type": "4310",
+      "lower_rad": -0.26,
+      "upper_rad": 0.26
+    },
+    "knee_up": {
+      "type": "revolute",
+      "motor_type": "4310",
+      "lower_rad": -1.5707963267948966,
+      "upper_rad": 1.2217304763960306
+    },
+    "knee_mid": {
+      "type": "continuous",
+      "motor_type": null
+    },
+    "knee": {
+      "type": "revolute",
+      "motor_type": null,
+      "lower_rad": -0.65,
+      "upper_rad": 1.05
+    },
+    "ankle": {
+      "type": "revolute",
+      "motor_type": "4310",
+      "lower_rad": -0.79,
+      "upper_rad": 1.05
+    },
+    "arm_pitch": {
+      "type": "revolute",
+      "motor_type": "4310",
+      "lower_rad": -1.5708,
+      "upper_rad": 1.5708
+    },
+    "arm_roll": {
+      "type": "revolute",
+      "motor_type": "4310",
+      "lower_rad": -1.5708,
+      "upper_rad": 1.5708
+    },
+    "arm_yaw": {
+      "type": "revolute",
+      "motor_type": "3507",
+      "lower_rad": -1.5708,
+      "upper_rad": 1.5708
+    },
+    "elbow": {
+      "type": "revolute",
+      "motor_type": "3507",
+      "lower_rad": -1.5708,
+      "upper_rad": 1.5708
+    }
+  }
+}
