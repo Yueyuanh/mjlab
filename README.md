@@ -91,6 +91,7 @@ developed on the internal remote (`git.finnoxcorp.com/yuanhao.yue/mjlab`).
 
 | Resource | Location |
 |----------|----------|
+| Iteration / training specifications (Agent default entry) | [`spec/README.md`](spec/README.md) |
 | Task lineage (all registered tasks, status, pretrain map) | [`docs/task_lineage.md`](docs/task_lineage.md) |
 | Train / tune workflow (start_server, sanity checks) | [`TrainSpec.md`](TrainSpec.md) |
 | Branch strategy & W&B conventions | [`CLAUDE.md`](CLAUDE.md) |

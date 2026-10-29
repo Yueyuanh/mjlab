@@ -1,3 +1,11 @@
+# Canonical Training Specs
+
+Before working on model import, task design, training, experiment artifacts, or
+evaluation, read `spec/agent-defaults.md` completely and then read every topic
+spec routed there for the current task. The `spec/` directory is canonical for
+new training workflow rules. The fork, Git, server, and code-quality rules below
+remain active.
+
 # Branch Strategy (Pikachu fork)
 
 > Fork-specific convention. The upstream project (mujocolab/mjlab) follows the
@@ -55,6 +63,50 @@ do not delete them. Treatment differs from transient scratch (recordings under
 `mocap/tmp/`, ad-hoc plots), which may be left untracked.
 
 # Development Workflow
+
+## 4090 server synchronization (user requirement, 2026-10-22)
+
+- Server: `finnox-4090@10.20.15.181`. All remote modifications, including
+  backups and reports, must stay inside `/home/finnox-4090/RL/Pikachu/mjlab`.
+- Use `bash scripts/sync_4090.sh code` on the workstation to push source,
+  V033 robot assets, tests and documentation. It backs up overwritten files
+  inside the remote `.sync/backups/` and never deletes remote-only files.
+- Keep each machine's environment, Git state, active training logs and
+  intermediate checkpoints local. Do not mirror training output directories.
+- Transfer only explicitly identified final models after training completes,
+  using `push-final` / `pull-final` with the final model's relative path and
+  verified SHA-256 from `config/run.json`. Never infer completion from the
+  highest checkpoint number or transfer a live checkpoint automatically.
+- Do not store SSH passwords in scripts, documentation or Git.
+- Details and commands: `doc/code_sync_20261022/README.md`.
+
+## Training experiment artifact layout
+
+Historical note: the 2026-10-22 artifact-type layout was superseded on
+2026-10-29. Do not use `training/<run>`, experiment-level `evaluation/`, or
+parallel `reports/metadata/provenance` trees for new runs. The canonical layout
+is now stage-first and run-local:
+
+```text
+logs/rsl_rl/<robot>/<task>/<experiment>/
+  1-sanity/<run>/
+  2-smoke/<run>/
+  3-pilot/<run>/
+  4-full/<run>/
+```
+
+Read and follow `spec/experiment-logging.md` for the complete run layout,
+`E<experiment>-R<repeat>-<YY-MM-DD>` naming, automatic full evaluation, and
+migration rules. Historical experiments remain where they are unless a current
+task explicitly migrates them.
+
+## Evaluation video standard (Pikachu)
+
+Historical note: the earlier morphology-specific side/front camera rules were
+superseded on 2026-10-29. Every new locomotion final video uses a 1280x720,
+50 FPS third-person three-quarter view with the velocity response overlay at
+bottom-right. Read and follow `spec/evaluation-report.md` and
+`spec/experiment-logging.md`; those files are the canonical video contract.
 
 **Always use `uv run`, not python**.
 
