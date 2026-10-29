@@ -111,6 +111,77 @@ def test_crawl_frames_are_invariant_under_world_yaw():
   torch.testing.assert_close(mdp.orientation_error(env), zero, atol=1e-6, rtol=0)
 
 
+def test_all_v033_crawl_play_tasks_record_full_metrics_without_training_overhead():
+  for suffix in ("Crawl", "Crawl-E1", "Crawl-E2"):
+    task = f"Mjlab-Velocity-Flat-Pikachu-V033-{suffix}"
+    training = load_env_cfg(task, play=False)
+    playback = load_env_cfg(task, play=True)
+    assert "support_count" in training.metrics
+    assert "foot_tilt_deg/right" not in training.metrics
+    for name in (
+      "support_count",
+      "vel/cmd_x",
+      "vel/act_x",
+      "vel/err_x",
+      "joint_position_rad/right_ankle_joint",
+      "foot_tilt_deg/right",
+      "foot_contact/right",
+      "foot_force_normal_n/right",
+      "support_contact/right_front",
+      "support_force_normal_n/left_rear",
+    ):
+      assert name in playback.metrics
+    assert len(playback.metrics) > 200
+    assert playback.metrics["vel/act_x"].func is mdp.heading_velocity_metric
+    assert playback.metrics["foot_slip_velocity_m_s"].func is (
+      mdp.rear_foot_contact_speed_metric
+    )
+
+
+def test_crawl_metrics_use_horizontal_heading_and_rear_contacts_only():
+  quat = torch.tensor([[math.cos(PITCH / 2), 0.0, math.sin(PITCH / 2), 0.0]])
+  data = SimpleNamespace(
+    root_link_quat_w=quat,
+    root_link_lin_vel_w=torch.tensor([[0.10, 0.02, 0.0]]),
+    root_link_ang_vel_w=torch.tensor([[0.0, 0.0, 0.03]]),
+    site_lin_vel_w=torch.tensor([[[0.04, 0.0, 0.0], [0.25, 0.0, 0.0]]]),
+  )
+  robot = SimpleNamespace(
+    data=data,
+    find_sites=lambda names, preserve_order: ([0, 1], names),
+  )
+  sensor = SimpleNamespace(
+    primary_names=(
+      "right_ankle_link",
+      "left_ankle_link",
+      "right_elbow_link",
+      "left_elbow_link",
+    ),
+    data=SimpleNamespace(found=torch.tensor([[1.0, 0.0, 1.0, 1.0]])),
+  )
+  env = cast(
+    ManagerBasedRlEnv,
+    SimpleNamespace(
+      scene={"robot": robot, "feet_ground_contact": sensor},
+      command_manager=SimpleNamespace(
+        get_command=lambda name: torch.tensor([[0.15, 0.0, 0.05]])
+      ),
+    ),
+  )
+  torch.testing.assert_close(
+    mdp.heading_velocity_error_metric(env, 0), torch.tensor([0.05])
+  )
+  torch.testing.assert_close(
+    mdp.rear_foot_contact_speed_metric(env), torch.tensor([0.25])
+  )
+  torch.testing.assert_close(
+    mdp.rear_foot_contact_speed_metric(env, threshold=0.2), torch.tensor([1.0])
+  )
+  torch.testing.assert_close(
+    mdp.support_contact_metric(env, "right_elbow_link"), torch.tensor([1.0])
+  )
+
+
 def test_biped_mirror_is_involution_for_all_eighteen_actions():
   action = torch.randn(32, 18, generator=torch.Generator().manual_seed(42))
   torch.testing.assert_close(_mirror_action(_mirror_action(action)), action)

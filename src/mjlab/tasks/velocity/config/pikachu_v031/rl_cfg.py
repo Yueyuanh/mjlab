@@ -3,20 +3,6 @@
 PPO 超参与 v03 / 14dof V025 保持一致（同为小型人形，动作维度只差手臂），
 只把 ``experiment_name`` 与 W&B 标识改成 v031 自己的，避免与 v03 的曲线混在
 一起。``save_interval=500`` 是用户明确要求的存档节奏。
-
-本模块提供 4 个 runner 档，用于隔离"单侧偏航 / hip_roll 不对称"的两个候选
-根因（见 ``doc/pikachu_v031_velocity_20261010/``）：
-
-- :func:`pikachu_v031_t6_ppo_runner_cfg` —— 原样基线（``clip_actions=null``、
-  无对称约束）。
-- :func:`pikachu_v031_clip_ppo_runner_cfg` —— 只加动作裁剪。
-- :func:`pikachu_v031_sym_ppo_runner_cfg` —— 只加镜像数据增强 + mirror loss。
-- :func:`pikachu_v031_sym_clip_ppo_runner_cfg` —— 两者都加（推荐部署档）。
-- :func:`pikachu_v031_yaw_huber_ppo_runner_cfg` —— 奖励侧的单因素对照，环境换成
-  :func:`pikachu_v031_yaw_huber_flat_env_cfg`（T6 + 偏航 Huber 项）。
-
-**不要**在旧 checkpoint 上临时打开 ``clip_actions`` 后直接部署：旧策略依赖
-越界目标产生的饱和扭矩，加裁剪会立刻摔倒，必须从头训练。
 """
 
 from mjlab.rl import (
@@ -25,12 +11,148 @@ from mjlab.rl import (
   RslRlPpoAlgorithmCfg,
 )
 
-# 镜像增强函数路径（``rsl_rl.utils.resolve_callable`` 的 ``module:attr`` 形式）。
-_MIRROR_FUNC = "mjlab.tasks.velocity.config.pikachu_v031.symmetry:mirror_augmentation"
 
-# 动作裁剪上限。策略输出经此裁剪后再乘逐关节 scale，所以 hip_roll / hip_yaw
-# 的处理后目标最多到 ±1.0 × 0.20 = ±0.20 rad，给 ±0.26 rad 机械硬限位留 0.06
-# 余量，同时把"贴限位换扭矩"这条路封死。
+def pikachu_v031_t6_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
+  """Create RL runner configuration for Pikachu v031 flat velocity (T6)."""
+  return RslRlOnPolicyRunnerCfg(
+    actor=RslRlModelCfg(
+      hidden_dims=(512, 256, 128),
+      activation="elu",
+      obs_normalization=True,
+      distribution_cfg={
+        "class_name": "GaussianDistribution",
+        "init_std": 1.0,
+        "std_type": "scalar",
+      },
+    ),
+    critic=RslRlModelCfg(
+      hidden_dims=(512, 256, 128),
+      activation="elu",
+      obs_normalization=True,
+    ),
+    algorithm=RslRlPpoAlgorithmCfg(
+      value_loss_coef=1.0,
+      use_clipped_value_loss=True,
+      clip_param=0.2,
+      entropy_coef=0.01,
+      num_learning_epochs=5,
+      num_mini_batches=4,
+      learning_rate=1.0e-3,
+      schedule="adaptive",
+      gamma=0.99,
+      lam=0.95,
+      desired_kl=0.01,
+      max_grad_norm=1.0,
+    ),
+    experiment_name="pikachu_v031_velocity",
+    # 每个注册任务必须有**独立**的 wandb_project / wandb_tags，否则多个任务的
+    # 训练曲线会混在一起分不开。
+    wandb_project="pikachu-v031-velocity-flat",
+    wandb_tags=("velocity", "flat", "v031", "t6"),
+    # 每 500 轮存一次 checkpoint。
+    save_interval=500,
+    num_steps_per_env=24,
+    # 从零训 30k 轮。
+    max_iterations=30_000,
+  )
+
+
+def _e0_mirror_runner_cfg(
+  *, mirror_loss_coeff: float, experiment_suffix: str
+) -> RslRlOnPolicyRunnerCfg:
+  """Create an E0 runner with only left/right symmetry learning enabled."""
+  cfg = pikachu_v031_t6_ppo_runner_cfg()
+  cfg.experiment_name = f"pikachu_v031_e0_mirror{experiment_suffix}"
+  cfg.wandb_project = f"pikachu-v031-velocity-e0-mirror{experiment_suffix}"
+  cfg.wandb_tags = (*cfg.wandb_tags, "e0-mirror", experiment_suffix)
+  cfg.max_iterations = 50_000
+  cfg.algorithm.symmetry_cfg = {
+    "data_augmentation_func": (
+      "mjlab.tasks.velocity.config.pikachu_v031.symmetry:pikachu_v031_data_augmentation"
+    ),
+    "use_data_augmentation": True,
+    "use_mirror_loss": True,
+    "mirror_loss_coeff": mirror_loss_coeff,
+  }
+  return cfg
+
+
+def pikachu_v031_e0_mirror005_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
+  """E0 plus mirror loss 0.05; this is the primary experiment."""
+  return _e0_mirror_runner_cfg(mirror_loss_coeff=0.05, experiment_suffix="005")
+
+
+def pikachu_v031_e0_mirror010_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
+  """E0 plus mirror loss 0.10; only run if the 0.05 screen is insufficient."""
+  return _e0_mirror_runner_cfg(mirror_loss_coeff=0.10, experiment_suffix="010")
+
+
+def pikachu_v031_b1_beta_bounded_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
+  """E0 mirror005 with a naturally bounded Beta policy and safety clips."""
+  cfg = _e0_mirror_runner_cfg(
+    mirror_loss_coeff=0.05,
+    experiment_suffix="005",
+  )
+  cfg.actor.distribution_cfg = {
+    "class_name": "BetaDistribution",
+    "action_range": (-1.0, 1.0),
+  }
+  # The Beta policy is already bounded. Keep this runner bound as a redundant
+  # fail-safe for loading/export regressions, not as part of PPO's behavior.
+  cfg.clip_actions = 1.0
+  cfg.logger = "tensorboard"
+  cfg.upload_model = False
+  cfg.experiment_name = "pikachu_v031_b1_beta_bounded"
+  cfg.wandb_project = "pikachu-v031-velocity-b1-beta-bounded"
+  cfg.wandb_tags = (
+    "velocity",
+    "flat",
+    "v031",
+    "b1-beta-bounded",
+    "mirror005",
+  )
+  return cfg
+
+
+def _improvement_runner_cfg(
+  experiment_name: str, *, symmetry: bool
+) -> RslRlOnPolicyRunnerCfg:
+  cfg = pikachu_v031_t6_ppo_runner_cfg()
+  cfg.experiment_name = experiment_name
+  cfg.clip_actions = 1.0
+  cfg.logger = "tensorboard"
+  cfg.upload_model = False
+  cfg.wandb_tags = (*cfg.wandb_tags, "gait-symmetry-ablation")
+  if symmetry:
+    cfg.algorithm.symmetry_cfg = {
+      "data_augmentation_func": (
+        "mjlab.tasks.velocity.config.pikachu_v031.symmetry:"
+        "pikachu_v031_data_augmentation"
+      ),
+      "use_data_augmentation": True,
+      "use_mirror_loss": True,
+      "mirror_loss_coeff": 0.30,
+    }
+  return cfg
+
+
+def pikachu_v031_e1_clip_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
+  return _improvement_runner_cfg("pikachu_v031_e1_clip", symmetry=False)
+
+
+def pikachu_v031_e2_symmetry_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
+  return _improvement_runner_cfg("pikachu_v031_e2_symmetry", symmetry=True)
+
+
+def pikachu_v031_e3_yaw_huber_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
+  return _improvement_runner_cfg("pikachu_v031_e3_yaw_huber", symmetry=True)
+
+
+def pikachu_v031_e4_curriculum_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
+  return _improvement_runner_cfg("pikachu_v031_e4_curriculum", symmetry=True)
+
+
+_MIRROR_FUNC = "mjlab.tasks.velocity.config.pikachu_v031.symmetry:mirror_augmentation"
 CLIP_ACTIONS = 1.0
 
 
@@ -71,17 +193,6 @@ def _base_runner_cfg() -> RslRlOnPolicyRunnerCfg:
     # 每 500 轮存一次 checkpoint。
     save_interval=500,
   )
-
-
-def pikachu_v031_t6_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
-  """Create RL runner configuration for Pikachu v031 flat velocity (T6)."""
-  cfg = _base_runner_cfg()
-  cfg.experiment_name = "pikachu_v031_velocity"
-  # 每个注册任务必须有**独立**的 wandb_project / wandb_tags，否则多个任务的
-  # 训练曲线会混在一起分不开。
-  cfg.wandb_project = "pikachu-v031-velocity-flat"
-  cfg.wandb_tags = ("velocity", "flat", "v031", "t6")
-  return cfg
 
 
 def pikachu_v031_clip_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:

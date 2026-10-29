@@ -180,6 +180,14 @@ def test_e1_keeps_action_model_and_isolates_reward_changes():
   assert isinstance(rl, RslRlOnPolicyRunnerCfg)
   assert rl.algorithm.symmetry_cfg is not None
   assert rl.actor.hidden_dims == (512, 256, 128)
+  assert rl.actor.distribution_cfg is not None
+  assert rl.actor.distribution_cfg["std_range"] == (0.05, 0.35)
+  assert rl.algorithm.entropy_coef == 0.001
+  baseline_rl = load_rl_cfg("Mjlab-Velocity-Flat-Pikachu-V033-E0")
+  assert isinstance(baseline_rl, RslRlOnPolicyRunnerCfg)
+  assert baseline_rl.algorithm.entropy_coef == 0.01
+  assert baseline_rl.actor.distribution_cfg is not None
+  assert "std_range" not in baseline_rl.actor.distribution_cfg
   assert rl.algorithm.symmetry_cfg["mirror_loss_coeff"] == 0.05
   assert rl.experiment_name == "pikahcu_v033/biped_e1"
   assert "arm_position_window" not in e0.rewards
@@ -194,3 +202,29 @@ def test_e1_keeps_action_model_and_isolates_reward_changes():
       frames = cast(tuple[ObjRef, ...], sensor.frame)
       assert tuple(f.name for f in frames) == ("right_foot", "left_foot")
   assert math.isclose(e1.scene.entities["robot"].init_state.pos[2], 0.259412)
+
+
+def test_straight_hip_cost_preserves_balance_and_releases_lateral_commands():
+  command = torch.tensor(
+    [[0.4, 0, 0], [-0.4, 0, 0], [0, 0, 0], [0.4, 0.2, 0], [0, 0, 0.3]]
+  )
+  env = quiet_env(command)
+  position = torch.tensor([[0.08, -0.08], [0.2, -0.2]] + [[0.2, -0.2]] * 3)
+  env.scene["robot"].data.joint_pos = position
+  cost = mdp.straight_hip_roll(env, SceneEntityCfg("robot"))
+  torch.testing.assert_close(cost, torch.tensor([0, 0.36, 0, 0, 0.0]))
+  env.scene["robot"].data.joint_pos = -position.flip(-1)
+  torch.testing.assert_close(mdp.straight_hip_roll(env, SceneEntityCfg("robot")), cost)
+
+
+def test_straight_width_uses_heading_and_only_double_support():
+  env = quiet_env(torch.tensor([[0.4, 0, 0], [0.4, 0, 0]]))
+  sensor = env.scene["feet"]
+  env.scene["feet_ground_contact"] = sensor
+  sensor.data.found = torch.tensor([[1, 1], [1, 0]])
+  robot = env.scene["robot"]
+  # At 90-degree heading a 24-cm lateral separation lies along world x.
+  robot.data.root_link_quat_w = torch.tensor([[2**-0.5, 0, 0, 2**-0.5]] * 2)
+  robot.data.site_pos_w = torch.tensor([[[0.24, 0, 0], [0, 0, 0]]] * 2)
+  cost = mdp.straight_stance_width_max(env, SceneEntityCfg("robot"))
+  torch.testing.assert_close(cost, torch.tensor([1.0, 0]), atol=1e-5, rtol=1e-5)

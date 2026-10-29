@@ -33,7 +33,7 @@
         <body name="base_link" pos="0 0 0">
             <freejoint name="floating_base" />
             <site name="imu" pos="0 0 0" size="0.01" />
-            <inertial pos="4.446e-06 8.72337e-11 0.0638862" quat="1 6.42813e-06 2.48732e-05 -0.000278803" mass="4.461569" diaginertia="0.00116246 0.00112541 0.000198703" />
+            <inertial pos="4.446e-06 8.72337e-11 0.0638862" quat="1 6.42813e-06 2.48732e-05 -0.000278803" mass="0.461569" diaginertia="0.00116246 0.00112541 0.000198703" />
             <geom name="base_link_visual" type="mesh" contype="0" conaffinity="0" group="2" rgba="0.792157 0.819608 0.933333 1" mesh="base_link" />
             <geom name="base_link_collision" type="mesh" group="3" rgba="0.792157 0.819608 0.933333 1" mesh="base_link" />
             <body name="right_hip_pitch_link" pos="0 -0.1 0">

@@ -16,20 +16,6 @@
   - 左/右识别靠 ``left_``/``right_`` 前缀，所以 v03 的关节名（``left_hip_pitch_joint``）
     天然满足，不需要改名。
 
-## 足底遥测列（``--foot-telemetry``）
-
-v031 任务默认额外注册 ~119 列足底遥测（``foot_*`` / ``base_roll_*`` /
-``joint_torque_rate_nm_s/*``，见 ``mjlab/tasks/pikachu_foot_telemetry.py``）：
-步态相位与占空比、足底平行度、接触面积与压力分布、CoP 与支撑裕度、滑移、
-穿透、摩擦锥利用率、横滚、触地关节冲击负载。dashboard 把这些列按物理量拆成
-十个标签页（步态相位 / 足底接触力 / 足底姿态 / 接触面积 / 压力分布 / CoP 支撑边界 /
-足底滑移 / 足底穿透 / 足底摩擦 / 足部其他），每页再按语义配显示类型：相位条带、
-堆叠面积、百分比面积、taxel 热力图、脚掌平面 CoP 轨迹、摩擦阈值线，外加逐脚汇总表。
-
-``auto``（默认）只在任务名含 ``V031`` 时开启 —— v031 资产才有
-``{left,right}_foot[1-5]_collision`` 胶囊与 ``feet_ground_contact`` 传感器；
-v03 上注册会在建 env 时抛 ``ValueError``。
-
 ## 命令怎么固定
 
 **在构造 env 之前**把 ``twist`` 的 ranges 收成一个点，并把所有 ``rel_*_envs``
@@ -48,13 +34,6 @@ v03 上注册会在建 env 时抛 ``ValueError``。
         --checkpoint logs/rsl_rl/pikachu_v03_velocity/<run>/model_29999.pt \
         --out docs/pikachu_v03/metrics --tag r06-best \
         --clips stand,fwd,fwd_fast,back,lat,turn --seconds 8
-
-    # v031（自动带上足底遥测列）
-    MUJOCO_GL=egl uv run python scripts/record_v03_metrics.py \
-        --task Mjlab-Velocity-Flat-Pikachu-V031-T6 \
-        --checkpoint logs/rsl_rl/<run>/model_4999.pt \
-        --out docs/pikachu_v031/metrics --tag t6-best \
-        --clips stand,fwd,lat,turn --seconds 8
 """
 
 from __future__ import annotations
@@ -72,10 +51,16 @@ import torch
 # 直接 import 保证「固定命令」的语义不会两边漂移。
 from record_v03_video import CLIPS
 
+from mjlab.asset_zoo.robots.pikachu.pikachu_v031_constants import (
+  PIKACHU_V031_JOINT_NAMES,
+)
 from mjlab.envs import ManagerBasedRlEnv
 from mjlab.rl import RslRlVecEnvWrapper
 from mjlab.rl.runner import MjlabOnPolicyRunner
+from mjlab.tasks.pikachu_foot_telemetry import add_pikachu_foot_telemetry_metrics
 from mjlab.tasks.registry import load_env_cfg, load_rl_cfg, load_runner_cls
+from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
+from mjlab.utils.noise import UniformNoiseCfg
 
 # 与 Viser MetricsCsvRecorder / mjlab.scripts.record_metrics_cli 逐字一致的前 5 列。
 _BASE_COLUMNS = ("sample", "sim_step", "time_s", "env_idx", "network")
@@ -86,75 +71,72 @@ def build_policy(task: str, checkpoint: str, device: str, env_cfg):
   env = ManagerBasedRlEnv(cfg=env_cfg, device=device)
   wrapped = RslRlVecEnvWrapper(env)
   runner_cls = load_runner_cls(task) or MjlabOnPolicyRunner
+  agent_cfg = load_rl_cfg(task)
   # runner 要的是 dict 不是 dataclass（与 record_v03_video.py 一致）。
-  runner = runner_cls(wrapped, asdict(load_rl_cfg(task)), log_dir=None, device=device)
+  runner = runner_cls(wrapped, asdict(agent_cfg), log_dir=None, device=device)
   # 只载 actor：评测不需要 critic/optimizer，省内存（本机 swap 已满）。
   runner.load(
     checkpoint,
     load_cfg={"actor": True, "critic": False, "optimizer": False, "iteration": False},
+    map_location=device,
   )
   runner.alg.eval_mode()
-  return env, runner.get_inference_policy(device=device)
-
-
-# 启动期域随机化事件（构造 env 时抽一次，不是每步）。``--mode nominal`` 把它们
-# 一起弹掉，用来回答"DC 偏置在完全标称条件下是否仍然存在"。
-STARTUP_DR_EVENTS = ("foot_friction", "encoder_bias", "base_com")
-
-
-def _add_foot_telemetry(task: str, cfg, mode: str) -> None:
-  """按需注册足底遥测列（~119 列，见 ``mjlab.tasks.pikachu_foot_telemetry``）。
-
-  ``mode``：``auto`` 只在任务名含 ``V031`` 时开启（v031 的资产才有
-  ``{left,right}_foot[1-5]_collision`` 胶囊与 ``feet_ground_contact`` 传感器），
-  ``on``/``off`` 强制开关。这些列是 dashboard 足底遥测那十个标签页的数据源。
-  """
-  on = mode == "on" or (mode == "auto" and "V031" in task)
-  if not on:
-    if mode == "auto":
-      print("[record_v03_metrics] 足底遥测：跳过（非 V031 任务）")
-    return
-  # 延迟 import：本脚本在无显示环境跑，没必要让 --help 也背上任务包的加载。
-  from mjlab.asset_zoo.robots.pikachu.pikachu_v031_constants import (
-    PIKACHU_V031_JOINT_NAMES,
-  )
-  from mjlab.tasks.pikachu_foot_telemetry import add_pikachu_foot_telemetry_metrics
-
-  add_pikachu_foot_telemetry_metrics(
-    cfg, joint_names=PIKACHU_V031_JOINT_NAMES, entity_name="robot"
-  )
-  print("[record_v03_metrics] 足底遥测：已注册")
+  return env, runner.get_inference_policy(device=device), agent_cfg.clip_actions
 
 
 def make_env_cfg(
-  task: str, clip: str, seed: int, mode: str = "dr", foot_telemetry: str = "auto"
+  task: str,
+  clip: str,
+  seed: int,
+  nominal: bool = False,
+  with_push: bool = False,
+  obs_noise: bool = False,
+  *,
+  mode: str | None = None,
+  foot_telemetry: str = "auto",
 ):
-  """单 env + 固定命令 + 无课程；噪声/推力/启动 DR 由 ``mode`` 决定。
-
-  ``mode``：
-
-  - ``nominal`` —— 关观测噪声、关推力、**并弹掉启动 DR**（摩擦/编码器/COM）。
-  - ``dr`` —— 关观测噪声、关推力，保留启动 DR（默认；旧报告的 "DR" 行）。
-  - ``train`` —— 全部按训练条件（噪声 + 推力 + 启动 DR 都开）。
-  """
-  if mode not in ("nominal", "dr", "train"):
-    raise ValueError(f"未知 mode {mode}，可选 nominal / dr / train")
+  """单 env + 固定命令；可选择 startup DR、周期 push 和 actor 噪声。"""
+  if mode is not None:
+    if mode not in {"nominal", "dr", "train"}:
+      raise ValueError(f"Unknown evaluation mode: {mode}")
+    nominal = mode == "nominal"
+    with_push = mode == "train"
+    obs_noise = mode == "train"
   vx, vy, wz = CLIPS[clip]
   cfg = load_env_cfg(task, play=False)
   cfg.scene.num_envs = 1
   cfg.episode_length_s = 1.0e9  # 不因超时截断，只可能被「摔倒」终止
-  if mode != "train":
-    cfg.observations["actor"].enable_corruption = False
+  cfg.observations["actor"].enable_corruption = obs_noise
+  if not with_push:
     cfg.events.pop("push_robot", None)
-  if mode == "nominal":
-    for name in STARTUP_DR_EVENTS:
-      cfg.events.pop(name, None)
+  if nominal:
+    # Nominal-design evaluation: keep the exact MJCF mass/inertia/friction and
+    # ideal encoders.  The default path deliberately retains startup DR for a
+    # reproducible robustness sample (controlled by ``seed``).
+    for term in ("foot_friction", "encoder_bias", "base_com"):
+      cfg.events.pop(term, None)
+  # E4 的训练配置会在 step 0 把噪声/推扰退回课程初始档。离线评测应固定
+  # 条件：有噪声时恢复训练定义的 full ranges；push 则保留原始 full event。
+  noise_curriculum = cfg.curriculum.pop("v031_observation_noise", None)
+  if noise_curriculum is not None and obs_noise:
+    for term_name, (low, high) in noise_curriculum.params["base_ranges"].items():
+      noise = cfg.observations["actor"].terms[term_name].noise
+      assert isinstance(noise, UniformNoiseCfg)
+      noise.n_min = low
+      noise.n_max = high
+  cfg.curriculum.pop("v031_push", None)
   # ⚠️ 必须弹掉，否则 ranges 被课程项冲回默认值（六个档会一模一样）。
   cfg.curriculum.pop("command_vel", None)
   cfg.seed = seed  # base_com 是 startup 事件，构造时就抽完了
-  _add_foot_telemetry(task, cfg, foot_telemetry)
+  if foot_telemetry not in {"auto", "on", "off"}:
+    raise ValueError(f"Unknown foot telemetry setting: {foot_telemetry}")
+  if foot_telemetry == "on" or (foot_telemetry == "auto" and "V031" in task):
+    add_pikachu_foot_telemetry_metrics(
+      cfg, joint_names=PIKACHU_V031_JOINT_NAMES, entity_name="robot"
+    )
 
   twist = cfg.commands["twist"]
+  assert isinstance(twist, UniformVelocityCommandCfg)
   twist.ranges.lin_vel_x = (vx, vx)
   twist.ranges.lin_vel_y = (vy, vy)
   twist.ranges.ang_vel_z = (wz, wz)
@@ -181,29 +163,54 @@ def record_clip(
   seed: int,
   tag: str,
   out_path: Path,
-  mode: str = "dr",
+  nominal: bool = False,
+  with_push: bool = False,
+  obs_noise: bool = False,
+  *,
+  mode: str | None = None,
   foot_telemetry: str = "auto",
 ) -> dict:
   """跑一个档位并写 CSV，返回该档的摘要（供终端打印）。"""
-  env, policy = build_policy(
+  env, policy, action_clip = build_policy(
     task,
     checkpoint,
     device,
-    make_env_cfg(task, clip, seed, mode, foot_telemetry),
+    make_env_cfg(
+      task,
+      clip,
+      seed,
+      nominal=nominal,
+      with_push=with_push,
+      obs_noise=obs_noise,
+      mode=mode,
+      foot_telemetry=foot_telemetry,
+    ),
   )
   try:
     obs, _ = env.reset()
     step_dt = float(env.step_dt)
     metric_names = list(env.metrics_manager.active_terms)
+    policy_metric_names = [
+      "policy/raw_action_abs_max",
+      "policy/raw_action_clip_fraction",
+    ]
     n = 0
     terminated_at: int | None = None
 
     with out_path.open("w", encoding="utf-8", newline="") as stream:
       writer = csv.writer(stream)
-      writer.writerow([*_BASE_COLUMNS, *metric_names])
+      writer.writerow([*_BASE_COLUMNS, *metric_names, *policy_metric_names])
       for step in range(1, steps + 1):
         with torch.no_grad():
-          action = policy(obs)
+          raw_action = policy(obs)
+        raw_abs = torch.abs(raw_action)
+        raw_action_abs_max = float(raw_abs.max().item())
+        raw_action_clip_fraction = float((raw_abs > 1.0).float().mean().item())
+        action = (
+          torch.clamp(raw_action, -action_clip, action_clip)
+          if action_clip is not None
+          else raw_action
+        )
         obs, _, terminated, truncated, _ = env.step(action)
         terms = dict(env.metrics_manager.get_active_iterable_terms(0))
         row = [
@@ -213,6 +220,8 @@ def record_clip(
           0,
           tag,
           *(terms.get(name, [float("nan")])[0] for name in metric_names),
+          raw_action_abs_max,
+          raw_action_clip_fraction,
         ]
         writer.writerow([f"{v:.9g}" if isinstance(v, float) else v for v in row])
         n = step
@@ -329,18 +338,33 @@ def main() -> int:
   ap.add_argument("--seed", type=int, default=42)
   ap.add_argument(
     "--mode",
-    default="dr",
     choices=("nominal", "dr", "train"),
-    help="nominal=无启动DR/噪声/推力；dr=保留启动DR（默认）；train=全训练条件",
+    default=None,
+    help="兼容服务器评估入口；未指定时沿用 --nominal/--with-push/--obs-noise",
+  )
+  ap.add_argument("--foot-telemetry", choices=("auto", "on", "off"), default="auto")
+  ap.add_argument(
+    "--nominal",
+    action="store_true",
+    help="关闭 startup DR（摩擦/编码器/base COM），评估标称 MJCF",
   )
   ap.add_argument(
-    "--foot-telemetry",
-    default="auto",
-    choices=("auto", "on", "off"),
-    help="足底遥测列（~119 列，dashboard 足底遥测的十个标签页）："
-    "auto=任务名含 V031 时开启（默认），on/off 强制",
+    "--with-push",
+    action="store_true",
+    help="保留任务的周期 push 事件（默认关闭）",
+  )
+  ap.add_argument(
+    "--obs-noise",
+    action="store_true",
+    help="保留 actor 观测噪声（默认关闭）",
   )
   args = ap.parse_args()
+  if args.mode is not None:
+    if args.nominal or args.with_push or args.obs_noise:
+      ap.error("Use either --mode or the individual evaluation flags")
+    args.nominal = args.mode == "nominal"
+    args.with_push = args.mode == "train"
+    args.obs_noise = args.mode == "train"
 
   want = [c.strip() for c in args.clips.split(",") if c.strip()]
   bad = [c for c in want if c not in CLIPS]
@@ -352,15 +376,20 @@ def main() -> int:
   tag = args.tag or Path(args.checkpoint).parent.name
 
   print(f"[record_v03_metrics] ckpt={args.checkpoint}")
-  print(
-    f"[record_v03_metrics] tag={tag}  clips={want}  {args.seconds}s/档  "
-    f"mode={args.mode}"
-  )
+  print(f"[record_v03_metrics] tag={tag}  clips={want}  {args.seconds}s/档")
   results = []
   for clip in want:
     t0 = time.time()
     # step_dt = decimation × timestep；先建一次 cfg 拿它，再换算步数。
-    probe = make_env_cfg(args.task, clip, args.seed, args.mode, args.foot_telemetry)
+    probe = make_env_cfg(
+      args.task,
+      clip,
+      args.seed,
+      nominal=args.nominal,
+      with_push=args.with_push,
+      obs_noise=args.obs_noise,
+      foot_telemetry=args.foot_telemetry,
+    )
     step_dt = probe.decimation * probe.sim.mujoco.timestep
     steps = int(args.seconds / step_dt)
     dest = out_dir / f"metrics_v03_{clip}_{tag}.csv"
@@ -373,8 +402,10 @@ def main() -> int:
       args.seed,
       tag,
       dest,
-      args.mode,
-      args.foot_telemetry,
+      nominal=args.nominal,
+      with_push=args.with_push,
+      obs_noise=args.obs_noise,
+      foot_telemetry=args.foot_telemetry,
     )
     results.append(rec)
     print(
@@ -398,7 +429,11 @@ def main() -> int:
     "tag": tag,
     "seconds_per_clip": args.seconds,
     "seed": args.seed,
+    "nominal": args.nominal,
+    "with_push": args.with_push,
+    "obs_noise": args.obs_noise,
     "mode": args.mode,
+    "foot_telemetry": args.foot_telemetry,
     "clips": [
       {
         "clip": r["clip"],

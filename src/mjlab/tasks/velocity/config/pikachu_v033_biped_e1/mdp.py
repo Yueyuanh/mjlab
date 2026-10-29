@@ -8,9 +8,50 @@ import torch
 from mjlab.envs import mdp as common
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import ContactSensor
+from mjlab.utils.lab_api.math import quat_apply_inverse, yaw_quat
 
 if TYPE_CHECKING:
   from mjlab.envs import ManagerBasedRlEnv
+
+
+def straight_walking_mask(env: "ManagerBasedRlEnv") -> torch.Tensor:
+  command = env.command_manager.get_command("twist")
+  assert command is not None
+  # Release the constraint gradually for lateral motion and turning.
+  straight = (1 - command[:, 1].abs() / 0.15).clamp(0, 1)
+  straight *= (1 - command[:, 2].abs() / 0.3).clamp(0, 1)
+  return straight * (command[:, 0].abs() > 0.05)
+
+
+def straight_hip_roll(
+  env: "ManagerBasedRlEnv",
+  asset_cfg: SceneEntityCfg,
+  deadzone: float = 0.14,
+  std: float = 0.10,
+) -> torch.Tensor:
+  """Allow balance excursions but penalize sustained large straight gait roll."""
+  position = env.scene[asset_cfg.name].data.joint_pos[:, asset_cfg.joint_ids]
+  excess = (position.abs() - deadzone).clamp_min(0)
+  return (excess / std).square().mean(-1) * straight_walking_mask(env)
+
+
+def straight_stance_width_max(
+  env: "ManagerBasedRlEnv",
+  asset_cfg: SceneEntityCfg,
+  max_distance: float = 0.20,
+  std: float = 0.04,
+) -> torch.Tensor:
+  """Upper bound at double support, without pulling the airborne foot outward."""
+  robot = env.scene[asset_cfg.name]
+  positions = robot.data.site_pos_w[:, asset_cfg.site_ids]
+  delta = quat_apply_inverse(
+    yaw_quat(robot.data.root_link_quat_w), positions[:, 0] - positions[:, 1]
+  )
+  excess = (delta[:, 1].abs() - max_distance).clamp_min(0)
+  sensor = env.scene["feet_ground_contact"]
+  assert isinstance(sensor, ContactSensor)
+  support = (sensor.data.found > 0).all(-1)
+  return (excess / std).square() * support * straight_walking_mask(env)
 
 
 def standing_mask(

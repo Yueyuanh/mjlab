@@ -57,6 +57,7 @@ def build(task: str, checkpoint: str, device: str, env_cfg):
   runner.load(
     checkpoint,
     load_cfg={"actor": True, "critic": False, "optimizer": False, "iteration": False},
+    map_location=device,
   )
   runner.alg.eval_mode()
   return env, runner.get_inference_policy(device=device)
@@ -87,7 +88,8 @@ def main() -> int:
     f"{'档位':<7} {'命令vx':>7} {'命令vy':>7} {'命令wz':>7} | "
     f"{'base_vx':>8} {'base_vy':>8} {'base_wz':>8} | "
     f"{'跟踪比':>7} {'方向cos':>7} {'roll°':>7} {'pitch°':>7} {'终止':>5} "
-    f"{'单脚支撑':>8} {'平均脚数':>7} | "
+    f"{'单脚支撑':>8} {'平均脚数':>7} {'步频Hz':>7} {'腾空s':>7} "
+    f"{'步距m':>7} | "
     f"{'净位移vx':>9} {'净位移vy':>9} {'净位移wz':>9}",
     flush=True,
   )
@@ -128,6 +130,7 @@ def main() -> int:
     env, policy = build(args.task, args.checkpoint, args.device, cfg)
     robot = env.scene["robot"]
     contact = env.scene["feet_ground_contact"]
+    knee_ids, _ = robot.find_joints(("left_knee_up_joint",), preserve_order=True)
     # step_dt 在 env 上，不在 cfg 上。
     step_dt = float(env.step_dt)
     obs, _ = env.reset()
@@ -143,6 +146,10 @@ def main() -> int:
     n_feet = []  # 每步着地的**脚**数（0/1/2），按 slot 判 > 0
     b_lin = []  # 每步 base 系线速度
     b_ang = []  # 每步 base 系角速度
+    # last_air_time 用来报告实际腾空时间；步频/步距在循环后由关节主频估计，
+    # 避免软接触的 found 翻转把一次真实摆腿重复计数。
+    landing_air_times: list[float] = []
+    knee_trace: list[float] = []
     for _ in range(steps):
       with torch.no_grad():
         action = policy(obs)
@@ -165,6 +172,14 @@ def main() -> int:
       n_feet.append(int((contact.data.found[0] > 0).sum()))
       b_lin.append(robot.data.root_link_lin_vel_b[0].clone())
       b_ang.append(robot.data.root_link_ang_vel_b[0].clone())
+
+      first_contact = contact.compute_first_contact(dt=step_dt)[0]
+      assert contact.data.last_air_time is not None
+      for foot_idx in range(first_contact.shape[0]):
+        air_time = float(contact.data.last_air_time[0, foot_idx])
+        if bool(first_contact[foot_idx]) and air_time > 0.05:
+          landing_air_times.append(air_time)
+      knee_trace.append(float(robot.data.joint_pos[0, knee_ids[0]]))
 
     dp = robot.data.root_link_pos_w[0, :2] - p0
     n_done = len(n_feet)
@@ -193,6 +208,9 @@ def main() -> int:
     c = np.asarray(n_feet) if n_feet else np.zeros(1)
     single = float((c == 1).mean())
     mean_feet = float(c.mean())
+    mean_air_time = (
+      float(np.mean(landing_air_times)) if landing_air_times else float("nan")
+    )
 
     # 跟踪比用 **base 系时均** 算 —— 与命令同系，不受转身污染。
     cmd_mag = np.hypot(vx, vy)
@@ -203,11 +221,33 @@ def main() -> int:
       cos_dir = float((bl[0] * vx + bl[1] * vy) / (act_mag * cmd_mag))
     else:
       cos_dir = float("nan")
+
+    # 软接触会在一次真实摆腿中制造多个 found 翻转，所以“落地事件数/秒”会
+    # 高估步频。稳定步频改由单腿 knee_up 的主频估计：单腿一个周期包含左右
+    # 两次交替落脚，因此总步频 = 2 × 单腿主频。丢掉前 1 s 起步瞬态。
+    # 步距用沿命令方向的平均速度 / 步频，直接回答“是不是小碎步”。
+    cadence = float("nan")
+    step_progress = float("nan")
+    if single > 0.2 and cmd_mag > 1e-6 and len(knee_trace) > 75:
+      signal = np.asarray(knee_trace[50:], dtype=np.float64)
+      signal -= signal.mean()
+      freqs = np.fft.rfftfreq(signal.size, d=step_dt)
+      spectrum = np.abs(np.fft.rfft(signal))
+      gait_band = (freqs >= 0.5) & (freqs <= 6.0)
+      if gait_band.any():
+        gait_indices = np.flatnonzero(gait_band)
+        leg_frequency = float(freqs[gait_indices[np.argmax(spectrum[gait_band])]])
+        cadence = 2.0 * leg_frequency
+        projected_speed = float((bl[0] * vx + bl[1] * vy) / cmd_mag)
+        step_progress = (
+          abs(projected_speed) / cadence if cadence > 0.0 else float("nan")
+        )
     print(
       f"{name:<7} {vx:>7.2f} {vy:>7.2f} {wz:>7.2f} | "
       f"{float(bl[0]):>8.3f} {float(bl[1]):>8.3f} {float(ba[2]):>8.3f} | "
       f"{ratio:>7.2f} {cos_dir:>7.2f} {r_deg:>7.1f} {p_deg:>7.1f} {n_term:>5} "
-      f"{single:>8.2f} {mean_feet:>7.2f} | "
+      f"{single:>8.2f} {mean_feet:>7.2f} {cadence:>7.2f} "
+      f"{mean_air_time:>7.3f} {step_progress:>7.3f} | "
       f"{ax:>8.3f} {ay:>8.3f} {aw:>8.3f}",
       flush=True,
     )

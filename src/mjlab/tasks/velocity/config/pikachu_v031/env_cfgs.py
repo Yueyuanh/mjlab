@@ -1,11 +1,6 @@
 """Pikachu **v031**（并联四杆膝，6.76 kg 整机）velocity 环境配置。
 
-本模块导出两个环境工厂，都基于同一套 T6 奖励档：
-
-- :func:`pikachu_v031_t6_flat_env_cfg` —— T6 基线，供 T6 / Clip / Sym / SymClip
-  四档共用（它们只在 runner 档上不同）。
-- :func:`pikachu_v031_yaw_huber_flat_env_cfg` —— T6 + 偏航 Huber 项。
-
+只注册 **一个** 任务：``Mjlab-Velocity-Flat-Pikachu-V031-T6``（平地 + T6 奖励档）。
 与 ``config/pikachu_v03/`` **完全解耦** —— 本包只 import
 ``pikachu_v031_constants``，不引用 v03 的任何常量、类或函数。
 
@@ -42,6 +37,7 @@ from mjlab.asset_zoo.robots.pikachu.pikachu_v031_constants import (
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs import mdp as envs_mdp
 from mjlab.envs.mdp.actions import JointPositionActionCfg
+from mjlab.managers.curriculum_manager import CurriculumTermCfg
 from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import (
@@ -56,6 +52,13 @@ from mjlab.tasks.pikachu_metrics import add_pikachu_telemetry_metrics
 from mjlab.tasks.velocity import mdp
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
+from mjlab.utils.noise import UniformNoiseCfg
+
+from .curriculums import (
+  v031_observation_noise_curriculum,
+  v031_push_curriculum,
+)
+from .symmetry import foot_contact_forces_heading_frame
 
 # 足部 site 名（v031 训练 XML 里已有 left_foot / right_foot）。
 SITE_NAMES = ("left_foot", "right_foot")
@@ -407,15 +410,149 @@ def pikachu_v031_t6_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     twist_cmd.ranges.lin_vel_x = (-0.6, 0.8)
     twist_cmd.ranges.lin_vel_y = (-0.5, 0.5)
     twist_cmd.ranges.ang_vel_z = (-0.5, 0.5)
-    # 足底遥测（~99 列）：接触力/冲击、鞋底平行度、接触面积与压力分布、CoP 与
-    # 支撑裕度、滑移、穿透、摩擦锥、步态相位/占空比、横滚、触地关节冲击负载。
-    # 只在 play 注册——训练时这些列会灌满 Episode_Metrics 且没人看。
     add_pikachu_foot_telemetry_metrics(
-      cfg,
-      joint_names=PIKACHU_V031_JOINT_NAMES,
-      entity_name="robot",
+      cfg, joint_names=PIKACHU_V031_JOINT_NAMES, entity_name="robot"
     )
 
+  return cfg
+
+
+# ---------------------------------------------------------------------------
+# Controlled improvement experiments. E0 remains the immutable T6 function above.
+# ---------------------------------------------------------------------------
+
+_ACTION_TARGET_CLIP = {
+  r".*_hip_pitch_joint": (-0.50, 0.50),
+  r".*_hip_roll_joint": (-0.20, 0.20),
+  r".*_hip_yaw_joint": (-0.20, 0.20),
+  r".*_knee_up_joint": (-0.40, 0.40),
+  r".*_ankle_joint": (-0.35, 0.35),
+}
+_BASE_ACTOR_NOISE = {
+  "base_lin_vel": (-0.5, 0.5),
+  "base_ang_vel": (-0.2, 0.2),
+  "projected_gravity": (-0.05, 0.05),
+  "joint_pos": (-0.01, 0.01),
+  "joint_vel": (-1.5, 1.5),
+}
+
+
+def pikachu_v031_e0_mirror_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  """E0 environment with only the critic-frame fix required by mirroring."""
+  cfg = pikachu_v031_t6_flat_env_cfg(play=play)
+  cfg.observations["critic"].terms[
+    "foot_contact_forces"
+  ].func = foot_contact_forces_heading_frame
+  return cfg
+
+
+def pikachu_v031_e1_clip_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  """E1: T6 baseline plus redundant raw/processed action safety bounds."""
+  cfg = pikachu_v031_t6_flat_env_cfg(play=play)
+  action = cfg.actions["joint_pos"]
+  assert isinstance(action, JointPositionActionCfg)
+  action.clip = dict(_ACTION_TARGET_CLIP)
+  return cfg
+
+
+def pikachu_v031_e2_symmetry_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  """E2: E1 plus mirrorable critic contact-force observations."""
+  cfg = pikachu_v031_e1_clip_env_cfg(play=play)
+  cfg.observations["critic"].terms[
+    "foot_contact_forces"
+  ].func = foot_contact_forces_heading_frame
+  return cfg
+
+
+def pikachu_v031_b1_beta_bounded_env_cfg(
+  play: bool = False,
+) -> ManagerBasedRlEnvCfg:
+  """B1: E0 mirror environment plus redundant joint-target safety bounds."""
+  return pikachu_v031_e2_symmetry_env_cfg(play=play)
+
+
+def pikachu_v031_e3_yaw_huber_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  """E3: E2 plus non-saturating yaw-rate tracking cost."""
+  cfg = pikachu_v031_e2_symmetry_env_cfg(play=play)
+  cfg.rewards["angular_velocity_huber"] = RewardTermCfg(
+    func=mdp.angular_velocity_huber_error,
+    weight=-0.30,
+    params={"command_name": "twist", "delta": 0.25},
+  )
+  return cfg
+
+
+def _set_actor_noise_scale(cfg: ManagerBasedRlEnvCfg, scale: float) -> None:
+  for name, (low, high) in _BASE_ACTOR_NOISE.items():
+    term = cfg.observations["actor"].terms[name]
+    if not isinstance(term.noise, UniformNoiseCfg):
+      raise TypeError(f"actor/{name} must use UniformNoiseCfg")
+    term.noise.n_min = low * scale
+    term.noise.n_max = high * scale
+
+
+def pikachu_v031_e4_curriculum_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  """E4: E3 plus a three-stage observation-noise and push curriculum."""
+  cfg = pikachu_v031_e3_yaw_huber_env_cfg(play=play)
+  if play:
+    return cfg
+
+  _set_actor_noise_scale(cfg, 0.20)
+  cfg.curriculum["v031_observation_noise"] = CurriculumTermCfg(
+    func=v031_observation_noise_curriculum,
+    params={
+      "base_ranges": _BASE_ACTOR_NOISE,
+      "stages": [
+        {"step": 0, "scale": 0.20},
+        {"step": 1_000 * 24, "scale": 0.50},
+        {"step": 3_000 * 24, "scale": 1.00},
+      ],
+    },
+  )
+  cfg.curriculum["v031_push"] = CurriculumTermCfg(
+    func=v031_push_curriculum,
+    params={
+      "event_name": "push_robot",
+      "stages": [
+        {
+          "step": 0,
+          "interval_range_s": (8.0, 12.0),
+          "velocity_range": {
+            "x": (0.0, 0.0),
+            "y": (0.0, 0.0),
+            "z": (0.0, 0.0),
+            "roll": (0.0, 0.0),
+            "pitch": (0.0, 0.0),
+            "yaw": (0.0, 0.0),
+          },
+        },
+        {
+          "step": 1_000 * 24,
+          "interval_range_s": (4.0, 8.0),
+          "velocity_range": {
+            "x": (-0.15, 0.15),
+            "y": (-0.15, 0.15),
+            "z": (-0.10, 0.10),
+            "roll": (-0.15, 0.15),
+            "pitch": (-0.15, 0.15),
+            "yaw": (-0.20, 0.20),
+          },
+        },
+        {
+          "step": 3_000 * 24,
+          "interval_range_s": (1.0, 3.0),
+          "velocity_range": {
+            "x": (-0.5, 0.5),
+            "y": (-0.5, 0.5),
+            "z": (-0.4, 0.4),
+            "roll": (-0.52, 0.52),
+            "pitch": (-0.52, 0.52),
+            "yaw": (-0.78, 0.78),
+          },
+        },
+      ],
+    },
+  )
   return cfg
 
 

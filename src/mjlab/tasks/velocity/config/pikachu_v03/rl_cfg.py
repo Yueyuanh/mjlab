@@ -56,16 +56,23 @@ def pikachu_v03_ppo_runner_cfg(
   )
 
 
-def pikachu_v03_t6_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
-  """Conservative fine-tuning runner for the isolated T6 reward profile."""
+def pikachu_v03_r07_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
+  """Conservative fine-tuning runner for the isolated R07 reward profile."""
   cfg = pikachu_v03_ppo_runner_cfg(
     wandb_project="pikachu-v03-velocity-flat",
-    wandb_tags=("velocity", "flat", "v03", "t6", "gait-refine"),
+    wandb_tags=("velocity", "flat", "v03", "r07", "gait-refine"),
   )
   # Keep the same experiment root so --agent.load-run can resolve the r06
-  # checkpoint; the separate task ID and mandatory t6 run name distinguish it.
+  # checkpoint; the separate task ID and mandatory r07 run name distinguish it.
   cfg.experiment_name = "pikachu_v03_velocity"
   # This is an additional iteration budget after loading r06-best, not a
   # global target iteration number (Mjlab resumes from the checkpoint's iter).
   cfg.max_iterations = 12_000
+  return cfg
+
+
+def pikachu_v03_t6_ppo_runner_cfg() -> RslRlOnPolicyRunnerCfg:
+  """Preserve the server's T6 runner identity alongside the original R07."""
+  cfg = pikachu_v03_r07_ppo_runner_cfg()
+  cfg.wandb_tags = ("velocity", "flat", "v03", "t6", "gait-refine")
   return cfg

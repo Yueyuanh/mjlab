@@ -68,6 +68,18 @@ def biped_e1_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "bounds_degrees": ARM_BOUNDS_DEGREES,
     },
   )
+  cfg.rewards["straight_hip_roll"] = RewardTermCfg(
+    func=mdp.straight_hip_roll,
+    weight=-0.15,
+    params={
+      "asset_cfg": SceneEntityCfg("robot", joint_names=(r".*_hip_roll_joint",)),
+    },
+  )
+  cfg.rewards["straight_stance_width_max"] = RewardTermCfg(
+    func=mdp.straight_stance_width_max,
+    weight=-0.20,
+    params={"asset_cfg": SceneEntityCfg("robot", site_names=FOOT_SITES)},
+  )
   cfg.rewards["arm_leg_clearance"] = RewardTermCfg(
     func=mdp.arm_leg_clearance,
     weight=-2.0,

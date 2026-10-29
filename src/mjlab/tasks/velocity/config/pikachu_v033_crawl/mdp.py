@@ -41,6 +41,82 @@ def heading_ang_vel(env: "ManagerBasedRlEnv") -> torch.Tensor:
   )
 
 
+def heading_velocity_metric(env: "ManagerBasedRlEnv", axis: int = 0) -> torch.Tensor:
+  """Crawl commands and measured velocity share the horizontal heading frame."""
+  return (heading_lin_vel(env) if axis < 2 else heading_ang_vel(env))[
+    :, axis if axis < 2 else 2
+  ]
+
+
+def heading_velocity_error_metric(
+  env: "ManagerBasedRlEnv", axis: int = 0
+) -> torch.Tensor:
+  command = env.command_manager.get_command("twist")
+  assert command is not None
+  return command[:, axis] - heading_velocity_metric(env, axis)
+
+
+def heading_velocity_error_norm_metric(env: "ManagerBasedRlEnv") -> torch.Tensor:
+  command = env.command_manager.get_command("twist")
+  assert command is not None
+  return torch.norm(command[:, :2] - heading_lin_vel(env)[:, :2], dim=-1)
+
+
+def heading_yaw_metric(env: "ManagerBasedRlEnv") -> torch.Tensor:
+  quat = crawl_heading(env.scene["robot"].data.root_link_quat_w)
+  return 2.0 * torch.atan2(quat[:, 3], quat[:, 0])
+
+
+def rear_foot_contact_speed_metric(
+  env: "ManagerBasedRlEnv", threshold: float | None = None
+) -> torch.Tensor:
+  """Use only ankle contacts; the crawl sensor also tracks two front elbows."""
+  robot = env.scene["robot"]
+  sensor = env.scene["feet_ground_contact"]
+  assert sensor.data.found is not None
+  indices = [
+    next(
+      i
+      for i, name in enumerate(sensor.primary_names)
+      if name.endswith(f"{side}_ankle_link")
+    )
+    for side in ("left", "right")
+  ]
+  site_ids = robot.find_sites(("left_foot", "right_foot"), preserve_order=True)[0]
+  contact = (sensor.data.found[:, indices] > 0).float()
+  speed = robot.data.site_lin_vel_w[:, site_ids, :2].norm(dim=-1)
+  value = speed if threshold is None else (speed > threshold).float()
+  return (value * contact).sum(dim=-1) / contact.sum(dim=-1).clamp_min(1)
+
+
+def rear_foot_lateral_separation_metric(env: "ManagerBasedRlEnv") -> torch.Tensor:
+  robot = env.scene["robot"]
+  site_ids = robot.find_sites(("left_foot", "right_foot"), preserve_order=True)[0]
+  points = robot.data.site_pos_w[:, site_ids]
+  heading = crawl_heading(robot.data.root_link_quat_w)
+  return quat_apply_inverse(heading, points[:, 0] - points[:, 1])[:, 1].abs()
+
+
+def support_contact_metric(env: "ManagerBasedRlEnv", body_name: str) -> torch.Tensor:
+  sensor = env.scene["feet_ground_contact"]
+  assert sensor.data.found is not None
+  index = next(
+    i for i, name in enumerate(sensor.primary_names) if name.endswith(body_name)
+  )
+  return (sensor.data.found[:, index] > 0).float()
+
+
+def support_normal_force_metric(
+  env: "ManagerBasedRlEnv", body_name: str
+) -> torch.Tensor:
+  sensor = env.scene["feet_ground_contact"]
+  assert sensor.data.force is not None
+  index = next(
+    i for i, name in enumerate(sensor.primary_names) if name.endswith(body_name)
+  )
+  return (-sensor.data.force[:, index, 2]).clamp_min(0)
+
+
 def tracking(env: "ManagerBasedRlEnv", angular: bool = False) -> torch.Tensor:
   command = env.command_manager.get_command("twist")
   assert command is not None

@@ -2,6 +2,10 @@
 
 from dataclasses import fields
 
+from mjlab.asset_zoo.robots.pikachu.pikachu_v033_constants import (
+  PIKACHU_V033_ACTUATOR_GROUPS,
+  PIKACHU_V033_JOINT_NAMES,
+)
 from mjlab.envs import ManagerBasedRlEnvCfg
 from mjlab.envs import mdp as common
 from mjlab.envs.mdp.actions import JointPositionActionCfg
@@ -13,6 +17,8 @@ from mjlab.managers.reward_manager import RewardTermCfg
 from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.managers.termination_manager import TerminationTermCfg
 from mjlab.sensor import ContactMatch, ContactSensorCfg
+from mjlab.tasks.pikachu_foot_telemetry import add_pikachu_foot_telemetry_metrics
+from mjlab.tasks.pikachu_metrics import add_pikachu_telemetry_metrics
 from mjlab.tasks.velocity import mdp as velocity
 from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.tasks.velocity.velocity_env_cfg import make_velocity_env_cfg
@@ -174,7 +180,7 @@ def crawl_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       func=velocity.base_vertical_velocity_penalty, weight=-0.5
     ),
   }
-  cfg.metrics = {"support_count": MetricsTermCfg(func=mdp.support_count)}
+  cfg.metrics["support_count"] = MetricsTermCfg(func=mdp.support_count)
   cfg.terminations = {
     "time_out": TerminationTermCfg(func=common.time_out, time_out=True),
     "fell_over": TerminationTermCfg(func=mdp.fell_over),
@@ -191,4 +197,44 @@ def crawl_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
     command.ranges.lin_vel_x = (-0.10, 0.25)
     command.ranges.lin_vel_y = (-0.08, 0.08)
     command.ranges.ang_vel_z = (-0.20, 0.20)
+    for side in ("right", "left"):
+      for location, body in (("rear", "ankle"), ("front", "elbow")):
+        name = f"{side}_{body}_link"
+        label = f"{side}_{location}"
+        cfg.metrics[f"support_contact/{label}"] = MetricsTermCfg(
+          func=mdp.support_contact_metric,
+          params={"body_name": name},
+          reduce="mean",
+        )
+        cfg.metrics[f"support_force_normal_n/{label}"] = MetricsTermCfg(
+          func=mdp.support_normal_force_metric,
+          params={"body_name": name},
+          reduce="max",
+        )
+    add_pikachu_telemetry_metrics(
+      cfg,
+      joint_names=PIKACHU_V033_JOINT_NAMES,
+      actuator_groups=PIKACHU_V033_ACTUATOR_GROUPS,
+    )
+    velocity.add_velocity_tracking_metrics(cfg, command_name="twist")
+    for axis_name, axis in (("x", 0), ("y", 1), ("yaw", 2)):
+      cfg.metrics[f"vel/act_{axis_name}"].func = mdp.heading_velocity_metric
+      cfg.metrics[f"vel/act_{axis_name}"].params = {"axis": axis}
+      cfg.metrics[f"vel/err_{axis_name}"].func = mdp.heading_velocity_error_metric
+      cfg.metrics[f"vel/err_{axis_name}"].params = {"axis": axis}
+    cfg.metrics["vel/err_xy_norm"].func = mdp.heading_velocity_error_norm_metric
+    cfg.metrics["vel/err_xy_norm"].params = {}
+    cfg.metrics["vel/yaw_w"].func = mdp.heading_yaw_metric
+    cfg.metrics["vel/yaw_w"].params = {}
+    cfg.metrics["foot_slip_velocity_m_s"].func = mdp.rear_foot_contact_speed_metric
+    cfg.metrics["foot_slip_velocity_m_s"].params = {}
+    cfg.metrics["foot_slide_fraction"].func = mdp.rear_foot_contact_speed_metric
+    cfg.metrics["foot_slide_fraction"].params = {"threshold": 0.2}
+    cfg.metrics[
+      "foot_lateral_separation_m"
+    ].func = mdp.rear_foot_lateral_separation_metric
+    cfg.metrics["foot_lateral_separation_m"].params = {}
+    add_pikachu_foot_telemetry_metrics(
+      cfg, joint_names=PIKACHU_V033_JOINT_NAMES, entity_name="robot"
+    )
   return cfg

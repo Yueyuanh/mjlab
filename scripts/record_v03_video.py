@@ -74,6 +74,7 @@ from mjlab.envs import ManagerBasedRlEnv
 from mjlab.rl import RslRlVecEnvWrapper
 from mjlab.rl.runner import MjlabOnPolicyRunner
 from mjlab.tasks.registry import load_env_cfg, load_rl_cfg, load_runner_cls
+from mjlab.tasks.velocity.mdp import UniformVelocityCommandCfg
 from mjlab.viewer import ViewerConfig
 
 # 档位名 -> (lin_vel_x, lin_vel_y, ang_vel_z)，单位 m/s、m/s、rad/s。
@@ -110,9 +111,10 @@ def build_policy(task: str, checkpoint: str, device: str, env_cfg):
       "optimizer": False,
       "iteration": False,
     },
+    map_location=device,
   )
   runner.alg.eval_mode()
-  return env, runner.get_inference_policy(device=device)
+  return env, runner.get_inference_policy(device=device), rl_cfg.clip_actions
 
 
 def main() -> int:
@@ -140,6 +142,11 @@ def main() -> int:
     type=int,
     default=42,
     help="固定 base_com 等 startup 随机量，保证同一个 ckpt 的录像可复现",
+  )
+  ap.add_argument(
+    "--nominal",
+    action="store_true",
+    help="关闭 startup DR（摩擦/编码器/base COM），录制标称机构",
   )
   args = ap.parse_args()
 
@@ -169,11 +176,16 @@ def main() -> int:
       env_cfg.episode_length_s = 1.0e9
       env_cfg.observations["actor"].enable_corruption = False
       env_cfg.events.pop("push_robot", None)
+      if args.nominal:
+        for term in ("foot_friction", "encoder_bias", "base_com"):
+          env_cfg.events.pop(term, None)
       # ⚠️ **必须弹掉 command_vel 课程项**，否则下面设的 ranges 会被它冲掉。
       # `tasks/velocity/mdp/curriculums.py::commands_vel` 每一步都用 stage 配置
       # 覆写 `cfg.ranges.*`；stage 0 的 `step=0` 恒满足，于是构造 env 前收成点的
       # ranges 在第一次 `_resample_command` 之前就被改回默认范围 —— 六个档位会
       # 录出六段**一模一样**的片子。
+      env_cfg.curriculum.pop("v031_observation_noise", None)
+      env_cfg.curriculum.pop("v031_push", None)
       env_cfg.curriculum.pop("command_vel", None)
       env_cfg.seed = args.seed  # base_com 是 startup 事件，构造时就抽完了
       env_cfg.viewer.width = args.width
@@ -193,6 +205,7 @@ def main() -> int:
       env_cfg.viewer.distance = dist
 
       twist = env_cfg.commands["twist"]
+      assert isinstance(twist, UniformVelocityCommandCfg)
       twist.ranges.lin_vel_x = (vx, vx)
       twist.ranges.lin_vel_y = (vy, vy)
       twist.ranges.ang_vel_z = (wz, wz)
@@ -216,7 +229,9 @@ def main() -> int:
       stem = f"{name}__{view}" + (f"__{args.tag}" if args.tag else "")
       dest = out_dir / f"{stem}.mp4"
 
-      env, policy = build_policy(args.task, args.checkpoint, args.device, env_cfg)
+      env, policy, action_clip = build_policy(
+        args.task, args.checkpoint, args.device, env_cfg
+      )
       obs, _ = env.reset()
 
       t0 = time.time()
@@ -243,7 +258,12 @@ def main() -> int:
       try:
         for step in range(steps):
           with torch.no_grad():
-            action = policy(obs)
+            raw_action = policy(obs)
+          action = (
+            torch.clamp(raw_action, -action_clip, action_clip)
+            if action_clip is not None
+            else raw_action
+          )
           _a = time.time()
           obs, _, terminated, truncated, _ = env.step(action)
           _b = time.time()

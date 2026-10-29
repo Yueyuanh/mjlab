@@ -88,8 +88,10 @@ PIKACHU_V031_XML: Path = (
   # 生成：删 scene include / 删 <size> / 删 <actuator> 块 / 补 <default> /
   # 补 knee_up 限位 / 加 freejoint + imu site / 命名 geom / 加足部胶囊与 site /
   # 补 <sensor>。与源模型同目录，meshdir 仍是 ../meshes/，不复制 STL。
-  / "pikachu_v031_train.xml"
-)
+  # / "pikachu_v031_train.xml"
+  / "pikachu_v031_train_fixd_ankle_4310.xml"
+  )
+
 assert PIKACHU_V031_XML.exists(), (
   f"缺少训练模型: {PIKACHU_V031_XML}\n"
   "请先运行 `uv run python scripts/build_v031_train_xml.py` 生成。"
@@ -149,6 +151,7 @@ PIKACHU_V031_ACTUATOR_J4310 = BuiltinPositionActuatorCfg(
     ".*_hip_roll_joint",
     ".*_hip_yaw_joint",
     ".*_knee_up_joint",
+    ".*_ankle_joint",
   ),
   stiffness=STIFFNESS_J4310,
   damping=DAMPING_J4310,
@@ -157,13 +160,13 @@ PIKACHU_V031_ACTUATOR_J4310 = BuiltinPositionActuatorCfg(
 )
 
 # 小扭矩档：踝。
-PIKACHU_V031_ACTUATOR_J3507 = BuiltinPositionActuatorCfg(
-  target_names_expr=(".*_ankle_joint",),
-  stiffness=STIFFNESS_J3507,
-  damping=DAMPING_J3507,
-  effort_limit=ACTUATOR_J3507.effort_limit,
-  armature=ACTUATOR_J3507.reflected_inertia,
-)
+# PIKACHU_V031_ACTUATOR_J3507 = BuiltinPositionActuatorCfg(
+#   target_names_expr=(".*_ankle_joint",),
+#   stiffness=STIFFNESS_J3507,
+#   damping=DAMPING_J3507,
+#   effort_limit=ACTUATOR_J3507.effort_limit,
+#   armature=ACTUATOR_J3507.reflected_inertia,
+# )
 
 
 ##
@@ -193,6 +196,7 @@ PIKACHU_V031_FOOT_GEOM_NAMES = r"^(left|right)_foot[1-5]_collision$"
 # 仅脚底碰撞：平地行走训练用。CollisionCfg 的 disable_other_geoms=True
 # 会把未匹配 geom 的 contype/conaffinity 清零，所以源模型里那些高面数
 # mesh 碰撞体不会参与接触，不拖慢仿真。
+
 FEET_ONLY_COLLISION = CollisionCfg(
   geom_names_expr=(PIKACHU_V031_FOOT_GEOM_NAMES,),
   contype=1,
@@ -221,7 +225,7 @@ FULL_COLLISION_WITHOUT_SELF = CollisionCfg(
 PIKACHU_V031_ARTICULATION = EntityArticulationInfoCfg(
   actuators=(
     PIKACHU_V031_ACTUATOR_J4310,
-    PIKACHU_V031_ACTUATOR_J3507,
+    # PIKACHU_V031_ACTUATOR_J3507,
   ),
   soft_joint_pos_limit_factor=1.0,
 )

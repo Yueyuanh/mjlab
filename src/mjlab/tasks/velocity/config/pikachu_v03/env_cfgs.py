@@ -66,8 +66,7 @@ SITE_NAMES = ("left_foot", "right_foot")
 # 躯干（基座）body 名。
 TORSO_BODY = "base_link"
 
-# v03 静平衡微屈膝站姿下 base_link 的实测高度（weight 6.3 kg 训练模型，
-# 见 pikachu_v03_constants.py）。
+# v03 静平衡微屈膝站姿下 base_link 的实测高度（训练模型，见 constants）。
 STAND_HEIGHT = 0.26728
 
 
@@ -302,7 +301,7 @@ def pikachu_v03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   cfg.rewards["base_height"] = RewardTermCfg(
     func=mdp.base_height_penalty,
     weight=-0.2,
-    # v03 微屈膝站姿 base_link 高 0.26728 m；目标比站姿低约 1.7 cm。
+    # v03 微屈膝站姿 base_link 高 0.26879 m；目标比站姿低约 1.9 cm。
     params={"target_height": 0.25, "std": 0.02},
   )
 
@@ -423,6 +422,16 @@ def pikachu_v03_rough_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   return cfg
 
 
+def pikachu_v03_t6_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  """Server T6 profile with a soft torque limit matching its 3 Nm derating."""
+  cfg = pikachu_v03_r07_flat_env_cfg(play=play)
+  cfg.rewards["torque_soft_limit"].params["effort_limits"] = {
+    r".*(hip_pitch|knee_up)_joint": 12.5,
+    r".*(hip_roll|hip_yaw|ankle)_joint": 3.0,
+  }
+  return cfg
+
+
 def pikachu_v03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   """创建 Pikachu v03 平坦地形（flat）velocity 配置。"""
   cfg = pikachu_v03_rough_env_cfg(play=play)
@@ -455,18 +464,12 @@ def pikachu_v03_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
   return cfg
 
 
-def pikachu_v03_t6_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
-  """T6 fine-tuning profile: accurate tracking without a narrow, shuffling gait.
+def pikachu_v03_r07_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
+  """R07 fine-tuning profile: accurate tracking without narrow, shuffling gait.
 
   R06 remains the reproducible baseline.  This isolated task profile changes
   only rewards and command coverage, so its actor/critic shapes stay compatible
   with ``r06-best/model_59997.pt`` for conservative warm-start fine-tuning.
-
-  与服务器上的 ``...-V03-R07`` 同源，差别只有两处：任务名改为 T6，以及
-  ``joint_torque_soft_limit`` 的 J3507 力矩上限跟着
-  ``pikachu_v03_constants.py`` 的降额（9.0 -> 3.0）一起改。原版 R07 沿用
-  9.0，在 effort_limit=3.0 的执行器上 80% 软限位（7.2 N·m）永远达不到，
-  该项奖励恒为 0。
   """
   cfg = pikachu_v03_flat_env_cfg(play=play)
 
@@ -499,7 +502,7 @@ def pikachu_v03_t6_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
       "command_threshold": 0.10,
     },
   )
-  # The old 0.25 m target explicitly rewarded a crouch.  T6 aligns height with
+  # The old 0.25 m target explicitly rewarded a crouch.  R07 aligns height with
   # the requested initial static-equilibrium pose.
   cfg.rewards["base_height"].params["target_height"] = STAND_HEIGHT
   cfg.rewards["base_height"].params["std"] = 0.02
@@ -553,15 +556,13 @@ def pikachu_v03_t6_flat_env_cfg(play: bool = False) -> ManagerBasedRlEnvCfg:
 
   # R06 touched 100% of the motor torque limit.  Penalize only the top 20% of
   # utilization so ordinary gait effort is free and the policy retains speed.
-  # 上限必须与 pikachu_v03_constants.py 的 ACTUATOR_* effort_limit 一致：
-  # J4310 = 12.5 N·m，J3507 = 3.0 N·m（降额）。
   cfg.rewards["torque_soft_limit"] = RewardTermCfg(
     func=mdp.joint_torque_soft_limit,
     weight=-0.25,
     params={
       "effort_limits": {
         r".*(hip_pitch|knee_up)_joint": 12.5,
-        r".*(hip_roll|hip_yaw|ankle)_joint": 3.0,
+        r".*(hip_roll|hip_yaw|ankle)_joint": 9.0,
       },
       "soft_ratio": 0.80,
       "asset_cfg": driven_joints,

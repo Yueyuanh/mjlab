@@ -34,30 +34,17 @@ from dataclasses import asdict
 import numpy as np
 import torch
 
-from mjlab.entity import Entity
 from mjlab.envs import ManagerBasedRlEnv
-from mjlab.managers.command_manager import CommandTerm
 from mjlab.rl import RslRlVecEnvWrapper
 from mjlab.rl.runner import MjlabOnPolicyRunner
 from mjlab.tasks.registry import load_env_cfg, load_rl_cfg, load_runner_cls
 
 # 场景名 -> (lin_vel_x, 目标朝向增量 rad)
 SCENES: dict[str, tuple[float, float]] = {
-  "turn_only": (0.0, np.pi / 2),  # 原地转 90°
+  "turn_only": (0.0, np.pi / 2),   # 原地转 90°
   "walk_turn": (0.30, np.pi / 2),  # 边走边转 90°
-  "turn_180": (0.0, np.pi),  # 原地转 180°
+  "turn_180": (0.0, np.pi),        # 原地转 180°
 }
-
-
-def yaw_of(robot: Entity) -> float:
-  q = robot.data.root_link_quat_w[0]
-  w, x, y, z = (float(q[0]), float(q[1]), float(q[2]), float(q[3]))
-  return float(np.arctan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z)))
-
-
-def err_deg(cmd_term: CommandTerm) -> float:
-  """env 自己算的朝向误差（度）。"""
-  return float(np.degrees(abs(float(cmd_term.heading_error[0]))))  # type: ignore[attr-defined]
 
 
 def build(task: str, checkpoint: str, device: str, env_cfg):
@@ -118,7 +105,7 @@ def main() -> int:
     twist.ranges.heading = (float(dpsi), float(dpsi))
     for attr, val in (
       ("rel_standing_envs", 0.0),
-      ("rel_heading_envs", 1.0),  # 唯一的环境 → 必定是 heading 环境
+      ("rel_heading_envs", 1.0),   # 唯一的环境 → 必定是 heading 环境
       ("rel_world_envs", 0.0),
       ("rel_forward_envs", 0.0),
       ("rel_backward_envs", 0.0),
@@ -132,11 +119,19 @@ def main() -> int:
     step_dt = float(env.step_dt)
     obs, _ = env.reset()
 
+    def yaw_of() -> float:
+      q = robot.data.root_link_quat_w[0]
+      w, x, y, z = (float(q[0]), float(q[1]), float(q[2]), float(q[3]))
+      return float(np.arctan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z)))
+
     # **用 env 自己的 heading_error 判收敛**，不要自己拿 yaw0 + dpsi 算 ——
     # 后者依赖「初始朝向恰好是 0」这个假设。heading_error 是 env 算的，
     # 是唯一权威的量（`_update_command` 就是用它推 ang_vel_z 的）。
-    yaw0 = yaw_of(robot)
-    err0 = err_deg(cmd_term)
+    def err_deg() -> float:
+      return float(np.degrees(abs(float(cmd_term.heading_error[0]))))
+
+    yaw0 = yaw_of()
+    err0 = err_deg()
 
     steps = int(args.seconds / step_dt)
     n_term = 0
@@ -150,23 +145,21 @@ def main() -> int:
       if bool(term[0]) or bool(trunc[0]):
         n_term += 1
         break
-      y = yaw_of(robot)
+      y = yaw_of()
       d = y - prev
       turned += float(np.arctan2(np.sin(d), np.cos(d)))
       prev = y
       # 到位判据：残留朝向误差 < 10°（env 自己算的），且此前没到位过
-      if arrive_step < 0 and err_deg(cmd_term) < 10.0:
+      if arrive_step < 0 and err_deg() < 10.0:
         arrive_step = k + 1
 
-    resid = err_deg(cmd_term)
+    resid = err_deg()
     # 收敛度：残留误差从 err0 收到 resid。1.0 = 完全到位；0 = 一点没动。
     conv = 1.0 - resid / err0 if err0 > 1e-6 else float("nan")
 
     q = robot.data.root_link_quat_w[0]
     w, x, yy, z = (float(q[0]), float(q[1]), float(q[2]), float(q[3]))
-    roll = float(
-      np.degrees(np.arctan2(2 * (w * x + yy * z), 1 - 2 * (x * x + yy * yy)))
-    )
+    roll = float(np.degrees(np.arctan2(2 * (w * x + yy * z), 1 - 2 * (x * x + yy * yy))))
     pitch = float(np.degrees(np.arcsin(np.clip(2 * (w * yy - z * x), -1, 1))))
 
     print(
