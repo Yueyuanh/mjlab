@@ -1,4 +1,5 @@
 wandb/
+.sync/
 logs/
 .start_server/
 onnx/
@@ -7,6 +8,10 @@ videos/
 # 注意 `videos/` 排除的是**目录**，必须先把目录本身重新包含进来，
 # 否则下面针对文件的 `!` 规则不会生效（git 不会走进被排除的目录）。
 !docs/pikachu_v03/videos/
+!docs/pikachu_v03/evaluations/
+!docs/pikachu_v03/evaluations/**/
+!docs/pikachu_v03/evaluations/**/videos/
+!docs/pikachu_v03/evaluations/**/videos/**
 __pycache__/
 *.pyc
 MUJOCO_LOG.TXT
@@ -37,9 +42,7 @@ pre_train/**/model_*.pt
 # 提交它只会在仓库里堆一个没人 review 的二进制。
 docs/pikachu_v03/reports/.curve-cache.json
 
-# 诊断报告目录下的训练产物：曲线 CSV / 图 / 逐帧指标每次重跑都会重建，
-# 不是交付物（见 CLAUDE.md「Out of scope for git」）。报告本体 REPORT.md
-# 与生成脚本 analyze_run.py 照常入库。
+# Reproducible diagnostic outputs are synchronized as files, not source commits.
 doc/**/metrics/
 doc/**/plots/
 doc/**/training_selected_scalars.csv
