@@ -1,0 +1,1008 @@
+<title>Pikachu v035 速度跟踪评估</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* 版式概念：试验台记录。左栏是刻度尺式的章节号，正文单列，数字全部走等宽体。 */
+:root{
+  --paper:#F3F4F0;
+  --surface:#FCFCFA;
+  --ink:#14181A;
+  --ink-2:#4B5358;
+  --ink-3:#7B8388;
+  --rule:#D8DCD3;
+  --rule-2:#E9ECE5;
+  --signal:#0E6B5B;
+  --signal-soft:#DCEBE5;
+  --warn:#A24C11;
+  --warn-soft:#F6E4D4;
+  --grid:rgba(20,24,26,.05);
+  color-scheme:light;
+  --f-display:"IBM Plex Sans Condensed","Noto Sans CJK SC","PingFang SC","Microsoft YaHei",sans-serif;
+  --f-body:"IBM Plex Sans","Noto Sans CJK SC","PingFang SC","Microsoft YaHei",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,"Noto Sans CJK SC",monospace;
+  --t-xs:11px; --t-sm:13px; --t-base:15.5px; --t-md:18px; --t-lg:23px; --t-xl:clamp(28px,4.6vw,40px); --t-2xl:clamp(34px,6vw,58px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0D1211; --surface:#151A19; --ink:#E9ECE6; --ink-2:#A4ACA6; --ink-3:#6F7873;
+    --rule:#29302E; --rule-2:#1E2422; --signal:#4FC7AE; --signal-soft:#14302B;
+    --warn:#E39C5E; --warn-soft:#2C2116; --grid:rgba(233,236,230,.055);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0D1211; --surface:#151A19; --ink:#E9ECE6; --ink-2:#A4ACA6; --ink-3:#6F7873;
+  --rule:#29302E; --rule-2:#1E2422; --signal:#4FC7AE; --signal-soft:#14302B;
+  --warn:#E39C5E; --warn-soft:#2C2116; --grid:rgba(233,236,230,.055);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--f-body);
+  font-size:var(--t-base);
+  line-height:1.72;
+  -webkit-font-smoothing:antialiased;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+.wrap{max-width:1080px;margin:0 auto;padding-block:0 96px}
+
+/* ── 顶栏 ── */
+.topbar{
+  position:sticky;top:env(safe-area-inset-top,0px);z-index:9;
+  background:var(--paper);
+  border-bottom:1px solid var(--rule);
+  display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+  padding-block:9px;
+  font-family:var(--f-mono);font-size:var(--t-xs);letter-spacing:.06em;
+  color:var(--ink-3);text-transform:uppercase;
+}
+.topbar b{color:var(--ink);font-weight:600;letter-spacing:.04em}
+.topbar .sep{flex:1}
+.topbar .tag{border:1px solid var(--rule);border-radius:2px;padding:1px 7px;color:var(--ink-2)}
+
+/* ── 头部 ── */
+header.hero{
+  padding-block:clamp(36px,7vw,72px) 34px;
+  border-bottom:2px solid var(--ink);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:26px 26px;
+  background-position:center top;
+}
+.hero-inner{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:clamp(24px,4vw,56px);align-items:start}
+.kicker{font-family:var(--f-mono);font-size:var(--t-xs);letter-spacing:.16em;text-transform:uppercase;color:var(--signal);margin:0 0 14px}
+h1{
+  font-family:var(--f-display);font-weight:700;font-size:var(--t-2xl);line-height:1.04;
+  letter-spacing:-.015em;margin:0 0 18px;text-wrap:balance;
+}
+.lede{font-size:var(--t-md);line-height:1.66;color:var(--ink-2);margin:0;max-width:38em}
+.lede strong{color:var(--ink);font-weight:600}
+
+/* 关键读数 */
+.readout{border-top:1px solid var(--rule);margin:0;display:grid;gap:0}
+.readout div{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:baseline;padding-block:12px;border-bottom:1px solid var(--rule)}
+.readout dt{font-size:var(--t-sm);color:var(--ink-2);min-width:0}
+.readout dd{margin:0;font-family:var(--f-mono);font-size:var(--t-md);font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
+.readout dd small{font-size:var(--t-xs);font-weight:400;color:var(--ink-3);margin-left:4px}
+
+/* ── 目录 ── */
+nav.toc{display:flex;flex-wrap:wrap;gap:6px 20px;padding-block:16px;border-bottom:1px solid var(--rule);font-family:var(--f-mono);font-size:var(--t-xs);letter-spacing:.05em}
+nav.toc a{color:var(--ink-2);text-decoration:none;border-bottom:1px solid transparent;padding-bottom:1px}
+nav.toc a:hover,nav.toc a:focus-visible{color:var(--signal);border-bottom-color:var(--signal)}
+nav.toc span{color:var(--ink-3);margin-right:6px}
+
+/* ── 章节 ── */
+section{padding-block:clamp(32px,5vw,52px) 0}
+.sec-head{display:grid;grid-template-columns:56px 1fr;gap:0 18px;align-items:baseline;margin-bottom:22px;border-bottom:1px solid var(--rule);padding-bottom:10px}
+.sec-no{font-family:var(--f-mono);font-size:var(--t-sm);color:var(--signal);font-weight:600;letter-spacing:.04em}
+h2{font-family:var(--f-display);font-weight:600;font-size:var(--t-xl);line-height:1.16;letter-spacing:-.01em;margin:0;text-wrap:balance}
+.sec-sub{grid-column:2;margin:6px 0 0;color:var(--ink-3);font-size:var(--t-sm)}
+h3{font-family:var(--f-display);font-weight:600;font-size:var(--t-lg);line-height:1.3;margin:34px 0 10px;letter-spacing:-.005em}
+h4{font-family:var(--f-mono);font-weight:600;font-size:var(--t-xs);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin:26px 0 10px}
+p{margin:0 0 14px;max-width:44em}
+p:last-child{margin-bottom:0}
+a{color:var(--signal)}
+code{font-family:var(--f-mono);font-size:.9em;background:var(--rule-2);padding:1px 5px;border-radius:2px;color:var(--ink)}
+strong{font-weight:600}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+/* ── 表格 ── */
+.tw{overflow-x:auto;margin:16px 0 18px;border:1px solid var(--rule);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:var(--t-sm);line-height:1.5}
+caption{caption-side:top;text-align:left;font-family:var(--f-mono);font-size:var(--t-xs);letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);padding:10px 12px;border-bottom:1px solid var(--rule)}
+th{font-family:var(--f-mono);font-weight:500;font-size:var(--t-xs);letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);text-align:left;padding:9px 12px;border-bottom:1px solid var(--rule);white-space:nowrap;background:var(--surface)}
+td{padding:8px 12px;border-bottom:1px solid var(--rule-2);vertical-align:baseline}
+tbody tr:last-child td{border-bottom:0}
+td.n,th.n{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+td.mono{font-family:var(--f-mono);white-space:nowrap;font-variant-numeric:tabular-nums}
+tbody tr:hover{background:var(--rule-2)}
+.hi{color:var(--signal);font-weight:600}
+.bad{color:var(--warn);font-weight:600}
+tr.rule-top td{border-top:1px solid var(--rule)}
+
+/* ── 图 ── */
+figure{margin:20px 0 22px}
+figure img{display:block;width:100%;max-width:100%;height:auto;border:1px solid var(--rule);background:var(--surface)}
+figcaption{font-size:var(--t-sm);color:var(--ink-3);margin-top:9px;line-height:1.55;max-width:48em}
+figcaption b{color:var(--ink-2);font-weight:600;font-family:var(--f-mono);font-size:var(--t-xs);letter-spacing:.05em;margin-right:6px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:18px;align-items:start}
+.grid2 figure{margin:0}
+
+/* ── 结论块 ── */
+.findings{display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule);margin:20px 0}
+.findings>div{background:var(--surface);padding:16px 18px;display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start}
+.findings .m{font-family:var(--f-mono);font-size:var(--t-xs);font-weight:600;color:var(--signal);letter-spacing:.06em;padding-top:3px}
+.findings p{margin:0;font-size:var(--t-sm);line-height:1.62;color:var(--ink-2);max-width:none}
+.findings p b{color:var(--ink)}
+
+.callout{border-left:3px solid var(--signal);background:var(--signal-soft);padding:14px 18px;margin:20px 0;font-size:var(--t-sm);line-height:1.66}
+.callout.alert{border-left-color:var(--warn);background:var(--warn-soft)}
+.callout p{margin:0 0 8px;max-width:46em}
+.callout p:last-child{margin:0}
+.callout .h{font-family:var(--f-mono);font-size:var(--t-xs);letter-spacing:.1em;text-transform:uppercase;font-weight:600;display:block;margin-bottom:6px}
+
+/* ── 视频 ── */
+.clipset{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,196px),1fr));gap:16px;margin:18px 0 6px}
+.clip{margin:0;background:var(--surface);border:1px solid var(--rule);overflow:hidden}
+.clip video{display:block;width:100%;height:auto;background:#000;aspect-ratio:4/3}
+.clip-cap{padding:9px 11px 10px;font-family:var(--f-mono);font-size:var(--t-xs);line-height:1.5;color:var(--ink-3);letter-spacing:.02em}
+.clip-cap b{display:block;font-family:var(--f-body);font-size:var(--t-sm);font-weight:600;color:var(--ink);letter-spacing:0;margin-bottom:3px}
+.clip-cap span{display:block;font-variant-numeric:tabular-nums}
+.clipset.compact{grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:10px}
+.clipset.compact .clip-cap{padding:7px 8px;font-size:10px}
+.clipset.compact .clip-cap b{font-size:var(--t-xs)}
+
+/* ── SVG 图 ── */
+.chart{border:1px solid var(--rule);background:var(--surface);padding:14px 10px 8px;margin:18px 0}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.chart figcaption{padding:0 8px}
+svg text{font-family:var(--f-mono);fill:var(--ink-3);font-size:11px}
+svg text.lbl{fill:var(--ink-2);font-size:11.5px}
+svg text.axis{fill:var(--ink-3);font-size:10.5px;letter-spacing:.06em}
+svg .tick{stroke:var(--rule);stroke-width:1}
+svg .axis-l{stroke:var(--ink-3);stroke-width:1}
+
+pre{font-family:var(--f-mono);font-size:var(--t-sm);line-height:1.65;background:var(--surface);border:1px solid var(--rule);padding:14px 16px;overflow-x:auto;margin:14px 0;color:var(--ink-2)}
+pre b{color:var(--ink);font-weight:500}
+
+footer{margin-top:clamp(48px,7vw,80px);border-top:2px solid var(--ink);padding-top:18px;font-family:var(--f-mono);font-size:var(--t-xs);color:var(--ink-3);display:flex;flex-wrap:wrap;gap:8px 28px;letter-spacing:.04em}
+
+@media (max-width:620px){
+  .sec-head{grid-template-columns:1fr;gap:2px}
+  .sec-no{margin-bottom:2px}
+  .sec-sub{grid-column:1}
+  .readout div{grid-template-columns:1fr auto}
+  body{font-size:15px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<div class="topbar">
+  <b>Pikachu v035</b>
+  <span class="tag">直驱膝关节</span>
+  <span class="sep"></span>
+  <span>2026-10-28</span>
+  <span>eval · seed 42 · det.</span>
+</div>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div>
+      <p class="kicker">Velocity tracking · 直立 / 四足</p>
+      <h1>Pikachu v035 速度跟踪评估</h1>
+      <p class="lede">
+        v035 把膝关节的四杆闭链换成直驱铰链，并装上 4340。这一版训了三个任务：
+        站桩基线、直立行走、四足爬行。<strong>直立行走经三轮微调后，四档速度都做到命令的 93%–108%，
+        前进偏航漂移从 0.092 降到 0.013 rad/s</strong>；四足能爬但侧移与转向不成立。
+        最需要带回去改设计的一条是：行走档膝关节的角速度需求是 4340 额定转速的 2.3–3.2 倍。
+      </p>
+    </div>
+    <dl class="readout">
+      <div><dt>关节 / 自由度</dt><dd>18<small>全直驱 · equality 0</small></dd></div>
+      <div><dt>整机质量</dt><dd>8.2299<small>kg</small></dd></div>
+      <div><dt>膝峰值角速度 · walk@0.4</dt><dd class="bad">12.05<small>rad/s · 320% 额定</small></dd></div>
+      <div><dt>膝峰值力矩 · walk@0.4</dt><dd>5.48<small>N·m · 14% 峰值</small></dd></div>
+      <div><dt>摔倒次数</dt><dd class="hi">0<small>35 组 × 16 环境 × 8 s</small></dd></div>
+      <div><dt>前进 @0.4 m/s 实测</dt><dd>0.371<small>MAE 0.029 · 93%</small></dd></div>
+    </dl>
+  </div>
+</header>
+
+<nav class="toc" aria-label="目录">
+  <a href="#asset"><span>§1</span>资产与镜像校验</a>
+  <a href="#train"><span>§2</span>训练设置</a>
+  <a href="#track"><span>§3</span>速度跟踪结果</a>
+  <a href="#playback"><span>§4</span>回放</a>
+  <a href="#motor"><span>§5</span>电机工作点</a>
+  <a href="#gen"><span>§6</span>与 v034 对比</a>
+  <a href="#issues"><span>§7</span>已知问题</a>
+  <a href="#repro"><span>§8</span>复现</a>
+</nav>
+
+<!-- ══ 1 ══ -->
+<section id="asset">
+  <div class="sec-head">
+    <span class="sec-no">§1</span>
+    <h2>资产：去闭链、镜像惯量</h2>
+    <p class="sec-sub">19 links / 18 joints / nq 25 / nv 24</p>
+  </div>
+
+  <p>
+    上一代的膝是四杆闭链，仿真里要三个关节加等式约束才能表达一个膝。
+    v035 改成单轴直驱：<strong>一个膝只有一个自由度，传动比恒 1:1，没有零位偏置，equality 约束数归零</strong>。
+    代价是电机要直接承受全部力矩，所以膝关节从 4310 换成 4340。
+  </p>
+
+  <p>
+    URDF 的腿不是完全直立，而是按 CAD 初始姿态留了偏置：相对伸直腿
+    <span class="num">hip_pitch 20°</span>、<span class="num">knee 20°</span>、<span class="num">ankle 10°</span>。
+    mjlab 的站高 <span class="num">0.2296 m</span> 由这个姿态正解得到，不沿用旧版常数。
+  </p>
+
+  <h3>左右惯量镜像</h3>
+  <p>
+    导出时右腿/右臂的惯量是另算的。以<strong>左侧为基准</strong>镜像后覆盖右侧：
+    质心按 <span class="num">y → −y</span>，非对角惯量项各有一个 ±1 符号规则
+    （例如 <code>hip_roll</code> 三个都是 +1，<code>knee</code> 是 −1 / +1 / +1）。
+  </p>
+
+  <div class="tw">
+    <table>
+      <caption>symmetry_report.json · 覆盖前后残差</caption>
+      <thead><tr><th>部位</th><th class="n">镜像前偏差</th><th class="n">覆盖后残差</th></tr></thead>
+      <tbody>
+        <tr><td>质量</td><td class="n">0</td><td class="n hi">0</td></tr>
+        <tr><td>质心 · 手臂</td><td class="n">1.66 mm</td><td class="n hi">4.5e−14 m</td></tr>
+        <tr><td>质心 · 髋 / 膝 / 踝</td><td class="n">0.01 – 0.31 mm</td><td class="n hi">4.5e−14 m</td></tr>
+        <tr><td>惯量 · 对角项</td><td class="n">一致</td><td class="n hi">0</td></tr>
+        <tr><td>惯量 · 非对角（如 <code>knee.iyz</code>）</td><td class="n">3e−5</td><td class="n hi">0</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    也就是说：质量两侧本来就相同，惯量对角项也一致，真正不一致的是<strong>质心偏移</strong>和个别非对角项。
+    数值不大，但直驱膝对腿部惯量比敏感，所以仍按左侧统一覆盖。
+    这里的一致性只说明「右 = 镜像(左)」，不说明「左本身是对的」——后者要靠 CAD 质量属性，本次没有独立复核。
+  </p>
+</section>
+
+<!-- ══ 2 ══ -->
+<section id="train">
+  <div class="sec-head">
+    <span class="sec-no">§2</span>
+    <h2>训练设置</h2>
+    <p class="sec-sub">同一机体 / 同一观测，只改奖励口径与命令分布</p>
+  </div>
+
+  <div class="tw">
+    <table>
+      <caption>四个任务的命令范围与规模</caption>
+      <thead><tr><th>任务</th><th>定位</th><th class="n">vx</th><th class="n">vy</th><th class="n">wz</th><th class="n">轮数</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">Biped-E1</td><td>直立站桩（对照）</td><td class="n">±0.20</td><td class="n">±0.06</td><td class="n">±0.15</td><td class="n">3000</td></tr>
+        <tr><td class="mono">Biped-Walk</td><td>直立行走</td><td class="n">−0.30…+0.40</td><td class="n">±0.20</td><td class="n">±0.25</td><td class="n">5000</td></tr>
+        <tr><td class="mono">Walk-V2</td><td>偏航修正微调</td><td class="n">同上</td><td class="n">同上</td><td class="n">同上</td><td class="n">+1500</td></tr>
+        <tr><td class="mono">Crawl</td><td>四足爬行</td><td class="n">−0.15…+0.20</td><td class="n">±0.04</td><td class="n">±0.15</td><td class="n">3000</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    E1 走不起来<strong>不是 bug</strong>：它带 <code>standing_*</code> 奖励族、25% 的零命令样本，
+    推扰只施加给已经在移动的机器人，而跟踪奖励的 std 是 0.5，远宽于 ±0.2 的命令——
+    站着就能拿 0.92 的跟踪分。这组设置的结局必然是站桩，保留它是为了当对照。
+  </p>
+  <p>
+    walk 把「站着很赚」这条路堵死：删掉 standing 族、零命令样本降到 10%、推扰对全员施加、
+    跟踪权重提到 5 并换成 Huber，加上 <code>directional_progress +3.0</code>。
+    v2 只改三处：角速度跟踪 std 0.40→0.35、权重 2.0→2.5；线速度 std 0.20→0.30；<code>body_ang_vel</code> −0.05→−0.12。
+    v3 把这三处全部回退，只加一个偏航 Huber 项。
+  </p>
+
+  <div class="grid2">
+    <figure>
+      <img src="@@IMG:walk_training/training_curves.png@@" alt="walk 训练曲线：平均奖励与回合长度">
+      <figcaption><b>walk</b>平均奖励与回合长度。5000 轮里没有塌陷段。</figcaption>
+    </figure>
+    <figure>
+      <img src="@@IMG:walk_training/training_tracking.png@@" alt="walk 训练期速度跟踪与终止构成">
+      <figcaption><b>walk</b>训练期跟踪误差与终止构成（含探索噪声，只用于看趋势）。</figcaption>
+    </figure>
+    <figure>
+      <img src="@@IMG:crawl_training/training_curves.png@@" alt="crawl 训练曲线">
+      <figcaption><b>crawl</b>四足档的平均奖励与回合长度。</figcaption>
+    </figure>
+    <figure>
+      <img src="@@IMG:crawl_training/training_tracking.png@@" alt="crawl 训练期速度跟踪">
+      <figcaption><b>crawl</b>训练期跟踪。四足档命令小，跟踪误差也小。</figcaption>
+    </figure>
+  </div>
+
+  <div class="callout">
+    <span class="h">奖励权重预算</span>
+    <p>
+      单项罚的<strong>单步</strong>量级不要超过进度奖励的三成。v034 曾把
+      <code>straight_base_roll_rate</code> 设到 −0.60（单步罚 4.8，而进度奖励只有 3.5），
+      70 轮就把一个会走的策略打回站桩。这条教训在 v035 的所有任务里沿用。
+    </p>
+  </div>
+</section>
+
+<!-- ══ 3 ══ -->
+<section id="track">
+  <div class="sec-head">
+    <span class="sec-no">§3</span>
+    <h2>速度跟踪结果</h2>
+    <p class="sec-sub">确定性评估：策略取均值动作 · 16 环境 × 8 s · seed 42</p>
+  </div>
+
+  <p>
+    每个任务跑五个固定命令档：站立 (0,0,0)、前进、后退、侧移、转向。
+    下表的实测值是 16 个环境、8 秒的均值，MAE 是按时间平均后逐轴的绝对误差。
+  </p>
+
+  <h3>E1 · 站桩基线</h3>
+  <div class="tw">
+    <table>
+      <caption>E1 · model_2999 · 五档全部站立</caption>
+      <thead><tr><th>档位</th><th class="n">命令 (vx,vy,wz)</th><th class="n">实测均值</th><th class="n">MAE</th><th class="n">摔倒</th><th class="n">支撑数</th></tr></thead>
+      <tbody>
+        <tr><td>站立</td><td class="n">(0, 0, 0)</td><td class="n">−0.001, 0.000, 0.003</td><td class="n">0.001 / 0.001 / 0.008</td><td class="n">0</td><td class="n">2.00</td></tr>
+        <tr><td>前进</td><td class="n">(0.20, 0, 0)</td><td class="n">−0.001, −0.001, 0.004</td><td class="n bad">0.201</td><td class="n">0</td><td class="n">2.00</td></tr>
+        <tr><td>后退</td><td class="n">(−0.12, 0, 0)</td><td class="n">−0.001, 0.000, 0.003</td><td class="n">0.119</td><td class="n">0</td><td class="n">2.00</td></tr>
+        <tr><td>侧移</td><td class="n">(0, 0.06, 0)</td><td class="n">−0.001, 0.000, 0.001</td><td class="n bad">0.001 / 0.060</td><td class="n">0</td><td class="n">2.00</td></tr>
+        <tr><td>转向</td><td class="n">(0, 0, 0.15)</td><td class="n">−0.001, −0.001, 0.006</td><td class="n bad">0.002 / 0.001 / 0.144</td><td class="n">0</td><td class="n">2.00</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    五档的实测速度几乎完全相同（±0.001），支撑数恒为 2.00——策略在所有命令下都只是站着。
+    这是预期的对照组结果，不是失败。
+  </p>
+
+  <h3>walk · 直立行走</h3>
+  <div class="tw">
+    <table>
+      <caption>Biped-Walk · model_4999 · 五档</caption>
+      <thead><tr><th>档位</th><th class="n">命令</th><th class="n">实测均值</th><th class="n">MAE</th><th class="n">摔倒</th><th class="n">支撑数</th></tr></thead>
+      <tbody>
+        <tr><td>站立</td><td class="n">(0, 0, 0)</td><td class="n">−0.007, 0.000, <b class="bad">+0.035</b></td><td class="n">0.015 / 0.017 / 0.089</td><td class="n">0</td><td class="n">1.15</td></tr>
+        <tr><td>前进</td><td class="n">(0.20, 0, 0)</td><td class="n"><b class="hi">+0.214</b>, −0.010, +0.092</td><td class="n">0.015 / 0.028 / 0.221</td><td class="n">0</td><td class="n">1.10</td></tr>
+        <tr><td>后退</td><td class="n">(−0.12, 0, 0)</td><td class="n"><b class="hi">−0.147</b>, +0.015, +0.041</td><td class="n">0.028 / 0.024 / 0.119</td><td class="n">0</td><td class="n">1.10</td></tr>
+        <tr><td>侧移</td><td class="n">(0, 0.06, 0)</td><td class="n">−0.015, <b class="hi">+0.056</b>, +0.052</td><td class="n">0.016 / 0.027 / 0.094</td><td class="n">0</td><td class="n">1.13</td></tr>
+        <tr><td>转向</td><td class="n">(0, 0, 0.15)</td><td class="n">−0.004, −0.002, <b class="bad">+0.093</b></td><td class="n">0.014 / 0.015 / 0.112</td><td class="n">0</td><td class="n">1.17</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="findings">
+    <div><span class="m">A</span><p><b>线速度跟踪在 7% 误差内。</b>前进实测 0.214 / 命令 0.20，后退 −0.147 / 命令 −0.12，侧移 0.056 / 0.06。支撑数 1.1 说明确实是单腿支撑行走，不是挪步。</p></div>
+    <div><span class="m">B</span><p><b>前进时偏航漂移。</b>wz 均值 +0.092 rad/s 而命令是 0，8 秒会拐出约 42°；站立档也有 +0.035 rad/s 的缓慢自转。</p></div>
+    <div><span class="m">C</span><p><b>转向只做到 62%。</b>命令 0.15 rad/s 实测 0.093，MAE 0.112。</p></div>
+  </div>
+  <p>
+    B、C 是同一类问题，但不是「std 太宽」这么简单。指数型跟踪奖励的回复力
+    <strong>正比于误差本身</strong><span style="white-space:nowrap">∂/∂e exp(−(e/s)²) = −2e/s² · exp(−(e/s)²)</span>，
+    误差越小坡度越平。v035 walk 的角速度 std 已经是 0.40（基类默认 0.707），
+    0.09 rad/s 的漂移对应 <span class="num">exp(−(0.09/0.40)²) = 0.95</span>——
+    几乎满分，而修掉它必须改步态，代价不小。于是策略选择忽略。
+  </p>
+  <p>
+    要治这个，三条路：收紧尺度、补一个<strong>在误差小的地方也保持恒定梯度</strong>的项、
+    或者把正确行为的收益抬上去。v2 走了第一条，v3 走了第二条，两次都退步；
+    v5 走了第三条，成功了。三段的完整过程见下。
+  </p>
+
+  <h3>walk v2 · 收紧 std 的尝试（退步）</h3>
+  <p>
+    v2 从 v1 末轮热启动，只动三处：角速度跟踪 std 0.40→0.35、权重 2.0→2.5；
+    线速度 std 0.20→0.30（这一项其实是<strong>放宽</strong>）；<code>body_ang_vel</code> −0.05→−0.12。
+    目标是压住偏航漂移。
+  </p>
+  <div class="tw">
+    <table>
+      <caption>v1 → v2 · 五档对比（v2 = model_6498，热启动后 1500 轮）</caption>
+      <thead><tr><th>档位</th><th class="n">v1 实测 wz</th><th class="n">v2 实测 wz</th><th class="n">v1 MAE wz</th><th class="n">v2 MAE wz</th><th class="n">支撑数 v1→v2</th></tr></thead>
+      <tbody>
+        <tr><td>站立</td><td class="n">+0.035</td><td class="n hi">+0.020</td><td class="n">0.089</td><td class="n hi">0.031</td><td class="n">1.15 → 1.96</td></tr>
+        <tr><td>前进</td><td class="n">+0.092</td><td class="n hi">+0.051</td><td class="n hi">0.221</td><td class="n bad">0.345</td><td class="n">1.10 → 1.08</td></tr>
+        <tr><td>后退</td><td class="n">+0.041</td><td class="n hi">−0.030</td><td class="n">0.119</td><td class="n hi">0.093</td><td class="n">1.10 → 1.13</td></tr>
+        <tr><td>侧移</td><td class="n">+0.052</td><td class="n bad">+0.126</td><td class="n">0.094</td><td class="n bad">0.156</td><td class="n">1.13 → 1.15</td></tr>
+        <tr><td>转向</td><td class="n">+0.093</td><td class="n bad">+0.027</td><td class="n">0.112</td><td class="n bad">0.147</td><td class="n">1.17 → 1.95</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    <strong>净结果是退步。</strong>漂移确实减半（前进 0.092→0.051），但：
+  </p>
+  <div class="findings">
+    <div><span class="m">A</span><p><b>转向塌到 18%。</b>命令 0.15 rad/s 只做出来 0.027，比 v1 的 0.093 差了三倍多；转向档支撑数 1.95——<b>双足着地，策略干脆站住了</b>。站立档同样退化到 1.96，v1 那种「原地挪步」的微动没了。</p></div>
+    <div><span class="m">B</span><p><b>侧移偏航漂移反而翻倍。</b>0.052 → 0.126 rad/s。均值和 MAE 一起变差，不是测量噪声。</p></div>
+    <div><span class="m">C</span><p><b>前进开始超速。</b>实测 0.240 vs 命令 0.20，MAE 从 0.015 涨到 0.040。同时 wz 的 MAE 涨到 0.345——均值漂移是小了，但<b>瞬时偏航振荡剧烈</b>，这是「均值好看、行为更差」的典型。</p></div>
+  </div>
+  <p>
+    三处同时改导致归因不干净，但现象指向同一个结论：<strong>在非纵向命令下，策略学会了「站着不动」这个更省事的解</strong>。
+    这也解释了为什么它同时把转向和站立档都推到了双足支撑。
+  </p>
+  <p>
+    所以 v2 不作为交付策略。
+    下一轮（v3）把这三处<strong>全部回退</strong>，改为只加一项非饱和的偏航 Huber 代价——
+    指数型跟踪奖励的回复力正比于误差本身，误差越小坡度越平，正好是最需要纠正的那一段没力气。
+  </p>
+
+  <div class="clipset" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),300px))">
+    <figure class="clip"><video controls muted loop playsinline preload="metadata" src="@@VID:walk_v2_forward@@"></video><div class="clip-cap"><b>v2 前进 0.20</b><span>0.240, 0.008, +0.051</span><span>超速 · 偏航振荡</span></div></figure>
+    <figure class="clip"><video controls muted loop playsinline preload="metadata" src="@@VID:walk_v2_turn@@"></video><div class="clip-cap"><b>v2 转向 0.15</b><span>0.004, −0.001, +0.027</span><span>几乎原地不动</span></div></figure>
+  </div>
+
+  <figure>
+    <img src="@@IMG:fig_compare.png@@" alt="五档横向对比">
+    <figcaption><b>FIG 1</b>直立三版尝试与四足并排。左：速度达成率（实测 / 命令），理想值 1.0；右：偏航漂移 |wz|，虚线是转向命令 0.15。walk v2 与 v3 的转向条几乎看不见（18% / 5%），<strong>v5 把四档都拉回 93%–108%，同时漂移全档降到 0.02 以内</strong>。E1 站桩基线不在图内——它在四档上的实测都在 0 附近，四根柱都是 0。</figcaption>
+  </figure>
+
+  <h3 id="walk-v3">walk v3 · 补非饱和偏航代价（退步，但暴露了机制）</h3>
+  <p>
+    v3 把 v2 的三处改动<strong>全部回退</strong>，只加一项：<code>angular_velocity_huber</code>，
+    权重 −0.30、<code>delta = 0.25</code>。理由是指数型跟踪奖励在误差小的地方坡度极平，
+    而 <code>delta</code> 之外的 Huber 保持恒定梯度，正好补上「最该纠正却推不动」的那一段。
+    从 v1 末轮热启动，跑 1500 轮。
+  </p>
+  <div class="tw">
+    <table>
+      <caption>v1 → v3 · 五档对比（v3 = model_6498）</caption>
+      <thead><tr><th>档位</th><th class="n">v1 实测 vx</th><th class="n">v3 实测 vx</th><th class="n">v1 wz / MAE</th><th class="n">v3 wz / MAE</th><th class="n">支撑数 v1→v3</th></tr></thead>
+      <tbody>
+        <tr><td>站立</td><td class="n">0.000</td><td class="n">0.000</td><td class="n">+0.035 / 0.089</td><td class="n hi">−0.005 / 0.014</td><td class="n">1.15 → 1.98</td></tr>
+        <tr><td>前进 0.20</td><td class="n">+0.214</td><td class="n">+0.211</td><td class="n">+0.092 / 0.221</td><td class="n hi">+0.034 / 0.085</td><td class="n">1.10 → 1.10</td></tr>
+        <tr><td>后退 −0.12</td><td class="n">−0.147</td><td class="n">−0.146</td><td class="n">+0.041 / 0.119</td><td class="n hi">−0.002 / 0.074</td><td class="n">1.10 → 1.12</td></tr>
+        <tr><td>侧移 0.06</td><td class="n">+0.056</td><td class="n bad">+0.002</td><td class="n">+0.052 / 0.094</td><td class="n bad">−0.027 / 0.035</td><td class="n">1.13 → 1.96</td></tr>
+        <tr><td>转向 0.15</td><td class="n">+0.093</td><td class="n bad">+0.008</td><td class="n">+0.093 / 0.112</td><td class="n bad">+0.008 / 0.149</td><td class="n">1.17 → 1.98</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="findings">
+    <div><span class="m">A</span><p><b>前进漂移真的被治好了。</b>+0.092 → +0.034 rad/s，MAE 0.221 → 0.085，两项一起降。后退档同样（+0.041 → −0.002）。Huber 在前向确实是有效的纠偏通道。</p></div>
+    <div><span class="m">B</span><p><b>代价是转向和侧移一起停摆。</b>转向只做出 0.008（命令的 5%），侧移 0.002（4%），两档支撑数都到 1.96–1.98——<b>双足着地，站住了</b>。前进档支撑数仍是 1.10，会走。</p></div>
+    <div><span class="m">C</span><p><b>塌陷是渐进的，中间 checkpoint 留下了轨迹。</b>热启动后 250 轮时转向还有 0.046（31%）、侧移 0.064（<b>106%，比 v1 还好</b>），到 1000 轮就只剩 1% 和 5%。所以不是奖励项一加上去就压死，而是策略在训练中<b>逐步发现站桩更划算</b>。</p></div>
+  </div>
+  <div class="tw">
+    <table>
+      <caption>v3 训练中的塌陷轨迹（同一份配置，不同 checkpoint）</caption>
+      <thead><tr><th class="n">checkpoint</th><th class="n">前进 vx / wz</th><th class="n">转向达成率</th><th class="n">侧移达成率</th><th class="n">转向档支撑数</th></tr></thead>
+      <tbody>
+        <tr><td class="n">5250（+250 轮）</td><td class="n">0.220 / +0.090</td><td class="n hi">31%</td><td class="n hi">106%</td><td class="n">1.23</td></tr>
+        <tr><td class="n">6000（+1000 轮）</td><td class="n">0.206 / −0.039</td><td class="n bad">1%</td><td class="n bad">5%</td><td class="n">1.97</td></tr>
+        <tr><td class="n">6498（+1500 轮）</td><td class="n">0.211 / +0.034</td><td class="n bad">5%</td><td class="n bad">4%</td><td class="n">1.98</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    这段轨迹把问题从「哪个奖励项写错了」推到了「<strong>训练目标对转向能力不敏感</strong>」。
+    同一训练窗口（5200 → 6498 轮）里，tensorboard 上 <strong>31 个奖励项全部平台化</strong>，
+    没有任何一项的均值变化超过 0.01；而确定性转向能力在这段时间从 31% 掉到 5%。
+    训练分数一路是「健康」的，行为却在退化。
+  </p>
+  <p>
+    原因的线索在量级上：<code>track_linear_velocity</code> 权重 5.0、训练中实际贡献 <strong>3.72</strong>；
+    <code>track_angular_velocity</code> 权重 2.0、实际只贡献 <strong>0.40</strong>。
+    <strong>角速度跟踪的份量是线速度的十分之一</strong>，于是「把直线走好」的边际收益远大于「学会转向」；
+    而站桩时 wz ≈ 0，在 yaw 命令下仍能拿到 <code>exp(−(0.35/0.4)²) = 0.47</code> 的角速度奖励。
+    前两轮微调都在<strong>加重「跟踪不上」的代价</strong>，只会让策略更快地放弃转向。
+  </p>
+  <figure>
+    <img src="@@IMG:walk_v3_training/training_curves.png@@" alt="v3 训练曲线">
+    <figcaption><b>FIG 2</b>v3 的训练曲线。5100 轮之后平均奖励与回合长度都完全平了（回合长度 1000 步打满 = 从不摔倒）。而上面那张塌陷轨迹表里，转向达成率正是在<strong>这段平坦区间里</strong>从 31% 掉到 5%——训练信号看不出任何异常。这就是「训练指标与真实能力脱钩」最直接的一张图。</figcaption>
+  </figure>
+
+  <div class="clipset" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),300px))">
+    <figure class="clip"><video controls muted loop playsinline preload="metadata" src="@@VID:walk_v3_forward@@"></video><div class="clip-cap"><b>v3 前进 0.20</b><span>0.211, 0.011, +0.034</span><span>漂移治好了</span></div></figure>
+    <figure class="clip"><video controls muted loop playsinline preload="metadata" src="@@VID:walk_v3_turn@@"></video><div class="clip-cap"><b>v3 转向 0.15</b><span>0.000, −0.001, +0.008</span><span>站桩不动</span></div></figure>
+  </div>
+
+  <h3 id="walk-v5">walk v5 · 抬高角速度跟踪的收益（有效）</h3>
+  <p>
+    v5 只改一处：<code>track_angular_velocity</code> 权重 <strong>2.0 → 6.0</strong>，
+    与线速度（5.0）同量级。其余全部沿用 v1，训练超参也沿用 v1
+    （<code>init_std 0.8</code> / <code>entropy 0.005</code>），从 v1 末轮热启动跑 1500 轮。
+    这样与 v2、v3 的差异是干净的单点。
+  </p>
+  <div class="tw">
+    <table>
+      <caption>v1 → v5 · 五档对比（v5 = model_6498）</caption>
+      <thead><tr><th>档位</th><th class="n">命令</th><th class="n">v1 实测</th><th class="n">v5 实测</th><th class="n">v1 wz / MAE</th><th class="n">v5 wz / MAE</th><th class="n">支撑数 v1→v5</th></tr></thead>
+      <tbody>
+        <tr><td>站立</td><td class="n">(0, 0, 0)</td><td class="n">0.000</td><td class="n">0.003</td><td class="n">+0.035 / 0.089</td><td class="n hi">+0.016 / 0.058</td><td class="n">1.15 → 1.27</td></tr>
+        <tr><td>前进</td><td class="n">(0.20, 0, 0)</td><td class="n">+0.214</td><td class="n">+0.187</td><td class="n">+0.092 / 0.221</td><td class="n hi">−0.013 / 0.071</td><td class="n">1.10 → 1.16</td></tr>
+        <tr><td>后退</td><td class="n">(−0.12, 0, 0)</td><td class="n">−0.147</td><td class="n hi">−0.129</td><td class="n">+0.041 / 0.119</td><td class="n hi">−0.013 / 0.035</td><td class="n">1.10 → 1.20</td></tr>
+        <tr><td>侧移</td><td class="n">(0, 0.06, 0)</td><td class="n">+0.056</td><td class="n hi">+0.064</td><td class="n">+0.052 / 0.094</td><td class="n hi">−0.002 / 0.057</td><td class="n">1.13 → 1.24</td></tr>
+        <tr><td>转向</td><td class="n">(0, 0, 0.15)</td><td class="n">+0.093</td><td class="n hi">+0.107</td><td class="n">+0.093 / 0.112</td><td class="n hi">+0.107 / 0.087</td><td class="n">1.17 → 1.25</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="findings">
+    <div><span class="m">A</span><p><b>转向 62% → 71%，MAE 0.112 → 0.087。</b>这一次 wz 终于是<b>朝着命令方向</b>走的（+0.107 vs 命令 +0.15），而不是像前两次那样退向 0。</p></div>
+    <div><span class="m">B</span><p><b>侧移 93% → 106%，前进/后退/侧移的偏航漂移全档降到 0.013 以内。</b>上一轮 Huber 是靠「压住不动的行为」把漂移压下去的，v5 是把行为做对之后漂移自然消失。</p></div>
+    <div><span class="m">C</span><p><b>代价：前进速度从超速 7% 变成欠速 7%。</b>0.214 → 0.187（命令 0.20），MAE 0.015 → 0.015。后退反而更准了（v1 超 22% → v5 超 7.6%）。</p></div>
+  </div>
+  <p>
+    三档微调放在一起看，结论很干净：<strong>v2 和 v3 都在加重「跟踪不上」的代价，v5 是把「跟踪上」的收益抬到与线速度同量级</strong>。
+    同一个站桩解，在前两次的奖励下「罚得少、拿得多」，在 v5 下「罚得多、拿得少」——策略于是真的去转向了。
+  </p>
+  <div class="tw">
+    <table>
+      <caption>walk v5 · 速度包线（前进档）</caption>
+      <thead><tr><th class="n">命令 m/s</th><th class="n">实测 vx</th><th class="n">达成率</th><th class="n">MAE vx</th><th class="n">wz 漂移</th><th class="n">支撑数</th></tr></thead>
+      <tbody>
+        <tr><td class="n">0.10</td><td class="n">+0.104</td><td class="n">104%</td><td class="n">0.009</td><td class="n">−0.039</td><td class="n">1.16</td></tr>
+        <tr><td class="n">0.15</td><td class="n">+0.143</td><td class="n">96%</td><td class="n">0.010</td><td class="n">−0.016</td><td class="n">1.14</td></tr>
+        <tr><td class="n">0.20</td><td class="n">+0.187</td><td class="n">93%</td><td class="n">0.015</td><td class="n">−0.013</td><td class="n">1.16</td></tr>
+        <tr><td class="n">0.40</td><td class="n">+0.371</td><td class="n">93%</td><td class="n">0.029</td><td class="n">+0.021</td><td class="n">1.10</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    全档 0 摔倒，支撑数 1.10–1.16，始终是单腿支撑的步态。
+    低速档（0.10）的漂移 −0.039 是全档里最大的，随命令增大单调收敛到 +0.02 以内——
+    这与「转向权重不够」的旧问题方向相反，不再需要专门处理。
+  </p>
+  <div class="clipset" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),300px))">
+    <figure class="clip"><video controls muted loop playsinline preload="metadata" src="@@VID:walk_v5_forward@@"></video><div class="clip-cap"><b>v5 前进 0.20</b><span>0.187, 0.004, −0.013</span><span>漂移消失</span></div></figure>
+    <figure class="clip"><video controls muted loop playsinline preload="metadata" src="@@VID:walk_v5_turn@@"></video><div class="clip-cap"><b>v5 转向 0.15</b><span>0.001, 0.012, +0.107</span><span>真的转起来了</span></div></figure>
+    <figure class="clip"><video controls muted loop playsinline preload="metadata" src="@@VID:walk_v5_lateral@@"></video><div class="clip-cap"><b>v5 侧移 0.06</b><span>−0.001, 0.064, −0.002</span><span>达成 106%</span></div></figure>
+  </div>
+
+  <h3>crawl · 四足爬行</h3>
+  <div class="tw">
+    <table>
+      <caption>Crawl · model_2999 · 五档</caption>
+      <thead><tr><th>档位</th><th class="n">命令</th><th class="n">实测均值</th><th class="n">MAE</th><th class="n">摔倒</th><th class="n">支撑数</th></tr></thead>
+      <tbody>
+        <tr><td>站立</td><td class="n">(0, 0, 0)</td><td class="n">−0.001, 0.000, 0.003</td><td class="n">0.002 / 0.001 / 0.011</td><td class="n">0</td><td class="n">3.96</td></tr>
+        <tr><td>前进</td><td class="n">(0.10, 0, 0)</td><td class="n"><b class="hi">+0.122</b>, −0.005, −0.012</td><td class="n">0.022 / 0.014 / 0.034</td><td class="n">0</td><td class="n">2.44</td></tr>
+        <tr><td>后退</td><td class="n">(−0.06, 0, 0)</td><td class="n"><b class="hi">−0.046</b>, −0.001, 0.004</td><td class="n">0.015 / 0.008 / 0.033</td><td class="n">0</td><td class="n">3.79</td></tr>
+        <tr><td>侧移</td><td class="n">(0, 0.04, 0)</td><td class="n">−0.001, <b class="bad">+0.002</b>, 0.015</td><td class="n">0.003 / <b class="bad">0.038</b> / 0.020</td><td class="n">0</td><td class="n">3.98</td></tr>
+        <tr><td>转向</td><td class="n">(0, 0, 0.15)</td><td class="n">−0.003, 0.001, <b class="bad">+0.013</b></td><td class="n">0.004 / 0.002 / <b class="bad">0.138</b></td><td class="n">0</td><td class="n">3.95</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    前进 0.122 / 命令 0.10。速度包线 0.10 / 0.15 / 0.20 → 0.122 / 0.168 / 0.210 m/s，
+    MAE 0.013–0.019，全档 0 摔倒。站立时支撑数 3.96，前进时降到 2.44——抬腿相很清楚。
+  </p>
+  <p>
+    <strong>侧移与转向失败（0.002 / 0.013，接近 0）是奖励结构问题，不是调参问题。</strong>
+    查 <code>pikachu_v035_crawl/mdp.py</code> 可以定位到两条：
+  </p>
+  <div class="findings">
+    <div><span class="m">1</span><p><code>gait_contacts_smooth_120</code>（+1.8）是<b>无条件</b>项。它奖励「实际接触相 = 参考接触相」，而参考相在静止时正好是全部支撑——<b>站着不动就能拿满这 1.8</b>。侧移/转向一旦真动起来，接触相被打乱，反而掉分。</p></div>
+    <div><span class="m">2</span><p><code>directional_progress</code>（+3.0）<b>只看纵向</b>（<code>command[:, 0]</code>）。前进/后退有这条强拉力，侧移和转向没有任何对应的进度项，只剩指数跟踪那点微弱梯度，压不过上面的 1.8 补贴。</p></div>
+  </div>
+  <p>
+    <code>forward_*</code> 系列（<code>directional_smooth_gait_mismatch</code>、<code>forward_velocity_shortfall</code>、
+    <code>directional_sole_cost</code>）都乘了 <code>forward_weight(env)</code>，非纵向命令时输出为 0，
+    不构成对抗。改法明确：把 <code>gait_contacts_smooth</code> 改成按实际运动门控，
+    并把进度项扩成三轴。这是结构性改动，不在本次微调范围内。
+  </p>
+
+  <figure>
+    <img src="@@IMG:walk/fig1_speed_tracking.png@@" alt="walk 五档速度跟踪：命令与实测对照">
+    <figcaption><b>FIG 3</b>walk 五档的命令与实测对照。线速度基本贴合，角速度一栏能直接看出漂移与转向不足。</figcaption>
+  </figure>
+  <figure>
+    <img src="@@IMG:walk/fig2_velocity_trace.png@@" alt="walk 速度时间序列">
+    <figcaption><b>FIG 4</b>walk 的 8 秒速度时序（实线跨环境均值，色带 ±1 标准差）。前进档 vx 稳定在 0.21 附近、有明显步频纹波；wz 的均值持续偏正。</figcaption>
+  </figure>
+  <figure>
+    <img src="@@IMG:walk/fig3_height_support.png@@" alt="机身高度与支撑接触数">
+    <figcaption><b>FIG 5</b>机身高度与支撑接触数。高度稳定在站高附近，支撑数在 1 和 2 之间交替——是单腿支撑的行走相。</figcaption>
+  </figure>
+</section>
+
+<!-- ══ 4 ══ -->
+<section id="playback">
+  <div class="sec-head">
+    <span class="sec-no">§4</span>
+    <h2>回放</h2>
+    <p class="sec-sub">每组 5 段 8 秒确定性回放 · 480×360 · 无音轨</p>
+  </div>
+
+  <p>
+    每段视频是同一策略在固定命令下的回放，画面叠加了命令与实测速度。
+    三组的差别最好横向比：E1 五段全站着，walk 五段动作清晰但转向偏慢，crawl 只在纵向有效。
+  </p>
+
+  <h3>E1 · 对照：五档全部站着</h3>
+  <div class="clipset compact">
+    <figure class="clip"><video controls muted loop playsinline preload="metadata" src="@@VID:biped_e1_stand@@"></video><div class="clip-cap"><b>站立</b><span>实测 ≈ (0,0,0)</span></div></figure>
+    <figure class="clip"><video controls muted loop playsinline preload="metadata" src="@@VID:biped_e1_forward@@"></video><div class="clip-cap"><b>前进 0.20</b><span>实测 −0.001</span></div></figure>
+    <figure class="clip"><video controls muted loop playsinline preload="metadata" src="@@VID:biped_e1_backward@@"></video><div class="clip-cap"><b>后退 −0.12</b><span>实测 −0.001</span></div></figure>
+    <figure class="clip"><video controls muted loop playsinline preload="metadata" src="@@VID:biped_e1_lateral@@"></video><div class="clip-cap"><b>侧移 0.06</b><span>实测 0.000</span></div></figure>
+    <figure class="clip"><video controls muted loop playsinline preload="metadata" src="@@VID:biped_e1_turn@@"></video><div class="clip-cap"><b>转向 0.15</b><span>实测 0.006</span></div></figure>
+  </div>
+
+  <h3>walk · 直立行走</h3>
+  <div class="clipset">
+    <figure class="clip"><video controls muted loop playsinline preload="metadata" src="@@VID:walk_stand@@"></video><div class="clip-cap"><b>站立</b><span>0.000, −0.007, +0.035</span><span>缓慢自转</span></div></figure>
+    <figure class="clip"><video controls muted loop playsinline preload="metadata" src="@@VID:walk_forward@@"></video><div class="clip-cap"><b>前进 0.20</b><span>0.214, −0.010, +0.092</span><span>MAE 0.015 · 偏航右漂</span></div></figure>
+    <figure class="clip"><video controls muted loop playsinline preload="metadata" src="@@VID:walk_backward@@"></video><div class="clip-cap"><b>后退 −0.12</b><span>−0.147, +0.015, +0.041</span><span>MAE 0.028 · 略超命令</span></div></figure>
+    <figure class="clip"><video controls muted loop playsinline preload="metadata" src="@@VID:walk_lateral@@"></video><div class="clip-cap"><b>侧移 0.06</b><span>−0.015, 0.056, 0.052</span><span>MAE 0.027</span></div></figure>
+    <figure class="clip"><video controls muted loop playsinline preload="metadata" src="@@VID:walk_turn@@"></video><div class="clip-cap"><b>转向 0.15</b><span>−0.004, −0.002, 0.093</span><span>只做到 62%</span></div></figure>
+  </div>
+
+  <h3 id="walk-v5">walk v5 · 抬高角速度跟踪的收益（有效）</h3>
+  <p>
+    v5 只改一处：<code>track_angular_velocity</code> 权重 <strong>2.0 → 6.0</strong>，
+    与线速度（5.0）同量级。其余全部沿用 v1，训练超参也沿用 v1
+    （<code>init_std 0.8</code> / <code>entropy 0.005</code>），从 v1 末轮热启动跑 1500 轮。
+    这样与 v2、v3 的差异是干净的单点。
+  </p>
+  <div class="tw">
+    <table>
+      <caption>v1 → v5 · 五档对比（v5 = model_6498）</caption>
+      <thead><tr><th>档位</th><th class="n">命令</th><th class="n">v1 实测</th><th class="n">v5 实测</th><th class="n">v1 wz / MAE</th><th class="n">v5 wz / MAE</th><th class="n">支撑数 v1→v5</th></tr></thead>
+      <tbody>
+        <tr><td>站立</td><td class="n">(0, 0, 0)</td><td class="n">0.000</td><td class="n">0.003</td><td class="n">+0.035 / 0.089</td><td class="n hi">+0.016 / 0.058</td><td class="n">1.15 → 1.27</td></tr>
+        <tr><td>前进</td><td class="n">(0.20, 0, 0)</td><td class="n">+0.214</td><td class="n">+0.187</td><td class="n">+0.092 / 0.221</td><td class="n hi">−0.013 / 0.071</td><td class="n">1.10 → 1.16</td></tr>
+        <tr><td>后退</td><td class="n">(−0.12, 0, 0)</td><td class="n">−0.147</td><td class="n hi">−0.129</td><td class="n">+0.041 / 0.119</td><td class="n hi">−0.013 / 0.035</td><td class="n">1.10 → 1.20</td></tr>
+        <tr><td>侧移</td><td class="n">(0, 0.06, 0)</td><td class="n">+0.056</td><td class="n hi">+0.064</td><td class="n">+0.052 / 0.094</td><td class="n hi">−0.002 / 0.057</td><td class="n">1.13 → 1.24</td></tr>
+        <tr><td>转向</td><td class="n">(0, 0, 0.15)</td><td class="n">+0.093</td><td class="n hi">+0.107</td><td class="n">+0.093 / 0.112</td><td class="n hi">+0.107 / 0.087</td><td class="n">1.17 → 1.25</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="findings">
+    <div><span class="m">A</span><p><b>转向 62% → 71%，MAE 0.112 → 0.087。</b>这一次 wz 终于是<b>朝着命令方向</b>走的（+0.107 vs 命令 +0.15），而不是像前两次那样退向 0。</p></div>
+    <div><span class="m">B</span><p><b>侧移 93% → 106%，前进/后退/侧移的偏航漂移全档降到 0.013 以内。</b>上一轮 Huber 是靠「压住不动的行为」把漂移压下去的，v5 是把行为做对之后漂移自然消失。</p></div>
+    <div><span class="m">C</span><p><b>代价：前进速度从超速 7% 变成欠速 7%。</b>0.214 → 0.187（命令 0.20），MAE 0.015 → 0.015。后退反而更准了（v1 超 22% → v5 超 7.6%）。</p></div>
+  </div>
+  <p>
+    三档微调放在一起看，结论很干净：<strong>v2 和 v3 都在加重「跟踪不上」的代价，v5 是把「跟踪上」的收益抬到与线速度同量级</strong>。
+    同一个站桩解，在前两次的奖励下「罚得少、拿得多」，在 v5 下「罚得多、拿得少」——策略于是真的去转向了。
+  </p>
+  <div class="tw">
+    <table>
+      <caption>walk v5 · 速度包线（前进档）</caption>
+      <thead><tr><th class="n">命令 m/s</th><th class="n">实测 vx</th><th class="n">达成率</th><th class="n">MAE vx</th><th class="n">wz 漂移</th><th class="n">支撑数</th></tr></thead>
+      <tbody>
+        <tr><td class="n">0.10</td><td class="n">+0.104</td><td class="n">104%</td><td class="n">0.009</td><td class="n">−0.039</td><td class="n">1.16</td></tr>
+        <tr><td class="n">0.15</td><td class="n">+0.143</td><td class="n">96%</td><td class="n">0.010</td><td class="n">−0.016</td><td class="n">1.14</td></tr>
+        <tr><td class="n">0.20</td><td class="n">+0.187</td><td class="n">93%</td><td class="n">0.015</td><td class="n">−0.013</td><td class="n">1.16</td></tr>
+        <tr><td class="n">0.40</td><td class="n">+0.371</td><td class="n">93%</td><td class="n">0.029</td><td class="n">+0.021</td><td class="n">1.10</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    全档 0 摔倒，支撑数 1.10–1.16，始终是单腿支撑的步态。
+    低速档（0.10）的漂移 −0.039 是全档里最大的，随命令增大单调收敛到 +0.02 以内——
+    这与「转向权重不够」的旧问题方向相反，不再需要专门处理。
+  </p>
+  <div class="clipset" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),300px))">
+    <figure class="clip"><video controls muted loop playsinline preload="metadata" src="@@VID:walk_v5_forward@@"></video><div class="clip-cap"><b>v5 前进 0.20</b><span>0.187, 0.004, −0.013</span><span>漂移消失</span></div></figure>
+    <figure class="clip"><video controls muted loop playsinline preload="metadata" src="@@VID:walk_v5_turn@@"></video><div class="clip-cap"><b>v5 转向 0.15</b><span>0.001, 0.012, +0.107</span><span>真的转起来了</span></div></figure>
+    <figure class="clip"><video controls muted loop playsinline preload="metadata" src="@@VID:walk_v5_lateral@@"></video><div class="clip-cap"><b>v5 侧移 0.06</b><span>−0.001, 0.064, −0.002</span><span>达成 106%</span></div></figure>
+  </div>
+
+  <h3>crawl · 四足爬行</h3>
+  <div class="clipset">
+    <figure class="clip"><video controls muted loop playsinline preload="metadata" src="@@VID:crawl_stand@@"></video><div class="clip-cap"><b>站立</b><span>−0.001, 0.000, 0.003</span><span>支撑 3.96</span></div></figure>
+    <figure class="clip"><video controls muted loop playsinline preload="metadata" src="@@VID:crawl_forward@@"></video><div class="clip-cap"><b>前进 0.10</b><span>0.122, −0.005, −0.012</span><span>MAE 0.022 · 支撑 2.44</span></div></figure>
+    <figure class="clip"><video controls muted loop playsinline preload="metadata" src="@@VID:crawl_backward@@"></video><div class="clip-cap"><b>后退 −0.06</b><span>−0.046, −0.001, 0.004</span><span>MAE 0.015</span></div></figure>
+    <figure class="clip"><video controls muted loop playsinline preload="metadata" src="@@VID:crawl_lateral@@"></video><div class="clip-cap"><b>侧移 0.04</b><span>−0.001, 0.002, 0.015</span><span>几乎不动</span></div></figure>
+    <figure class="clip"><video controls muted loop playsinline preload="metadata" src="@@VID:crawl_turn@@"></video><div class="clip-cap"><b>转向 0.15</b><span>−0.003, 0.001, 0.013</span><span>几乎不动</span></div></figure>
+  </div>
+</section>
+
+<!-- ══ 5 ══ -->
+<section id="motor">
+  <div class="sec-head">
+    <span class="sec-no">§5</span>
+    <h2>电机工作点</h2>
+    <p class="sec-sub">本次评估最重要的一节：膝是速度受限，不是力矩受限</p>
+  </div>
+
+  <p>
+    把每个关节的 <span class="num">|v|max</span> 和 <span class="num">|τ|max</span> 按电机规格归一，
+    得到下面这张工作点表。膝关节这一列很刺眼：<strong>力矩常年不到 6 N·m（峰值的 14%），转速却顶穿额定。</strong>
+  </p>
+
+  <div class="tw">
+    <table>
+      <caption>各档峰值工作点（walk 两档取交付策略 v5）· 峰值转速与峰值力矩各自取极值</caption>
+      <thead><tr><th>档位</th><th>关节</th><th class="n">峰值角速度</th><th class="n">占额定</th><th class="n">峰值力矩</th><th class="n">占峰值</th></tr></thead>
+      <tbody>
+        <tr><td>crawl @0.10</td><td>膝 4340</td><td class="n hi">3.46 rad/s</td><td class="n">92%</td><td class="n">2.55 N·m</td><td class="n">6%</td></tr>
+        <tr><td>crawl @0.15</td><td>膝 4340</td><td class="n hi">3.90 rad/s</td><td class="n">103%</td><td class="n">2.88 N·m</td><td class="n">7%</td></tr>
+        <tr class="rule-top"><td>walk @0.20</td><td>膝 4340</td><td class="n bad">8.54 rad/s</td><td class="n bad">226%</td><td class="n">2.27 N·m</td><td class="n">6%</td></tr>
+        <tr><td>walk @0.40</td><td>膝 4340</td><td class="n bad">12.05 rad/s</td><td class="n bad">320%</td><td class="n">5.48 N·m</td><td class="n">14%</td></tr>
+        <tr class="rule-top"><td>crawl @0.10</td><td>髋 pitch 4310</td><td class="n">3.77 rad/s</td><td class="n">30%</td><td class="n">3.10 N·m</td><td class="n">25%</td></tr>
+        <tr><td>walk @0.20</td><td>髋 pitch 4310</td><td class="n">3.69 rad/s</td><td class="n">29%</td><td class="n">4.99 N·m</td><td class="n">40%</td></tr>
+        <tr><td>walk @0.20</td><td>踝 4310</td><td class="n">5.15 rad/s</td><td class="n">41%</td><td class="n">2.00 N·m</td><td class="n">16%</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <figure class="chart">
+    <svg viewBox="0 0 760 392" role="img" aria-label="4340 转矩-转速包络与四个实测工作点">
+      <!-- 图例 -->
+      <g transform="translate(72,16)">
+        <rect x="0" y="-8" width="12" height="12" fill="var(--signal-soft)" stroke="var(--signal)" stroke-width="1"/>
+        <text class="lbl" x="18" y="2">可用力矩包络（DC 模型）</text>
+        <line x1="184" y1="-2" x2="204" y2="-2" stroke="var(--ink-3)" stroke-width="1.5" stroke-dasharray="5 4"/>
+        <text class="lbl" x="210" y="2">额定 12 N·m</text>
+        <line x1="300" y1="-2" x2="320" y2="-2" stroke="var(--ink-3)" stroke-width="1.5" stroke-dasharray="2 3"/>
+        <text class="lbl" x="326" y="2">额定转速 3.77 rad/s</text>
+      </g>
+
+      <!-- 坐标框 -->
+      <rect x="64" y="28" width="672" height="288" fill="none" stroke="var(--rule)"/>
+
+      <!-- 网格：y 每 10 N·m -->
+      <line class="tick" x1="64" y1="247.4" x2="736" y2="247.4"/>
+      <line class="tick" x1="64" y1="178.9" x2="736" y2="178.9"/>
+      <line class="tick" x1="64" y1="110.3" x2="736" y2="110.3"/>
+      <line class="tick" x1="64" y1="41.7" x2="736" y2="41.7"/>
+      <!-- 网格：x 每 2 rad/s -->
+      <line class="tick" x1="171.5" y1="28" x2="171.5" y2="316"/>
+      <line class="tick" x1="279.0" y1="28" x2="279.0" y2="316"/>
+      <line class="tick" x1="386.6" y1="28" x2="386.6" y2="316"/>
+      <line class="tick" x1="494.1" y1="28" x2="494.1" y2="316"/>
+      <line class="tick" x1="601.6" y1="28" x2="601.6" y2="316"/>
+
+      <!-- 包络填充：40*(1-v/7.5)，0..7.5 rad/s -->
+      <path d="M64,41.7 L467.2,316 L64,316 Z" fill="var(--signal-soft)" opacity="0.85"/>
+      <path d="M64,41.7 L467.2,316" fill="none" stroke="var(--signal)" stroke-width="2.2"/>
+      <line x1="467.2" y1="316" x2="736" y2="316" stroke="var(--warn)" stroke-width="2.2" stroke-dasharray="6 5"/>
+      <text class="lbl" x="475" y="332" fill="var(--warn)">无可用力矩（超空载转速 7.5）</text>
+
+      <!-- 额定线 -->
+      <line x1="64" y1="233.7" x2="346.2" y2="233.7" stroke="var(--ink-3)" stroke-width="1.4" stroke-dasharray="5 4"/>
+      <text class="lbl" x="70" y="228">额定 12 N·m（连续）</text>
+      <!-- 额定转速线 -->
+      <line x1="266.7" y1="316" x2="266.7" y2="233.7" stroke="var(--ink-3)" stroke-width="1.2" stroke-dasharray="2 3"/>
+
+      <!-- 轴 -->
+      <line class="axis-l" x1="64" y1="316" x2="736" y2="316"/>
+      <line class="axis-l" x1="64" y1="28" x2="64" y2="316"/>
+      <text class="axis" x="64" y="348" text-anchor="middle">0</text>
+      <text class="axis" x="171.5" y="348" text-anchor="middle">2</text>
+      <text class="axis" x="279.0" y="348" text-anchor="middle">4</text>
+      <text class="axis" x="386.6" y="348" text-anchor="middle">6</text>
+      <text class="axis" x="494.1" y="348" text-anchor="middle">8</text>
+      <text class="axis" x="601.6" y="348" text-anchor="middle">10</text>
+      <text class="axis" x="709.1" y="348" text-anchor="middle">12</text>
+      <text class="axis" x="400" y="372" text-anchor="middle">膝关节角速度 (rad/s)</text>
+      <text class="axis" x="20" y="172" text-anchor="middle" transform="rotate(-90 20 172)">膝关节力矩 τ (N·m)</text>
+      <text class="axis" x="52" y="320" text-anchor="end">0</text>
+      <text class="axis" x="52" y="251" text-anchor="end">10</text>
+      <text class="axis" x="52" y="183" text-anchor="end">20</text>
+      <text class="axis" x="52" y="114" text-anchor="end">30</text>
+      <text class="axis" x="52" y="46" text-anchor="end">40</text>
+
+      <!-- 实测点 -->
+      <g>
+        <!-- crawl @0.10  3.46, 2.55 -->
+        <circle cx="250.0" cy="298.5" r="5" fill="var(--signal)" stroke="var(--surface)" stroke-width="2"/>
+        <!-- crawl @0.15  3.90, 2.88 -->
+        <circle cx="273.7" cy="296.3" r="5" fill="var(--signal)" stroke="var(--surface)" stroke-width="2"/>
+        <!-- walk @0.20   8.54, 2.27 -->
+        <circle cx="523.1" cy="300.4" r="5" fill="var(--warn)" stroke="var(--surface)" stroke-width="2"/>
+        <!-- walk @0.40   12.05, 5.48 -->
+        <circle cx="711.8" cy="278.4" r="5" fill="var(--warn)" stroke="var(--surface)" stroke-width="2"/>
+        <text class="lbl" x="238" y="288" text-anchor="end">crawl @0.10</text>
+        <text class="lbl" x="286" y="284">crawl @0.15</text>
+        <text class="lbl" x="535" y="294" fill="var(--warn)">walk @0.20</text>
+        <text class="lbl" x="700" y="272" text-anchor="end" fill="var(--warn)">walk @0.40</text>
+      </g>
+    </svg>
+    <figcaption>
+      <b>FIG 6</b>
+      4340 的转矩–转速包络与四个实测工作点。包络按 <code>τ = 40·(1 − v/7.5)</code> 画，
+      7.5 rad/s 是「空载约为额定 2 倍」的假设值。crawl 的两点落在包络内；walk 的两点全部越过空载转速，
+      按这个模型<strong>物理上给不出力矩</strong>。walk @0.40 是交付策略 v5 的点——
+      它比 v1 更靠右（12.05 vs 10.31 rad/s），把膝的转速缺口从 2.7 倍推到了 3.2 倍。
+    </figcaption>
+  </figure>
+
+  <div class="findings">
+    <div><span class="m">1</span><p><b>这一代的膝是速度受限，不是力矩受限。</b>三档膝关节力矩都只有 2.0–5.5 N·m，相对 40 N·m 峰值几乎空载；真正的瓶颈是转速。选 4340 是为了承受闭链改直驱后的力矩，但从实际工况看，膝关节更需要的是<b>转速</b>。</p></div>
+    <div><span class="m">2</span><p><b>walk 需要 2.3–3.2 倍额定转速的膝摆动。</b>DM 电机的「额定 36 rpm」是连续工作点，空载通常 1.5–2 倍，但没有官方数据。而仿真里配的是 <code>BuiltinPositionActuatorCfg</code>——<b>这个执行器类型下 <code>velocity_limit</code> 根本不生效</b>，没有任何扭矩–转速降额，所以仿真允许膝以任意速度摆动、且始终能拿满 40 N·m。这是当前最大的 sim2real 差距。</p></div>
+  </div>
+
+  <p>
+    另一个细节能佐证这条：膝关节的行程远没用满。walk 只在 <span class="num">−19°…+24°</span> 之间工作，
+    而限位是 <span class="num">−30°…+90°</span>——<strong>摆幅小、频率高，速度是靠步频堆出来的</strong>，
+    代价全落在膝的角速度上。要保住转速余量，应该往「步幅大一点、步频低一点」的方向调，
+    而不是继续收摆幅。
+  </p>
+
+  <p>
+    crawl 档能跑通，恰恰是因为它慢——膝速 92% 额定，还在能力边界内。
+    这条结论的直接后果是：<strong>行走档的步态在实物上大概率跑不出来</strong>，除非拿到 4340 的真实空载转速，
+    并确认 10 rad/s 量级的膝摆动在电机能力内。
+  </p>
+
+  <div class="callout alert">
+    <span class="h">下一步 · 已备好但未验证</span>
+    <p>
+      <code>V035-Biped-Walk-V4</code> 任务已建好但<strong>尚未训练</strong>：膝关节换成 <code>DcMotorActuatorCfg</code>
+      （<code>saturation_effort 40</code>、<code>velocity_limit 7.5</code>、<code>effort_limit 12</code>）。
+      它会让物理自己禁止超速，逼策略要么放慢步频、要么失败。
+      <strong>结论取决于 4340 的真实空载转速，这一项需要实测数据才能定。</strong>
+    </p>
+  </div>
+
+  <div class="grid2">
+    <figure>
+      <img src="@@IMG:walk/fig5_actuator_usage.png@@" alt="walk 电机利用率">
+      <figcaption><b>FIG 7a</b>walk 各关节的转速与力矩利用率。膝关节组（左起第一组）转速条顶格、力矩条很短。</figcaption>
+    </figure>
+    <figure>
+      <img src="@@IMG:crawl/fig5_actuator_usage.png@@" alt="crawl 电机利用率">
+      <figcaption><b>FIG 7b</b>crawl 的利用率。膝关节转速刚好贴边，力矩依旧很低。</figcaption>
+    </figure>
+    <figure>
+      <img src="@@IMG:walk/fig4_joint_envelope.png@@" alt="walk 关节行程">
+      <figcaption><b>FIG 8</b>walk 的关节行程。膝关节实际只在 −19°…+24° 区间工作，离 −30°…+90° 的限位还有大量余量。</figcaption>
+    </figure>
+    <figure>
+      <img src="@@IMG:crawl/fig1_speed_tracking.png@@" alt="crawl 五档速度跟踪">
+      <figcaption><b>FIG 9</b>crawl 五档对照。纵向两档贴合，侧移与转向几乎是零——对应 §3 的奖励结构问题。</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ══ 6 ══ -->
+<section id="gen">
+  <div class="sec-head">
+    <span class="sec-no">§6</span>
+    <h2>与 v034 横向对比</h2>
+    <p class="sec-sub">同命令幅值、同评估协议（确定性 · seed 42 · 0 摔倒）</p>
+  </div>
+
+  <p>
+    v034 是四杆闭链膝那一代。为了让两代可比，这里只取同命令幅值的评估——
+    v034 侧 16 环境 × 12 s，v035 侧 16 环境 × 8 s。
+  </p>
+
+  <div class="grid2">
+    <div class="tw" style="margin:0">
+      <table>
+        <caption>直立行走 · 前进 0.4 m/s</caption>
+        <thead><tr><th>策略</th><th class="n">实测 vx</th><th class="n">MAE</th><th class="n">wz 漂移</th></tr></thead>
+        <tbody>
+          <tr><td>v034 Retarget</td><td class="n">0.389</td><td class="n">0.028</td><td class="n">+0.002</td></tr>
+          <tr><td>v034 Gait</td><td class="n">0.381</td><td class="n">0.050</td><td class="n">−0.063</td></tr>
+          <tr><td><strong>v035 Walk v5</strong></td><td class="n hi">0.371</td><td class="n">0.029</td><td class="n hi">+0.021</td></tr>
+          <tr><td>v035 Walk v1</td><td class="n">0.390</td><td class="n hi">0.015</td><td class="n">+0.045</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="tw" style="margin:0">
+      <table>
+        <caption>四足前进 · 0.15 m/s</caption>
+        <thead><tr><th>策略</th><th class="n">实测 vx</th><th class="n">MAE</th><th class="n">轮数</th></tr></thead>
+        <tbody>
+          <tr><td>v034 Crawl-Knee</td><td class="n">0.1603</td><td class="n">0.012</td><td class="n">3000</td></tr>
+          <tr><td><strong>v035 Crawl</strong></td><td class="n hi">0.1682</td><td class="n">0.019</td><td class="n">3000</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <p>
+    在各自训练到的轮数下，<strong>v035 的直驱膝没有牺牲跟踪精度</strong>：直立档 vx MAE 从 0.028 降到
+    0.029（v5）/ 0.015（v1），四足档速度略高、MAE 略大，两者打平。
+    v5 的 vx MAE 比 v1 略大、但 wz 漂移从 +0.045 降到 +0.021——两个指标各让一步，
+    偏航精度对摇杆操作更要紧，所以交付用 v5。真正的代际差异不在跟踪精度，而在 §5 的转速需求——
+    闭链四杆把电机的线性运动换成关节转动，传动比可以放大速度；直驱之后膝关节的角速度需求原样落到
+    4340 的转速指标上，而 4340 只有 36 rpm。这是本次评估里最值得带回去改设计的一条。
+  </p>
+  <p style="color:var(--ink-3);font-size:var(--t-sm)">
+    v034 数据来自 <code>logs/rsl_rl/pikachu_v034/experiments/</code> 下的
+    <code>biped_knee_led_20261027</code> 与 <code>crawl_knee_led_20261027</code>。
+    更早的 300 轮基线（crawl 前进 0.005 m/s）不作为对照——轮数差一个数量级。
+  </p>
+</section>
+
+<!-- ══ 7 ══ -->
+<section id="issues">
+  <div class="sec-head">
+    <span class="sec-no">§7</span>
+    <h2>已知问题与下一步</h2>
+    <p class="sec-sub">按优先级排列</p>
+  </div>
+
+  <div class="findings">
+    <div><span class="m">P0</span><p><b>膝速超额定 2.3–3.2 倍。</b>需要 4340 的真实空载转速。拿到后跑 <code>V035-Biped-Walk-V4</code>（DC 电机模型）重训，或把行走命令压到 0.1 m/s 量级。</p></div>
+    <div><span class="m">P1</span><p><b>crawl 侧移 / 转向。</b>奖励结构与命令方向冲突：<code>gait_contacts_smooth</code> 无条件给站桩补贴，<code>directional_progress</code> 只看纵向。需把前者按运动门控、后者扩成三轴。</p></div>
+    <div><span class="m">P2</span><p><b>walk 转向 62% → 71%（已定位并改善，未收干净）。</b>根因不是 std 尺度，是角速度跟踪的相对权重只有线速度的十分之一（v2/v3 两轮都改错了方向）。权重 2.0→6.0 后转向 0.107、漂移 0.013。剩余缺口主要是转向档的瞬时振荡：均值偏差只有 0.043，而 MAE 是 0.087——下一步是加航向闭环，或对转向档单独加课。</p></div>
+    <div><span class="m">P3</span><p><b>手臂「举起」已修（2026-10-29），代价是旧 checkpoint 前进掉 15%。</b>根因是 v035 的 <code>arm_roll</code> 轴是 <code>(-1,0,0)</code>，而 v033/v034 是 <code>(+1,0,0)</code>：从 v034 抄来的默认位姿 L−53°/R+53° 在 v035 上把上臂抬到水平面<strong>上方</strong> 53°（渲染出来就是双手举起），<code>ARM_BOUNDS_DEGREES</code> 的 (45, 53) 窗口也在奖励同一姿态，所以六次训练都稳定停在 ±50°。现改为 L+53°/R−53°（手从肩上 8.4 cm 落到肩下 8.4 cm），并把左右 <code>arm_roll</code> 窗口镜像为 右 (−53,−45) / 左 (45,53)。动作是相对默认位姿的，已交付的六个模型 play 时手臂自动下垂：实测 E1 站立 <code>arm_roll</code> L+54.9°/R−55.8°、walk 前进 L+56.9°/R−56.7°。<br><br>同 seed / 16 env / 8 s 的 A/B（手臂上举 → 下垂）：E1 站立漂移 0.0009 → 0.0008 m/s；walk v1 前进 0.214 → 0.183（wz 漂移 +0.092 → −0.032）；walk v5 前进 0.187 → 0.159（wz 漂移 −0.013 → −0.153）。全部 falls=0，但前进掉约 15%。原因不是数值 bug——<code>use_default_offset</code> 让 <code>arm_roll</code> 目标整体平移 106°，手臂质量分布与绕 z 转动惯量跟着变，而这六个策略学的是上举姿态下的步态。<strong>要恢复原指标必须按新默认位姿重训</strong>；想退回上举姿态比较，改的是同一处配置。旧的<strong>绝对</strong>关节角记录与旧窗口下的 reward 也与新配置不可比。</p></div>
+    <div><span class="m">P4</span><p><b>站立用满髋偏航。</b>walk 站立档 <code>hip_yaw</code> 左 −10.3°、右 +13.7°，而限位只有 ±14.9°——用掉八成，是机构层面的余量提醒。</p></div>
+    <div><span class="m">P5</span><p><b>4340 转子惯量是估算值。</b>当前按「4310 的 4 倍」估，没有实测。转子惯量直接影响直驱膝的高频动态，实测后应重新校核 PD 增益。</p></div>
+    <div><span class="m">P6</span><p><b>鲁棒性未做。</b>本次全部是标称评估，无域随机化。生产前需要补 foot friction / base COM / encoder bias / 外力推扰的随机化评估。</p></div>
+  </div>
+
+  <p style="margin-top:20px">
+    还有两条方法论上的观察值得复用。
+    <strong>一是奖励设计比网络容量的影响大得多</strong>：同样的机器人、同样的观测、同样的 PPO，
+    只改奖励口径，E1 只会站着、walk 能走。
+    <strong>二是「加重错误的代价」和「抬高正确的收益」不是一回事</strong>：v2、v3 都在加重跟踪不上的代价，
+    两次都把转向压到 5% 以下；v5 只把正确行为的收益抬到与线速度同量级，一次就把四档全做上去了。
+    改奖励之前先问一句：<em>在当前权重下，策略「什么都不做」能拿多少分？</em>
+  </p>
+</section>
+
+<!-- ══ 8 ══ -->
+<section id="repro">
+  <div class="sec-head">
+    <span class="sec-no">§8</span>
+    <h2>复现</h2>
+    <p class="sec-sub">pikachu_playground/mjlab</p>
+  </div>
+<pre><b># 训练</b>
+uv run train Mjlab-Velocity-Flat-Pikachu-V035-Biped-Walk --env.scene.num-envs 2048 --agent.max-iterations 5000
+uv run train Mjlab-Velocity-Flat-Pikachu-V035-Crawl     --env.scene.num-envs 2048 --agent.max-iterations 3000
+
+<b># v2 热启动微调（--agent.resume 要带值）</b>
+uv run train Mjlab-Velocity-Flat-Pikachu-V035-Biped-Walk-V2 \
+  --env.scene.num-envs 2048 --agent.max-iterations 1500 \
+  --agent.resume True --agent.load-run "2026-10-28_18-33-11_biped_walk_v035" \
+  --agent.load-checkpoint "model_4999.pt"
+
+<b># 确定性评估 + 录像</b>
+uv run python scripts/eval_v035.py --mode walk \
+  --task Mjlab-Velocity-Flat-Pikachu-V035-Biped-Walk \
+  --checkpoint logs/rsl_rl/pikachu_v035/biped_walk/&lt;run&gt;/model_4999.pt \
+  --num-envs 16 --seconds 8 \
+  --output doc/pikachu_v035_20261028/data/walk/eval.json \
+  --video-dir doc/pikachu_v035_20261028/media/clips
+
+<b># 出图</b>
+uv run python scripts/plot_v035_eval.py    doc/pikachu_v035_20261028/data/walk
+uv run python scripts/plot_v035_training.py logs/rsl_rl/pikachu_v035/biped_walk/&lt;run&gt; \
+  --output doc/pikachu_v035_20261028/media/figures/walk_training
+
+<b># 回放：任务名是位置参数（play 没有 --task），checkpoint 用 --checkpoint-file</b>
+<b># --viewer velocity-joystick 是带摇杆面板的 viser 网页（localhost:8080，远程需转发端口）</b>
+L=logs/rsl_rl/pikachu_v035
+
+<b># 交付策略：V5（偏航权重修正后的行走）</b>
+uv run play Mjlab-Velocity-Flat-Pikachu-V035-Biped-Walk-V5 \
+  --checkpoint-file $L/biped_walk/2026-10-28_23-15-58_walk_v5_angweight/model_6498.pt \
+  --viewer velocity-joystick
+
+<b># 对照：E1 站桩 / 基础行走 / V2 / V3 / Crawl</b>
+uv run play Mjlab-Velocity-Flat-Pikachu-V035-Biped-E1 \
+  --checkpoint-file $L/biped_e1/2026-10-28_17-22-25_biped_e1_v035/model_2999.pt --viewer velocity-joystick
+uv run play Mjlab-Velocity-Flat-Pikachu-V035-Biped-Walk \
+  --checkpoint-file $L/biped_walk/2026-10-28_18-33-11_biped_walk_v035/model_4999.pt --viewer velocity-joystick
+uv run play Mjlab-Velocity-Flat-Pikachu-V035-Biped-Walk-V2 \
+  --checkpoint-file $L/biped_walk/2026-10-28_21-49-32_walk_v2_yawfix/model_6498.pt --viewer velocity-joystick
+uv run play Mjlab-Velocity-Flat-Pikachu-V035-Biped-Walk-V3 \
+  --checkpoint-file $L/biped_walk/2026-10-28_22-32-43_walk_v3_yawhuber/model_6498.pt --viewer velocity-joystick
+uv run play Mjlab-Velocity-Flat-Pikachu-V035-Crawl \
+  --checkpoint-file $L/crawl/2026-10-28_18-24-47_crawl_v035/model_2999.pt --viewer velocity-joystick
+
+<b># 不看策略、只看资产/默认位姿：加 --agent zero（无需 checkpoint）</b>
+uv run play Mjlab-Velocity-Flat-Pikachu-V035-Biped-Walk-V5 --agent zero --viewer velocity-joystick</pre>
+  <p style="color:var(--ink-3);font-size:var(--t-sm)">
+    默认位姿的 <code>arm_roll</code> 已于 2026-10-29 由 L−53°/R+53° 改为 L+53°/R−53°
+    （手上举 → 下垂），所以上列 checkpoint 回放时手臂是垂下的。要录无头视频请用
+    <code>scripts/eval_v035.py</code>，不要用 <code>play --video</code>——viewer 的
+    <code>run()</code> 不返回，进程会挂住。
+  </p>
+</section>
+
+<footer>
+  <span>Pikachu v035 · 直驱膝关节 · 2026-10-28</span>
+  <span>18 DOF / 8.2299 kg / 19 links</span>
+  <span>所有数值来自确定性评估</span>
+</footer>
+
+</div>
