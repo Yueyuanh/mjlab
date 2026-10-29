@@ -8,6 +8,50 @@ Upcoming version (not yet released)
 Added
 ^^^^^
 
+- Added isolated V033-to-V034 biped coordinate-transfer experiments and a
+  read-only CAD/URDF/MJCF mass provenance audit with frozen source hashes,
+  per-link mass differences and inertia checks. Comparable walking performance
+  remains unconfirmed. The user confirmed the edited V034 mass, COM and
+  inertia; added sequential 500-update training/evaluation milestones with
+  standard-view videos and checkpoint/video hashes.
+
+- Added Pikachu V034 Biped-E1 and Crawl-E3 task trees using the latest V033
+  policy observation/action ordering, reward framework and isolated W&B
+  projects. Added signed longitudinal progress training, evaluated final
+  candidates, MuJoCo-rendered standard-view videos and categorized experiment
+  artifacts. The crawl candidate supports stable forward/backward motion; the
+  biped result is explicitly retained as standing-only pending gait curriculum.
+
+- Added audited per-run reward-weight overrides for Crawl-E3 ablations and an
+  opt-in action second-difference penalty for forward gait smoothing. Added
+  opt-in continuous 80/120-ms phase edges for both the base contact reward and
+  forward contact-mismatch ablations, and promoted the validated 120-ms pair as
+  the Crawl-E3 default after nominal and randomized paired evaluation.
+
+- Added isolated Pikachu V033 Crawl-E3 and Transfer-E3 experiments. Crawl-E3
+  preserves backward locomotion while refining forward sole support; Transfer-E3
+  adds smooth posture commands, staged hand contact, longer recovery, and strict
+  no-reset endpoint/cycle evaluation without promoting failed transition models.
+  Added MuJoCo-rendered final evaluation videos and per-run artifact/playback
+  READMEs for both experiment trees.
+
+- Added a bounded 4090 server code synchronization helper with overwrite
+  backups and explicit, SHA-256 verified final-model upload/download commands.
+
+- Added a bounded V033 crawl foot-contact diagnostic with paired forward/backward
+  state recordings, stance sole-angle analysis and a diagnostic ankle-feedback probe.
+
+- Documented categorized training artifact storage in AGENTS.md and organized
+  all V033 experiments with README indexes, verified path migration, and
+  conservative cleanup of redundant diagnostics.
+
+- Added an isolated V033 Crawl-E2 task with soft elbow and same-side hand-foot
+  distance windows, bounded exploration and endpoint evaluation measurements.
+
+- Added straight-command V033 E1 hip-roll and double-support width soft costs,
+  bounded exploration noise for fine-tuning, and checkpoint review measurements
+  for hip angles, width and arm-leg contact. Added low-memory stopping guards.
+
 - Added frozen-source V033 E1 training workers and a durable 4096-environment,
   20000-iteration paired queue with checkpoint hashes, nominal evaluations,
   validated review videos and live reports. Added an isolated three-trial PPO
@@ -36,6 +80,109 @@ Added
   and aligned support reference sites and swing-height rewards to their surface.
   Removed the inherited V033 biped reset height lift and enabled crawl velocity
   debug arrows in the horizontal command frame.
+
+- Added click/keyboard video playback and shared selected-interval looping,
+  including stale-play-promise guards. Added interactive projected-3D sole
+  normal reconstruction from telemetry component angles, paired normal/tangent
+  load scatter, and per-frame-mu normalized friction-cone quantile rings.
+  Missing yaw/position/tangential direction are explicitly not reconstructed;
+  airborne/invalid samples are excluded from statistical denominators. Views
+  reuse the bottom timeline, chart fullscreen and PDF export without WebGL.
+
+- Compacted Metrics CSV import into a button and source/video setup into
+  expandable controls. Replaced per-chart playback sliders with one persistent
+  bottom timeline shared by curves, feet, video and fullscreen charts, with
+  explicit 0.25x-4x playback speed and numeric analysis-interval selection.
+  Live mode reuses the dock for following/freezing data and disables seeking
+  and speed changes instead of implying control over simulation speed.
+
+- Added per-experiment recording folders and recursive discovery of prefixed
+  Metrics CSVs with full wrapping metadata. The dashboard associates same-stem
+  videos and frame manifests, synchronizes chart/foot playback and seeking,
+  supports a floating video, and serves MP4 byte ranges. An opt-in loopback
+  live feed uses bounded control-step buffers and configurable rolling windows;
+  model/environment/reset discontinuities start a new segment, and history
+  loading or freezing disconnects live updates without altering saved samples.
+
+- Added top-of-tab Viser full-metric recording with experiment prefixes,
+  semantic plot selectors, duration and fixed/seeded-random velocity controls.
+  Silent capture runs the existing simulation without scene/plot updates and
+  exposes progress/cancellation. CSV sampling runs on every control step;
+  optional streamed 720p video shares the rollout and a frame-to-CSV manifest.
+  Cancellation/errors restore commands and visibility, and auto-reset poses
+  are not paired with terminal-state metrics. Prefixed logs remain discoverable.
+
+- Added a shared foot-telemetry timeline with synchronized playback, frame
+  stepping, time cursors and per-category raw readouts. Normal/tangential force
+  snapshots use fixed range scales. CoP playback shares pressure-map orientation,
+  equal millimetre scaling and optional current-pressure backgrounds; current
+  markers and short trails preserve airborne/missing gaps. Range trajectories
+  remain selectable and PDF rendering is isolated from live playback. Invalid
+  timestamps and mixed environments disable autoplay without inventing samples.
+
+- Added a sidebar per-foot gait-background toggle for time-based charts and
+  PNG/PDF exports. Blue/red contact bands use strict recorded 0/1 flags and
+  follow range/zoom; comparison sources retain their own relative-time or
+  sample-progress alignment. Spatial/distribution plots are excluded, missing
+  contacts and mixed environments are not inferred, native foot hints are
+  preserved when off and deduplicated when on, and reference bands remain.
+
+- Added per-side joint motor selection (DM4310/DM3507 and explicit extra gear
+  ratio) with browser persistence, mirror-copy, row reset and versioned JSON
+  import/export. Rated guides, ideal geared T-N curves, comparisons, PNG/PDF
+  exports and reference-shaft electrical estimates share the configuration.
+  Recorded samples, mechanical statistics, ratio denominators and load inertia
+  remain unchanged; finite measured curves are not treated as full envelopes.
+
+- Audited foot telemetry charts against recorded CSVs and source semantics.
+  Added responsive titled cards with wrapping notes, time-colored equal-scale
+  CoP plots, independent per-unit step distributions and specialized PDF charts.
+  Corrected left-area tooltips, repeated-duty event counts, clipped-stance
+  statistics, missing-contact denominators and fullscreen/playback cleanup.
+  Weight references now require explicit whole-robot mass; nominal taxel bounds
+  and pressure/CoP proxies are no longer presented as true contact boundaries.
+
+- Replaced world-position time traces with one equal-scale XY trajectory colored
+  by time, with start/end markers and missing-data gaps. Position box plots are
+  omitted in the UI/PDF; grouped PNG export retains the trajectory and time map.
+
+- Added per-joint and per-selected-side driving, braking and zero-power sample
+  shares to T-N cards and PNG/PDF exports. Ratios use full valid samples in the
+  selected interval, independent of scatter decimation and operation filtering.
+
+- Grouped velocity tracking by direction (actual vs command), then by metric
+  type and physical unit for errors, position, orientation and standing state.
+  Independent charts/statistics and grouped PNG/PDF exports replace mixed-unit
+  overview plots; selection and range filtering omit empty groups.
+
+- Fixed T-N PNG export routing and included dedicated scatter charts in the
+  all-category PDF export instead of treating virtual T-N selections as CSV
+  columns. Screen and export charts share configuration; image decoding,
+  export error reporting, busy guards, and offscreen cleanup are handled.
+
+- Swapped the sole-pressure panel positions in aggregate and playback views
+  (right foot on screen-left, left foot on screen-right), keeping source data,
+  side labels, tooltips, and physical coordinate orientation unchanged.
+
+- Hidden inapplicable per-joint total metrics while retaining meaningful power
+  and reward aggregates. Joint comparison and T-N cards require valid selected
+  samples, export rows are compacted, and empty inertia rows are omitted.
+
+- Corrected sole-pressure maps to preserve the physical 80:56 aspect ratio,
+  including fullscreen and window resizing. Added signed rated-torque guides
+  (ankles DM3507: 0.8 N m; other joints DM4310: 3.5 N m), corrected automatic
+  T-N motor matching, and added explicit MJCF motor-mapping import/reset.
+
+- Added per-frame sole-pressure playback with time scrubbing, stepping and speed
+  controls in the Metrics CSV dashboard. Pressure maps use +x forward/up and
+  +y left consistently in both playback and aggregate views.
+
+- Unified local Mirror005/Beta tasks with the server's V031 telemetry and
+  ablation tasks. Offline metrics capture accepts both evaluation CLI styles
+  and preserves runner action clipping and curriculum replay settings.
+
+- Added low-weight E0 mirror-loss tasks for Pikachu V031, with isolated 0.05
+  and 0.10 variants and checkpoint-aligned training-video capture.
 
 - Added ``play --viewer velocity-joystick``: a Viser panel with ``vx`` / ``vy``
   / ``wz`` sliders that drives ``VelocityMatchMotionCommand`` live, so the
@@ -245,13 +392,23 @@ Added
 Changed
 ^^^^^^^
 
-- The Viser reward bar panel no longer caps itself at 20 terms:
-  ``ViewerConfig.reward_bar_max_terms`` now defaults to ``None``, which shows
-  every term. ``Mjlab-Velocity-Flat-Pikachu-V03-T6`` carries 24 reward terms and
-  warned on every viewer startup, hiding the four newest ones (the T6 gait and
-  torque terms) — exactly the terms being watched. The panel scrolls, so term
-  count was never a reason to hide any of them; set the field to a number to
-  keep the panel short.
+- Restored V034 robot constants to the V033-style explicit motor, gain,
+  keyframe, collision and joint-list definitions, preserving existing values
+  and policy ordering without runtime JSON configuration generation.
+
+- Aligned V034 MJCF body, joint and mesh ordering with V033 while preserving
+  native physical attributes, four-bar topology and named keyframe poses.
+  Updated order-dependent contact/height pairing and retained original XMLs
+  with hashes under the asset provenance directory.
+
+- Standardized Pikachu evaluation videos: quadruped recordings use a side
+  camera, biped recordings use both three-quarter and front cameras, and a
+  compact lower-right plot compares commanded and measured ``vx/vy/wz``.
+  Added quantitative Crawl-E3 forward-stutter analysis and cleanup manifests.
+
+- The Viser reward panel displays all reward terms by default; an explicit
+  ``reward_bar_max_terms`` still allows a shorter panel.
+
 - The Pikachu 27-dof ``KNEES_BENT_27DOF_KEYFRAME`` is now a real crouch computed
   by a planar analytic IK (``leg_offset = −hip + knee − ankle`` keeps the foot
   level; the symmetric in-limit solution ``hip=+0.52, knee=+1.02, ankle=+0.50``,
@@ -318,6 +475,37 @@ Changed
 Fixed
 ^^^^^
 
+- Pikachu V035 standing arm pose: its ``arm_roll`` axes point along -x while
+  V033/V034 use +x, so the inherited L-53/R+53 default raised both arms 53
+  degrees above the horizontal (rendering as "hands raised") and the absolute
+  ``arm_position_window`` roll bounds rewarded that same pose. The standing
+  keyframe, the biped initial state and the default-argument keyframe generator
+  now use L+53/R-53 (hands 8.4 cm below the shoulders) with the left/right roll
+  windows mirrored to match; joint limits are unchanged. Added
+  ``tests/test_pikachu_v035_default_pose.py`` covering the axis, keyframe, FK
+  hand height and window orientation; existing checkpoints follow the new pose
+  because actions are relative to it, but their recorded absolute arm angles
+  and pre-fix rewards are not comparable, and their tracking drops about 15% on
+  forward commands (0.214 to 0.183 m/s for Walk, 0.187 to 0.159 m/s for Walk-V5,
+  no falls) because the learned gaits assume the raised-arm dynamics. Restoring
+  the old numbers needs a retrain against the corrected default pose.
+
+- Clarified Viser silent recording's suspended browser refresh and made fixed,
+  random and current command choices explicit, with mode-specific controls and
+  a default fixed forward command instead of silently inheriting zero commands.
+
+- V033 Crawl, Crawl-E1, and Crawl-E2 Viser recordings now include velocity,
+  joint, rear-foot, and four-limb support metrics. Crawl velocity metrics use
+  the horizontal heading frame; the original sparse recordings are preserved.
+
+- ``scripts/plot_logs/serve.py`` no longer dies with ``OSError: [Errno 98]
+  Address already in use`` when an earlier dashboard is still running: it walks
+  forward from ``--port`` (default 8000) to the next free port, says whether the
+  busy port holds another dashboard or a foreign process, and prints the URLs
+  with the port it actually bound. ``--port 0`` asks the OS to assign one, and
+  the new ``--strict-port`` restores the old fail-fast behaviour. An
+  out-of-range ``--port`` is now rejected by argparse instead of raising
+  ``OverflowError``.
 - ``play`` on a multi-clip tracking task (``MultiMotionCommandCfg``) no longer
   demands ``--motion-file``: those tasks carry their own ``motion_files``
   library in the env cfg, so replaying them with ``--checkpoint-file`` now
