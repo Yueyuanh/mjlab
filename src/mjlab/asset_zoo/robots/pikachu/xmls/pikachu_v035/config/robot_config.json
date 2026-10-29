@@ -1,0 +1,104 @@
+{
+  "robot": "pikachu_v035",
+  "notes": [
+    "v035: knee closed-chain / four-bar removed, direct-drive knee joint.",
+    "Leg drive: knee uses DM-4340 (rated 12 Nm, peak 40 Nm, rated 36 rpm).",
+    "Hip pitch/roll/yaw and ankle keep the 4310 class; arms keep 4310/3507.",
+    "CAD zero pose is NOT fully upright: relative to a straight leg it is",
+    "hip_pitch=20 deg, knee=20 deg, ankle=10 deg (URDF joint origins use",
+    "hip_pitch rpy=-0.34907, knee rpy=+0.52360, ankle rpy=-0.17453).",
+    "Joint limits below are LEFT-side values. mirror_on_right=true means the",
+    "right joint axis points opposite to the left one, so its range is",
+    "[-upper, -lower] of the left range."
+  ],
+  "cad_initial_pose_deg": {
+    "reference": "fully upright straight leg",
+    "hip_pitch": 20.0,
+    "knee": 20.0,
+    "ankle": 10.0
+  },
+  "motor_types": {
+    "4340": {
+      "rated_torque_nm": 12.0,
+      "peak_torque_nm": 40.0,
+      "torque_limit_nm": 40.0,
+      "rated_velocity_rpm": 36.0,
+      "velocity_limit_rad_s": 3.7699111843
+    },
+    "4310": {
+      "rated_torque_nm": 12.5,
+      "torque_limit_nm": 12.5,
+      "velocity_limit_rad_s": 12.57
+    },
+    "3507": {
+      "rated_torque_nm": 3.0,
+      "torque_limit_nm": 3.0,
+      "velocity_limit_rad_s": 15.71
+    }
+  },
+  "joints": {
+    "hip_pitch": {
+      "type": "revolute",
+      "motor_type": "4310",
+      "lower_rad": -2.44,
+      "upper_rad": 2.44,
+      "mirror_on_right": false
+    },
+    "hip_roll": {
+      "type": "revolute",
+      "motor_type": "4310",
+      "lower_rad": -0.26,
+      "upper_rad": 0.26,
+      "mirror_on_right": false
+    },
+    "hip_yaw": {
+      "type": "revolute",
+      "motor_type": "4310",
+      "lower_rad": -0.26,
+      "upper_rad": 0.26,
+      "mirror_on_right": false
+    },
+    "knee": {
+      "type": "revolute",
+      "motor_type": "4340",
+      "lower_rad": -0.5235987755982988,
+      "upper_rad": 1.5707963267948966,
+      "mirror_on_right": true
+    },
+    "ankle": {
+      "type": "revolute",
+      "motor_type": "4310",
+      "lower_rad": -0.79,
+      "upper_rad": 1.05,
+      "mirror_on_right": true
+    },
+    "arm_pitch": {
+      "type": "revolute",
+      "motor_type": "4310",
+      "lower_rad": -1.5708,
+      "upper_rad": 1.5708,
+      "mirror_on_right": false
+    },
+    "arm_roll": {
+      "type": "revolute",
+      "motor_type": "4310",
+      "lower_rad": -1.5708,
+      "upper_rad": 1.5708,
+      "mirror_on_right": false
+    },
+    "arm_yaw": {
+      "type": "revolute",
+      "motor_type": "3507",
+      "lower_rad": -1.5708,
+      "upper_rad": 1.5708,
+      "mirror_on_right": false
+    },
+    "elbow": {
+      "type": "revolute",
+      "motor_type": "3507",
+      "lower_rad": -1.5708,
+      "upper_rad": 1.5708,
+      "mirror_on_right": false
+    }
+  }
+}

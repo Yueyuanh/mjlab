@@ -1,0 +1,560 @@
+<?xml version='1.0' encoding='utf-8'?>
+<robot name="pikachu_v035">
+  
+  
+  <!-- mujoco compiler insert -->
+  
+  <mujoco>
+      <compiler
+      meshdir="../meshes/"
+      balanceinertia="true"
+      discardvisual="false"
+      fusestatic="false"/>
+  </mujoco>
+  
+      
+  <link name="base_link">
+    <inertial>
+      <origin xyz="0.0391995257394136 -1.9789031524553E-12 0.0853379941205948" rpy="0 0 0" />
+      <mass value="1.51682" />
+      <inertia ixx="0.01051" ixy="0" ixz="-0.00442" iyy="0.0117" iyz="0" izz="0.00373" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/base_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link name="left_arm_pitch_link">
+    <inertial>
+      <origin xyz="-0.00270586656382149 -0.00675165858019348 -0.0010261310701403" rpy="0 0 0" />
+      <mass value="0.41906" />
+      <inertia ixx="0.00012" ixy="0" ixz="0.00001" iyy="0.00012" iyz="0" izz="0.00016" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/left_arm_pitch_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/left_arm_pitch_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="left_arm_pitch_joint" type="revolute">
+    <origin xyz="0.083 0.088 0.166" rpy="0 0 0" />
+    <parent link="base_link" />
+    <child link="left_arm_pitch_link" />
+    <axis xyz="0 -1 0" />
+    <limit lower="-1.5708" upper="1.5708" effort="12.5" velocity="12.57" />
+  </joint>
+  <link name="left_arm_roll_link">
+    <inertial>
+      <origin xyz="0.00143744707092022 0.0333906073432077 3.56130749029626E-07" rpy="0 0 0" />
+      <mass value="0.3486" />
+      <inertia ixx="0.00028" ixy="0.00002" ixz="0" iyy="0.00025" iyz="0" izz="0.00038" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/left_arm_roll_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/left_arm_roll_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="left_arm_roll_joint" type="revolute">
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <parent link="left_arm_pitch_link" />
+    <child link="left_arm_roll_link" />
+    <axis xyz="-1 0 0" />
+    <limit lower="-1.5708" upper="1.5708" effort="12.5" velocity="12.57" />
+  </joint>
+  <link name="left_arm_yaw_link">
+    <inertial>
+      <origin xyz="-0.0052037586625046 -0.00612710793924606 -0.000583673111166527" rpy="0 0 0" />
+      <mass value="0.22088" />
+      <inertia ixx="0.00008" ixy="0" ixz="0" iyy="0.00007" iyz="0" izz="0.00009" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/left_arm_yaw_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/left_arm_yaw_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="left_arm_yaw_joint" type="revolute">
+    <origin xyz="0 0.1055 0" rpy="0 0 0" />
+    <parent link="left_arm_roll_link" />
+    <child link="left_arm_yaw_link" />
+    <axis xyz="0 -1 0" />
+    <limit lower="-1.5708" upper="1.5708" effort="3" velocity="15.71" />
+  </joint>
+  <link name="left_elbow_link">
+    <inertial>
+      <origin xyz="-0.000530894264703263 0.0450959368213923 3.19660562658752E-07" rpy="0 0 0" />
+      <mass value="0.28615" />
+      <inertia ixx="0.00036" ixy="0.00002" ixz="0" iyy="0.00016" iyz="0" izz="0.00045" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/left_elbow_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/left_elbow_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="left_elbow_joint" type="revolute">
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <parent link="left_arm_yaw_link" />
+    <child link="left_elbow_link" />
+    <axis xyz="-1 0 0" />
+    <limit lower="-1.5708" upper="1.5708" effort="3" velocity="15.71" />
+  </joint>
+  <link name="right_arm_pitch_link">
+    <inertial>
+      <origin xyz="-0.00270586656382 0.00675165858019 -0.00102613107014" rpy="0 0 0" />
+      <mass value="0.41906" />
+      <inertia ixx="0.00012" ixy="-0" ixz="1e-05" iyy="0.00012" iyz="-0" izz="0.00016" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/right_arm_pitch_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/right_arm_pitch_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="right_arm_pitch_joint" type="revolute">
+    <origin xyz="0.084655 -0.088 0.166" rpy="0 0 0" />
+    <parent link="base_link" />
+    <child link="right_arm_pitch_link" />
+    <axis xyz="0 1 0" />
+    <limit lower="-1.5708" upper="1.5708" effort="12.5" velocity="12.57" />
+  </joint>
+  <link name="right_arm_roll_link">
+    <inertial>
+      <origin xyz="0.00143744707092 -0.0333906073432 3.5613074903e-07" rpy="0 0 0" />
+      <mass value="0.3486" />
+      <inertia ixx="0.00028" ixy="-2e-05" ixz="-0" iyy="0.00025" iyz="0" izz="0.00038" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/right_arm_roll_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/right_arm_roll_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="right_arm_roll_joint" type="revolute">
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <parent link="right_arm_pitch_link" />
+    <child link="right_arm_roll_link" />
+    <axis xyz="-1 0 0" />
+    <limit lower="-1.5708" upper="1.5708" effort="12.5" velocity="12.57" />
+  </joint>
+  <link name="right_arm_yaw_link">
+    <inertial>
+      <origin xyz="-0.0052037586625 0.00612710793925 -0.000583673111167" rpy="0 0 0" />
+      <mass value="0.22088" />
+      <inertia ixx="8e-05" ixy="-0" ixz="-0" iyy="7e-05" iyz="0" izz="9e-05" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/right_arm_yaw_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/right_arm_yaw_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="right_arm_yaw_joint" type="revolute">
+    <origin xyz="0 -0.1055 0" rpy="0 0 0" />
+    <parent link="right_arm_roll_link" />
+    <child link="right_arm_yaw_link" />
+    <axis xyz="0 1 0" />
+    <limit lower="-1.5708" upper="1.5708" effort="3" velocity="15.71" />
+  </joint>
+  <link name="right_elbow_link">
+    <inertial>
+      <origin xyz="-0.000530894264703 -0.0450959368214 3.19660562659e-07" rpy="0 0 0" />
+      <mass value="0.28615" />
+      <inertia ixx="0.00036" ixy="-2e-05" ixz="-0" iyy="0.00016" iyz="0" izz="0.00045" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/right_elbow_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/right_elbow_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="right_elbow_joint" type="revolute">
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <parent link="right_arm_yaw_link" />
+    <child link="right_elbow_link" />
+    <axis xyz="-1 0 0" />
+    <limit lower="-1.5708" upper="1.5708" effort="3" velocity="15.71" />
+  </joint>
+  <link name="left_hip_pitch_link">
+    <inertial>
+      <origin xyz="0.00300562434457657 -0.00606385593973444 0.000754075984287168" rpy="0 0 0" />
+      <mass value="0.39801" />
+      <inertia ixx="0.00011" ixy="0" ixz="0" iyy="0.0001" iyz="0" izz="0.00014" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/left_hip_pitch_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/left_hip_pitch_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="left_hip_pitch_joint" type="revolute">
+    <origin xyz="0 0.088 0" rpy="0 -0.34907 0" />
+    <parent link="base_link" />
+    <child link="left_hip_pitch_link" />
+    <axis xyz="0 -1 0" />
+    <limit lower="-2.44" upper="2.44" effort="12.5" velocity="12.57" />
+  </joint>
+  <link name="left_hip_roll_link">
+    <inertial>
+      <origin xyz="-0.00178229851177284 -5.84403092108998E-06 -0.0423594488238" rpy="0 0 0" />
+      <mass value="0.55732" />
+      <inertia ixx="0.0004" ixy="0" ixz="0.00003" iyy="0.00055" iyz="0" izz="0.00036" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/left_hip_roll_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/left_hip_roll_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="left_hip_roll_joint" type="revolute">
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <parent link="left_hip_pitch_link" />
+    <child link="left_hip_roll_link" />
+    <axis xyz="1 0 0" />
+    <limit lower="-0.26" upper="0.26" effort="12.5" velocity="12.57" />
+  </joint>
+  <link name="left_hip_yaw_link">
+    <inertial>
+      <origin xyz="-0.00071555905928949 0.00247486820788727 -0.112156975339045" rpy="0 0 0" />
+      <mass value="0.45595" />
+      <inertia ixx="0.00027" ixy="0" ixz="0" iyy="0.00022" iyz="0" izz="0.00023" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/left_hip_yaw_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/left_hip_yaw_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="left_hip_yaw_joint" type="revolute">
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <parent link="left_hip_roll_link" />
+    <child link="left_hip_yaw_link" />
+    <axis xyz="0 0 1" />
+    <limit lower="-0.26" upper="0.26" effort="12.5" velocity="12.57" />
+  </joint>
+  <link name="left_knee_link">
+    <inertial>
+      <origin xyz="6.05700005735371E-06 -0.000791318951286472 -0.0492172676961546" rpy="0 0 0" />
+      <mass value="0.54888" />
+      <inertia ixx="0.00085" ixy="0" ixz="0" iyy="0.00067" iyz="0.00004" izz="0.00029" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/left_knee_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/left_knee_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="left_knee_joint" type="revolute">
+    <origin xyz="0 0 -0.118" rpy="0 0.5236 0" />
+    <parent link="left_hip_yaw_link" />
+    <child link="left_knee_link" />
+    <axis xyz="0 1 0" />
+    <limit lower="-0.523598775598" upper="1.57079632679" effort="40" velocity="3.7699111843" />
+  </joint>
+  <link name="left_ankle_link">
+    <inertial>
+      <origin xyz="6.78862736043159E-06 -0.00132794811198981 -0.0119364153902393" rpy="0 0 0" />
+      <mass value="0.12169" />
+      <inertia ixx="0.00016" ixy="0" ixz="0" iyy="0.00007" iyz="0" izz="0.00017" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/left_ankle_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/left_ankle_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="left_ankle_joint" type="revolute">
+    <origin xyz="0 0 -0.086" rpy="0 -0.17453 0" />
+    <parent link="left_knee_link" />
+    <child link="left_ankle_link" />
+    <axis xyz="0 1 0" />
+    <limit lower="-0.79" upper="1.05" effort="12.5" velocity="12.57" />
+  </joint>
+  <link name="right_hip_pitch_link">
+    <inertial>
+      <origin xyz="0.00300562434458 0.00606385593973 0.000754075984287" rpy="0 0 0" />
+      <mass value="0.39801" />
+      <inertia ixx="0.00011" ixy="-0" ixz="0" iyy="0.0001" iyz="-0" izz="0.00014" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/right_hip_pitch_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/right_hip_pitch_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="right_hip_pitch_joint" type="revolute">
+    <origin xyz="0 -0.088 0" rpy="0 -0.34907 0" />
+    <parent link="base_link" />
+    <child link="right_hip_pitch_link" />
+    <axis xyz="0 1 0" />
+    <limit lower="-2.44" upper="2.44" effort="12.5" velocity="12.57" />
+  </joint>
+  <link name="right_hip_roll_link">
+    <inertial>
+      <origin xyz="-0.00178229851177 5.84403092109e-06 -0.0423594488238" rpy="0 0 0" />
+      <mass value="0.55732" />
+      <inertia ixx="0.0004" ixy="0" ixz="3e-05" iyy="0.00055" iyz="0" izz="0.00036" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/right_hip_roll_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/right_hip_roll_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="right_hip_roll_joint" type="revolute">
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <parent link="right_hip_pitch_link" />
+    <child link="right_hip_roll_link" />
+    <axis xyz="1 0 0" />
+    <limit lower="-0.26" upper="0.26" effort="12.5" velocity="12.57" />
+  </joint>
+  <link name="right_hip_yaw_link">
+    <inertial>
+      <origin xyz="-0.000715559059289 -0.00247486820789 -0.112156975339" rpy="0 0 0" />
+      <mass value="0.45595" />
+      <inertia ixx="0.00027" ixy="-0" ixz="0" iyy="0.00022" iyz="-0" izz="0.00023" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/right_hip_yaw_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/right_hip_yaw_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="right_hip_yaw_joint" type="revolute">
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <parent link="right_hip_roll_link" />
+    <child link="right_hip_yaw_link" />
+    <axis xyz="0 0 1" />
+    <limit lower="-0.26" upper="0.26" effort="12.5" velocity="12.57" />
+  </joint>
+  <link name="right_knee_link">
+    <inertial>
+      <origin xyz="6.05700005735e-06 0.000791318951286 -0.0492172676962" rpy="0 0 0" />
+      <mass value="0.54888" />
+      <inertia ixx="0.00085" ixy="-0" ixz="0" iyy="0.00067" iyz="4e-05" izz="0.00029" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/right_knee_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/right_knee_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="right_knee_joint" type="revolute">
+    <origin xyz="0 0 -0.118" rpy="0 0.5236 0" />
+    <parent link="right_hip_yaw_link" />
+    <child link="right_knee_link" />
+    <axis xyz="0 -1 0" />
+    <limit lower="-1.57079632679" upper="0.523598775598" effort="40" velocity="3.7699111843" />
+  </joint>
+  <link name="right_ankle_link">
+    <inertial>
+      <origin xyz="6.78862736043e-06 0.00132794811199 -0.0119364153902" rpy="0 0 0" />
+      <mass value="0.12169" />
+      <inertia ixx="0.00016" ixy="0" ixz="-0" iyy="7e-05" iyz="-0" izz="0.00017" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/right_ankle_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="package://pikachu_v035/meshes/right_ankle_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint name="right_ankle_joint" type="revolute">
+    <origin xyz="0 0 -0.086" rpy="0 -0.17453 0" />
+    <parent link="right_knee_link" />
+    <child link="right_ankle_link" />
+    <axis xyz="0 -1 0" />
+    <limit lower="-1.05" upper="0.79" effort="12.5" velocity="12.57" />
+  </joint>
+</robot>

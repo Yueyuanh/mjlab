@@ -1,0 +1,33 @@
+{
+  "source": "/home/finnox/Pikachu/PikachuRobot/pikachu_urdf/pikachu_v035",
+  "sha256": {
+    "mjcf/pikachu_v035.xml": "4d57b2285e32796655e77e6cbb561f1ebc467141fac9d754edb9ae4adc1e8533",
+    "mjcf/scene.xml": "d0c21015e40d98c545cc10a054ed0fbd747c71afa7dada1f5162d6131dea251e",
+    "urdf/pikachu_v035.urdf": "3477f13b383f6ad31bfb72393f6f22832367f8a3c7b2fb6f7419d7d3067578bf",
+    "config/robot_config.json": "b940ef553b5507849e518cbe1d97963332c52968135a1bfd8a806bbcfe27562b",
+    "config/symmetry_report.json": "d17e3710b0a91575ad2173a7e8c00f1217437e9f5707f18f534fa3b5da986f24",
+    "meshes/base_link.STL": "51f68716d5fe1add1fb62676b678788a9d9ef788f82115f36a92c7700bee9385",
+    "meshes/left_arm_pitch_link.STL": "279a8864419d9b4d9d0ce4df8bf19c479cdd4a60c791854ac9809bd5fc629b74",
+    "meshes/left_arm_roll_link.STL": "0531017298da8c7bd381a26293b49b038ababa8c32bf36950364215ff8c4a68b",
+    "meshes/left_arm_yaw_link.STL": "981d9a6d8ebef10bc0f8b080821b37fb89f99162295b617c343353b0a2664364",
+    "meshes/left_elbow_link.STL": "89e97d48dcaeddd8c848d8bad52e2cd98e9ad2b3b65ca2ac5d26ea05d961edc0",
+    "meshes/right_arm_pitch_link.STL": "9f67a311f38f32408caec94e051aacc599f2c1089a915351341663f5c11a0f7d",
+    "meshes/right_arm_roll_link.STL": "5cf7d47efa25ae410184761720c77801cfcb66cc9a0444b76237f4c05ca44726",
+    "meshes/right_arm_yaw_link.STL": "242ed8871b11eaef25b1aff5a01ced4fe3fb393a03f67ba3e19d9e5493a31928",
+    "meshes/right_elbow_link.STL": "c8860d11ba46672be8602e6f9b0bb128eb0920b69defda7c0bc8e8afc98868fa",
+    "meshes/left_hip_pitch_link.STL": "ba57c051cae7ef9ddf4ecd73d475783b64bc6f11ed4f9f79ddf8e774ff0bf9ba",
+    "meshes/left_hip_roll_link.STL": "9e0335fba2b1c7eb2c4a5638a071a835e47ea3d50013129b6363aa5fbff72e58",
+    "meshes/left_hip_yaw_link.STL": "a006911cd92bb593dfb7c521b4fe8761b178fcc5c4161e41320790d20af33a37",
+    "meshes/left_knee_link.STL": "ec0069908ca34c0871eea6ac63f4a7ed6bb636547bc5b30a48d48d21860c94ae",
+    "meshes/left_ankle_link.STL": "6fffc91b09c1eac1d2b6ac64ff9f285dffd49412c8ce892b7f424fa0fabc8ad1",
+    "meshes/right_hip_pitch_link.STL": "eef0930528fce4d4fc101a102c603adeebec5edaa850afe310ec4b735eee2562",
+    "meshes/right_hip_roll_link.STL": "334b6a70bee95379cf4bfbc835f461a2801aa317aecbf2ced801418c07803eb1",
+    "meshes/right_hip_yaw_link.STL": "68369716f68c9468a438754c06220029c73c1dacfec490e1561ed340faa5b87b",
+    "meshes/right_knee_link.STL": "df92b6a1a134ce1b437a6080f0f4979467ed81ac1b24284e43dcd982d4b983df",
+    "meshes/right_ankle_link.STL": "efc324d2fdd0dafb83695c9d34d56f02bafb89e2e2e64d359d48605c137a1e07"
+  },
+  "conversion": "easymjcf urdf/pikachu_v035.urdf",
+  "transformations": {
+    "mjcf/pikachu_v035_train.xml": "freejoint + IMU site + sensors + foot capsules + stand keyframe"
+  }
+}
