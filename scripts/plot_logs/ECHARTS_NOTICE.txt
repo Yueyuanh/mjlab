@@ -1,0 +1,9 @@
+Apache ECharts
+Copyright 2017-2024 The Apache Software Foundation
+
+This product includes software developed at
+The Apache Software Foundation (https://www.apache.org/).
+
+Bundled unmodified: ECharts 5.5.0 dist/echarts.min.js
+License: Apache License, Version 2.0 (see ../../LICENSE).
+Upstream: https://github.com/apache/echarts/tree/5.5.0

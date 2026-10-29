@@ -18,6 +18,9 @@ import numpy as np
 import viser
 import viser.uplot
 
+from mjlab.viewer.viser.live_metrics import MetricsLivePublisher
+from mjlab.viewer.viser.recording import RecordingOptions
+
 _PALETTE = [
   "#1f77b4",  # blue
   "#ff7f0e",  # orange
@@ -42,6 +45,30 @@ _JOINT_SIGNAL_PREFIXES = {
 _CSV_METADATA_COLUMNS = frozenset(
   {"sample", "sim_step", "time_s", "env_idx", "network"}
 )
+
+_RECORD_COMMAND_MODES = {
+  "固定指令": "fixed",
+  "随机指令": "random",
+  "沿用当前指令": "current",
+}
+
+
+def metric_semantic_group(name: str) -> str:
+  """Organize selectors without discarding unknown or model-specific signals."""
+  if name.startswith("foot_"):
+    return "足端信息"
+  if name.startswith("joint_"):
+    joint = name.partition("/")[2]
+    if any(part in joint for part in ("arm", "shoulder", "elbow", "wrist", "hand")):
+      return "手臂关节"
+    if any(part in joint for part in ("hip", "knee", "ankle", "leg")):
+      return "腿部关节"
+    return "其他关节"
+  if name.startswith(("vel/", "base_", "command")):
+    return "指令与机身"
+  return "其他指标"
+
+
 _MAX_CSV_ROWS = 200_000
 _IMAGE_WIDTH = 1920
 _IMAGE_HEIGHT = 1080
@@ -398,7 +425,7 @@ class MetricsCsvRecorder:
     """Path of the active or most recently completed recording."""
     return self._path
 
-  def start(self, term_names: Sequence[str]) -> Path:
+  def start(self, term_names: Sequence[str], prefix: str = "") -> Path:
     """Start a new recording for an immutable snapshot of selected terms."""
     selected = tuple(dict.fromkeys(term_names))
     if not selected:
@@ -409,16 +436,24 @@ class MetricsCsvRecorder:
     source = self._source_name()
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     stem = f"metrics_{_safe_filename_component(source)}_{stamp}"
+    # Unicode experiment labels are allowed; paths and traversal are not.
+    safe_prefix = re.sub(r"[^\w.-]+", "-", prefix.strip())[:80].strip(".-_")
+    experiment_dir = self.output_dir / safe_prefix if safe_prefix else self.output_dir
+    experiment_dir.mkdir(parents=True, exist_ok=True)
+    if safe_prefix:
+      stem = f"{safe_prefix}_{stem}"
     # 选了设定值（joint_target_rad/*）时文件后缀 with_target，便于一眼识别。
     if any(n.startswith("joint_target_rad/") for n in selected):
       stem += "_with_target"
-    path = self.output_dir / f"{stem}.csv"
+    path = experiment_dir / f"{stem}.csv"
     suffix = 2
-    while path.exists():
-      path = self.output_dir / f"{stem}_{suffix}.csv"
+    while any(
+      path.with_suffix(ext).exists() for ext in (".csv", ".mp4", ".recording.json")
+    ):
+      path = experiment_dir / f"{stem}_{suffix}.csv"
       suffix += 1
 
-    record_file = path.open("w", encoding="utf-8", newline="")
+    record_file = path.open("x", encoding="utf-8", newline="")
     writer = csv.writer(record_file)
     writer.writerow(["sample", "sim_step", "time_s", "env_idx", "network", *selected])
     record_file.flush()
@@ -532,6 +567,11 @@ class ViserTermPlotter:
       else None
     )
     self._closed = False
+    self._recording_request: Callable[[RecordingOptions], None] | None = None
+    self._recording_cancel: Callable[[], None] | None = None
+    self.control_step_recording = False
+    self._silent_recording = False
+    self._live_publisher: MetricsLivePublisher | None = None
     self._csv_file_paths: dict[str, Path] = {}
 
     # Pre-allocated x-axis array (reused for all plots).
@@ -554,14 +594,17 @@ class ViserTermPlotter:
     self._env_idx = env_idx
 
     # Build all GUI elements.
-    self._build_selector_gui(term_names)
     if self._recorder is not None:
       self._build_csv_gui()
+    self._build_selector_gui(term_names)
     self._plots_folder = self._server.gui.add_folder("Plots", expand_by_default=True)
 
   def _build_selector_gui(self, term_names: list[str]) -> None:
     """Build flat checkboxes with a filter input for term selection."""
-    with self._server.gui.add_folder("Select terms", expand_by_default=True):
+    self._selector_folder = self._server.gui.add_folder(
+      "Select terms", expand_by_default=False
+    )
+    with self._selector_folder:
       self._env_label = self._server.gui.add_markdown(self._env_label_text())
 
       # Filter input.
@@ -619,55 +662,174 @@ class ViserTermPlotter:
             cb.value = enabled
           self._sync_plots()
 
-      # Flat checkbox list.
+      grouped: dict[str, list[str]] = {}
       for tname in term_names:
-        state = self._terms[tname]
-        cb = self._server.gui.add_checkbox(
-          tname,
-          initial_value=state.enabled,
-          hint=f"Color: {state.color}",
-        )
-        self._checkboxes[tname] = cb
+        group = metric_semantic_group(tname) if self._name == "Metric" else self._name
+        grouped.setdefault(group, []).append(tname)
+      for group, names in grouped.items():
+        with self._server.gui.add_folder(
+          f"{group}（{len(names)}项）", expand_by_default=False
+        ):
+          select = self._server.gui.add_button_group(
+            "显示曲线", options=("All", "None")
+          )
 
-        @cb.on_update
-        def _(event, _tname=tname) -> None:
-          self._terms[_tname].enabled = event.target.value
-          self._sync_plots()
+          @select.on_click
+          def _(event, _names=tuple(names)) -> None:
+            for name in _names:
+              cb = self._checkboxes[name]
+              if cb.visible and not cb.disabled:
+                cb.value = self._terms[name].enabled = event.target.value == "All"
+            self._sync_plots()
+
+          for tname in names:
+            state = self._terms[tname]
+            cb = self._server.gui.add_checkbox(
+              tname, initial_value=state.enabled, hint=f"Color: {state.color}"
+            )
+            self._checkboxes[tname] = cb
+
+            @cb.on_update
+            def _(event, _tname=tname) -> None:
+              self._terms[_tname].enabled = event.target.value
+              self._sync_plots()
 
   def _build_csv_gui(self) -> None:
     """Build recording, server-file, and browser-upload controls."""
     assert self._recorder is not None
     recorder = self._recorder
-    with self._server.gui.add_folder("CSV data", expand_by_default=True):
+    with self._server.gui.add_folder("录制控制", expand_by_default=True):
       self._data_status = self._server.gui.add_markdown(
         f"Save directory: `{recorder.output_dir}`"
       )
+      self._record_prefix = self._server.gui.add_text(
+        "实验前缀", initial_value="experiment", hint="同时用于 CSV 和 MP4 文件名前缀"
+      )
       self._record_start = self._server.gui.add_button(
-        "Record selected",
-        hint="Record only the currently checked metric terms",
+        "开始录制（全部数据）",
+        hint="每个控制步记录全部指标；勾选仅控制实时曲线",
+      )
+      self._record_silent = self._server.gui.add_button(
+        "静默录制（全部数据）",
+        disabled=True,
+        hint="后台继续仿真并保存数据/视频；网页场景暂停刷新，仅显示进度",
       )
       self._record_stop = self._server.gui.add_button(
         "Stop & save",
         disabled=True,
       )
+      self._record_progress = self._server.gui.add_progress_bar(0.0, visible=False)
+      self._record_config = self._server.gui.add_folder(
+        "录制配置（时长单位为仿真秒）", expand_by_default=True
+      )
+      with self._record_config:
+        self._record_duration = self._server.gui.add_number(
+          "录制时长 / s", initial_value=10.0, min=0.02, max=3600.0, step=1.0
+        )
+        self._record_mode = self._server.gui.add_dropdown(
+          "指令模式",
+          options=tuple(_RECORD_COMMAND_MODES),
+          initial_value="固定指令",
+          hint="固定/随机指令在录制期间覆盖任务和手柄指令；结束后恢复",
+        )
+        self._record_command_name = self._server.gui.add_text(
+          "速度指令名称", initial_value="twist"
+        )
+        self._record_velocity = []
+        self._record_lower = []
+        self._record_upper = []
+        for axis, lo, hi in (
+          ("vx · m/s", -0.3, 0.5),
+          ("vy · m/s", -0.2, 0.2),
+          ("yaw · rad/s", -0.3, 0.3),
+        ):
+          self._record_velocity.append(
+            self._server.gui.add_number(
+              f"固定 {axis}",
+              initial_value=0.15 if not self._record_velocity else 0.0,
+              step=0.05,
+            )
+          )
+          self._record_lower.append(
+            self._server.gui.add_number(f"随机下限 {axis}", initial_value=lo, step=0.05)
+          )
+          self._record_upper.append(
+            self._server.gui.add_number(f"随机上限 {axis}", initial_value=hi, step=0.05)
+          )
+        self._record_interval = self._server.gui.add_number(
+          "随机指令切换间隔 / s", initial_value=2.0, min=0.02, step=0.1
+        )
+        self._record_seed = self._server.gui.add_number(
+          "指令随机种子", initial_value=42, min=0, max=2**32 - 1, step=1
+        )
+        self._record_mode_help = self._server.gui.add_markdown("")
+
+        @self._record_mode.on_update
+        def _(_) -> None:
+          self._update_record_command_controls()
+
+        self._update_record_command_controls()
+        self._record_video = self._server.gui.add_checkbox(
+          "同步录制视频（1280×720）", initial_value=True
+        )
+        self._record_fps = self._server.gui.add_dropdown(
+          "视频 FPS", options=("10", "25", "50"), initial_value="25"
+        )
+        self._record_view = self._server.gui.add_dropdown(
+          "视频视角", options=("three_quarter", "front", "side")
+        )
+      self._live_enabled = self._server.gui.add_checkbox(
+        "同步实时数据到 dashboard",
+        initial_value=False,
+        hint="可不录制文件；dashboard 选择实时源后查看滚动窗口。关闭时没有采集开销。",
+      )
+      self._live_status = self._server.gui.add_markdown("实时同步未开启")
+
+      @self._live_enabled.on_update
+      def _(_) -> None:
+        try:
+          if self._live_enabled.value and self._live_publisher is None:
+            self._live_publisher = MetricsLivePublisher(
+              recorder.output_dir, list(self._terms), recorder._step_dt
+            )
+            self._live_status.content = (
+              "实时源已开启：在 dashboard 点击刷新实时源并连接"
+            )
+          elif not self._live_enabled.value and self._live_publisher is not None:
+            publisher, self._live_publisher = self._live_publisher, None
+            publisher.close()
+            self._live_status.content = "实时同步已关闭"
+        except Exception as exc:
+          self._live_status.content = f"实时源启动失败：{exc}"
 
       @self._record_start.on_click
       def _(_) -> None:
-        selected = [state.name for state in self._terms.values() if state.enabled]
+        if self._recording_request is not None:
+          self._request_recording(silent=False)
+          return
         try:
-          path = recorder.start(selected)
+          path = recorder.start(list(self._terms), prefix=self._record_prefix.value)
         except (OSError, ValueError) as exc:
           self._set_data_status(f"Recording failed: {exc}")
           return
         self._record_start.disabled = True
         self._record_stop.disabled = False
         self._return_live.disabled = True
-        self._set_data_status(f"Recording {len(selected)} terms to `{path.name}`")
+        self._set_data_status(f"Recording {len(self._terms)} terms to `{path.name}`")
+
+      @self._record_silent.on_click
+      def _(_) -> None:
+        self._request_recording(silent=True)
 
       @self._record_stop.on_click
       def _(_) -> None:
-        self._finish_recording()
+        if self._recording_cancel is not None:
+          self._recording_cancel()
+        else:
+          self._finish_recording()
 
+    self._csv_folder = self._server.gui.add_folder("CSV files", expand_by_default=False)
+    with self._csv_folder:
       empty_csv_options: list[str] = ["No CSV files"]
       self._saved_csv_dropdown = self._server.gui.add_dropdown(
         "Saved CSV",
@@ -735,19 +897,130 @@ class ViserTermPlotter:
     """Update the CSV panel status line."""
     self._data_status.content = message
 
+  def configure_control_step_recording(
+    self,
+    request: Callable[[RecordingOptions], None],
+    cancel: Callable[[], None],
+  ) -> None:
+    """Connect UI requests to the simulation thread, not a GUI callback thread."""
+    self._recording_request, self._recording_cancel = request, cancel
+    self.control_step_recording = True
+    self._record_silent.disabled = False
+
+  def _update_record_command_controls(self) -> None:
+    mode = _RECORD_COMMAND_MODES[self._record_mode.value]
+    for handle in self._record_velocity:
+      handle.visible = mode == "fixed"
+    for handle in (
+      *self._record_lower,
+      *self._record_upper,
+      self._record_interval,
+      self._record_seed,
+    ):
+      handle.visible = mode == "random"
+    self._record_mode_help.content = {
+      "fixed": "录制期间使用配置的固定速度；vx=vy=yaw=0 时为静止指令。",
+      "random": "按配置范围和间隔随机采样指令；种子相同则指令序列相同。",
+      "current": "沿用任务/手柄的当前指令，可能为零；不使用固定速度或随机范围。",
+    }[mode]
+
+  def _request_recording(self, silent: bool) -> None:
+    assert self._recording_request is not None
+
+    def triple(handles) -> tuple[float, float, float]:
+      return (float(handles[0].value), float(handles[1].value), float(handles[2].value))
+
+    values: dict[str, Any] = {
+      "prefix": self._record_prefix.value,
+      "silent": silent,
+      "duration_s": float(self._record_duration.value),
+      "command_mode": _RECORD_COMMAND_MODES[self._record_mode.value],
+      "command_name": self._record_command_name.value.strip(),
+      "velocity": triple(self._record_velocity),
+      "lower": triple(self._record_lower),
+      "upper": triple(self._record_upper),
+      "command_interval_s": float(self._record_interval.value),
+      "seed": int(self._record_seed.value),
+      "video": self._record_video.value,
+      "video_fps": int(self._record_fps.value),
+      "view": self._record_view.value,
+    }
+    try:
+      options = RecordingOptions(**values)
+      options.validate()
+      self._record_start.disabled = self._record_silent.disabled = True
+      self._recording_request(options)
+    except Exception as exc:
+      self.recording_finished(f"无法开始录制：{exc}")
+
+  def recording_started(self, silent: bool) -> None:
+    self._silent_recording = silent
+    self._record_start.disabled = self._record_silent.disabled = True
+    self._record_stop.disabled = False
+    self._record_stop.label = "取消并保存" if silent else "Stop & save"
+    self._record_progress.value = 0.0
+    self._record_progress.visible = True
+    self._return_live.disabled = True
+    self._record_prefix.disabled = True
+    self._record_config.visible = False
+    self._recording_csv_visibility = self._csv_folder.visible
+    self._csv_folder.visible = False
+    self._silent_visibility = []
+    if silent:
+      for handle in (
+        self._selector_folder,
+        self._plots_folder,
+        self._record_prefix,
+        self._record_start,
+        self._record_silent,
+        self._live_enabled,
+        self._live_status,
+      ):
+        self._silent_visibility.append((handle, handle.visible))
+        handle.visible = False
+
+  def recording_progress(self, samples: int, target: int, step_dt: float) -> None:
+    self._record_progress.value = min(100.0, 100.0 * samples / max(1, target))
+    self._set_data_status(
+      f"{'静默' if self._silent_recording else ''}录制："
+      f"{samples * step_dt:.2f} / {target * step_dt:.2f} 仿真秒 · {samples} 帧"
+      + (
+        "；后台仿真中，网页场景暂停刷新，视频正常保存" if self._silent_recording else ""
+      )
+    )
+
+  def recording_finished(self, message: str) -> None:
+    for handle, visible in getattr(self, "_silent_visibility", []):
+      handle.visible = visible
+    self._silent_visibility = []
+    self._silent_recording = False
+    self._record_start.disabled = self._loaded_csv is not None
+    self._record_silent.disabled = self._loaded_csv is not None
+    self._record_stop.disabled = True
+    self._record_stop.label = "Stop & save"
+    self._record_progress.visible = False
+    self._record_prefix.disabled = False
+    self._record_config.visible = True
+    self._csv_folder.visible = getattr(self, "_recording_csv_visibility", True)
+    self._set_data_status(message)
+    self._refresh_saved_csvs(preferred=self._recorder.path if self._recorder else None)
+
   def _refresh_saved_csvs(self, preferred: Path | None = None) -> None:
     """Refresh CSV files found beside the selected model checkpoint."""
     assert self._recorder is not None
     try:
       paths = sorted(
-        self._recorder.output_dir.glob("metrics_*.csv"),
+        self._recorder.output_dir.rglob("*metrics_*.csv"),
         key=lambda path: path.stat().st_mtime,
         reverse=True,
       )
     except OSError as exc:
       self._set_data_status(f"Could not list saved CSV files: {exc}")
       paths = []
-    self._csv_file_paths = {path.name: path for path in paths}
+    labels = {
+      path: path.relative_to(self._recorder.output_dir).as_posix() for path in paths
+    }
+    self._csv_file_paths = {labels[path]: path for path in paths}
     if not paths:
       self._saved_csv_dropdown.options = ["No CSV files"]
       self._saved_csv_dropdown.value = "No CSV files"
@@ -755,14 +1028,44 @@ class ViserTermPlotter:
       self._open_csv_button.disabled = True
       return
 
-    options = [path.name for path in paths]
+    options = [labels[path] for path in paths]
     self._saved_csv_dropdown.options = options
-    preferred_name = preferred.name if preferred is not None else None
+    preferred_name = labels.get(preferred) if preferred is not None else None
     self._saved_csv_dropdown.value = (
       preferred_name if preferred_name in self._csv_file_paths else options[0]
     )
     self._saved_csv_dropdown.disabled = False
     self._open_csv_button.disabled = False
+
+  def publish_control_step(self, env: Any, step_idx: int, env_idx: int) -> None:
+    publisher = self._live_publisher
+    if publisher is None:
+      return
+    try:
+      manager = env.metrics_manager
+      matrix = getattr(manager, "_step_values", None)
+      if matrix is not None:
+        # One batched device→host transfer instead of one CUDA sync per metric.
+        by_name = dict(
+          zip(
+            manager.active_terms, matrix[env_idx].detach().cpu().tolist(), strict=True
+          )
+        )
+      else:
+        by_name = {
+          name: float(value[0])
+          for name, value in manager.get_active_iterable_terms(env_idx)
+        }
+      source = self._recorder._source_name() if self._recorder else "live"
+      publisher.append(
+        step_idx,
+        env_idx,
+        source,
+        [float(by_name.get(name, float("nan"))) for name in publisher.names],
+        reset=bool(env.reset_buf[env_idx]),
+      )
+    except Exception as exc:
+      self._live_status.content = f"实时采集失败（录制不受影响）：{exc}"
 
   def _finish_recording(self) -> None:
     """Stop recording, close the file, and expose it in the saved-file picker."""
@@ -787,6 +1090,9 @@ class ViserTermPlotter:
   ) -> None:
     """Validate CSV bytes and switch all available plots to offline mode."""
     assert self._recorder is not None
+    if self.control_step_recording and self._recorder.active:
+      self._set_data_status("请先停止当前录制，再打开或上传 CSV")
+      return
     if self._recorder.active:
       self._finish_recording()
     try:
@@ -809,6 +1115,7 @@ class ViserTermPlotter:
     self._env_label.content = self._env_label_text()
     self._recreate_plots()
     self._record_start.disabled = True
+    self._record_silent.disabled = True
     self._record_stop.disabled = True
     self._save_images_button.disabled = False
     self._return_live.disabled = False
@@ -885,6 +1192,7 @@ class ViserTermPlotter:
     self._env_label.content = self._env_label_text()
     self._recreate_plots()
     self._record_start.disabled = False
+    self._record_silent.disabled = not self.control_step_recording
     self._save_images_button.disabled = True
     self._return_live.disabled = True
     self._set_data_status("Showing live metrics")
@@ -910,6 +1218,10 @@ class ViserTermPlotter:
   def on_source_change(self) -> None:
     """Finish an active recording before the policy/checkpoint changes."""
     if self._recorder is not None and self._recorder.active:
+      if self.control_step_recording:
+        if self._recording_cancel is not None:
+          self._recording_cancel()
+        return
       self._finish_recording()
 
   def _sync_plots(self) -> None:
@@ -992,7 +1304,11 @@ class ViserTermPlotter:
       if state.enabled:
         any_enabled = True
 
-    if self._recorder is not None and self._recorder.active:
+    if (
+      self._recorder is not None
+      and self._recorder.active
+      and not self.control_step_recording
+    ):
       self._recorder.append(values, self._env_idx, step_idx)
 
     if not any_enabled:
@@ -1019,7 +1335,10 @@ class ViserTermPlotter:
         state.plot.data = (self._empty, self._empty)
 
   def cleanup(self) -> None:
-    """Clean up resources."""
+    """Clean up resources, including the opt-in loopback feed."""
+    if self._live_publisher is not None:
+      self._live_publisher.close()
+      self._live_publisher = None
     self._closed = True
     if self._recorder is not None:
       self._recorder.stop()

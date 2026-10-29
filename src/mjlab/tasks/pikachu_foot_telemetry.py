@@ -51,6 +51,7 @@ if TYPE_CHECKING:
 # 脚掌碰撞 geom：Pikachu 每只脚 5 根沿 y 铺开的胶囊（见 v031 训练 XML）。
 FOOT_GEOM_PATTERN = r"^(left|right)_foot\d+_collision$"
 ANKLE_BODY_PATTERN = r"^(left|right)_ankle_link$"
+ANKLE_BODY_NAMES = ("left_ankle_link", "right_ankle_link")
 # 每根胶囊上取几个采样点（沿轴向等距）。5 根 × 5 点 = 每脚 25 个 taxel，
 # 排成 5 行(y，脚掌横向) × 5 列(x，脚掌纵向) 的"传感器垫"。
 SENSORS_PER_CAPSULE = 5
@@ -118,6 +119,16 @@ def _ground_height(model: mujoco.MjModel) -> float:
     if int(model.geom_type[g]) == plane:
       return float(model.geom_pos[g][2])
   return 0.0
+
+
+def _ordered_ankle_body_ids(entity: Entity) -> list[int]:
+  """Return ankle body indices in the same left/right order as ``_SIDES``."""
+  patterns = tuple(f"^{name}$" for name in ANKLE_BODY_NAMES)
+  local_ids, names = entity.find_bodies(patterns, preserve_order=True)
+  if tuple(names) != ANKLE_BODY_NAMES:
+    msg = f"踝 body 顺序不匹配：期望 {ANKLE_BODY_NAMES}，实得 {tuple(names)}"
+    raise ValueError(msg)
+  return local_ids
 
 
 def build_foot_sensor_grid(
@@ -196,9 +207,9 @@ def build_foot_sensor_grid(
   y_span = float(pos[:, 1].max() - pos[:, 1].min())
   sole_area = (x_span + 2 * radius_mean) * (y_span + 2 * radius_mean)
 
-  body_local_ids, _ = entity.find_bodies(ANKLE_BODY_PATTERN, preserve_order=True)
-  if len(body_local_ids) != 2:
-    msg = f"期望 2 个踝 body，实得 {len(body_local_ids)} 个（{ANKLE_BODY_PATTERN}）"
+  body_local_ids = _ordered_ankle_body_ids(entity)
+  if len(body_local_ids) != len(ANKLE_BODY_NAMES):
+    msg = f"期望 {len(ANKLE_BODY_NAMES)} 个踝 body，实得 {len(body_local_ids)} 个"
     raise ValueError(msg)
 
   device = env.device
@@ -382,7 +393,9 @@ class FootTelemetry:
     names = sensor.primary_names
     perm = []
     for side in _SIDES:
-      idx = next((i for i, nm in enumerate(names) if side in nm), None)
+      idx = next(
+        (i for i, nm in enumerate(names) if nm.endswith(f"{side}_ankle_link")), None
+      )
       if idx is None:
         msg = f"接触传感器 {self.sensor_name} 的 primary {names} 里找不到 {side}"
         raise ValueError(msg)

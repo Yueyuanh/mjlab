@@ -228,6 +228,7 @@ def add_pikachu_telemetry_metrics(
   cfg: ManagerBasedRlEnvCfg,
   joint_names: tuple[str, ...] = PIKACHU_JOINT_NAMES,
   actuator_groups: tuple[tuple[str, ElectricActuator], ...] = _ACTUATOR_GROUPS,
+  sensor_name: str = _FEET_CONTACT_SENSOR,
 ) -> None:
   """Add physical joint and base telemetry shared by every Pikachu task.
 
@@ -241,10 +242,10 @@ def add_pikachu_telemetry_metrics(
   cfg.metrics["base_height_m"] = MetricsTermCfg(func=envs_mdp.root_height)
 
   # 脚底接地传感器：velocity 任务已定义，tracking 任务补一个（guard 防重名）。
-  if not any(s.name == _FEET_CONTACT_SENSOR for s in cfg.scene.sensors or ()):
+  if not any(s.name == sensor_name for s in cfg.scene.sensors or ()):
     cfg.scene.sensors = (cfg.scene.sensors or ()) + (
       ContactSensorCfg(
-        name=_FEET_CONTACT_SENSOR,
+        name=sensor_name,
         primary=ContactMatch(
           mode="subtree",
           pattern=r"^(left|right)_ankle_link$",
@@ -261,12 +262,12 @@ def add_pikachu_telemetry_metrics(
   foot_site_cfg = SceneEntityCfg("robot", site_names=_FOOT_SITE_NAMES)
   cfg.metrics["foot_slip_velocity_m_s"] = MetricsTermCfg(
     func=foot_slip_velocity,
-    params={"asset_cfg": foot_site_cfg, "sensor_name": _FEET_CONTACT_SENSOR},
+    params={"asset_cfg": foot_site_cfg, "sensor_name": sensor_name},
     reduce="mean",
   )
   cfg.metrics["foot_slide_fraction"] = MetricsTermCfg(
     func=foot_slide_fraction,
-    params={"asset_cfg": foot_site_cfg, "sensor_name": _FEET_CONTACT_SENSOR},
+    params={"asset_cfg": foot_site_cfg, "sensor_name": sensor_name},
     reduce="mean",
   )
 

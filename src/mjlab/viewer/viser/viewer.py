@@ -35,6 +35,7 @@ from mjlab.viewer.viser.overlays import (
   ViserDebugOverlays,
   ViserTermOverlays,
 )
+from mjlab.viewer.viser.recording import ControlStepRecording, RecordingOptions
 from mjlab.viewer.viser.scene import MjlabViserScene
 
 
@@ -84,6 +85,10 @@ class ViserPlayViewer(BaseViewer):
     self._ckpt_mgr = checkpoint_manager
     self._metrics_output_dir = metrics_output_dir
     self._metrics_source_name = metrics_source_name
+    self._recording: ControlStepRecording | None = None
+    self._recording_cancel = Event()
+    self._recording_previous_paused = False
+    self._recording_last_progress = 0.0
     self._com_visualizer = com_visualizer
     # "Freeze Joints" 复选框的初始状态。dummy agent（zero/frozen/random）下默认
     # 开启=直接把全关节锁死到 default，便于 R4 的静稳定测试；trained 下默认关闭
@@ -286,6 +291,16 @@ class ViserPlayViewer(BaseViewer):
       metrics_source_name=self._metrics_source_name,
     )
     self._term_overlays.setup_tabs(tabs)
+    if (
+      self._term_overlays.metrics_plotter is not None
+      and self._term_overlays.metrics_plotter._recorder is not None
+    ):
+      self._term_overlays.metrics_plotter.configure_control_step_recording(
+        lambda options: self._actions.append(
+          (ViewerAction.CUSTOM, {"type": "metrics_record", "options": options})
+        ),
+        self._recording_cancel.set,
+      )
     self._debug_overlays = ViserDebugOverlays(self.env, self._scene)
     self._contact_overlays = ViserContactOverlays(self._scene)
 
@@ -354,6 +369,9 @@ class ViserPlayViewer(BaseViewer):
     action: ViewerAction,
     payload: Optional[Any],
   ) -> bool:
+    if isinstance(payload, dict) and payload.get("type") == "metrics_record":
+      self._start_metrics_recording(payload["options"])
+      return True
     if isinstance(payload, dict) and payload.get("type") == "gui_reset":
       self._handle_gui_reset(payload.get("all_envs", False))
       return True
@@ -400,6 +418,8 @@ class ViserPlayViewer(BaseViewer):
 
   def _handle_gui_reset(self, all_envs: bool) -> None:
     """Reset environment(s) and apply GUI-selected command state."""
+    if self._recording is not None:
+      self._finish_metrics_recording("viewer_reset")
     env = self.env.unwrapped
     if all_envs:
       env_ids = torch.arange(env.num_envs, dtype=torch.int64, device=env.device)
@@ -418,11 +438,139 @@ class ViserPlayViewer(BaseViewer):
     self._pending_update_reasons.add(UpdateReason.ACTION)
     self._sync_ui_state()
 
+  def _start_metrics_recording(self, options: RecordingOptions) -> None:
+    plotter = self._term_overlays.metrics_plotter if self._term_overlays else None
+    if plotter is None or plotter._recorder is None:
+      return
+    if self._recording is not None:
+      return
+    if plotter._loaded_csv is not None or plotter._recorder.active:
+      plotter.recording_finished("请先返回实时模式并停止已有录制")
+      return
+    self._recording_previous_paused = self._is_paused
+    self._recording_cancel.clear()
+    try:
+      session = ControlStepRecording(
+        self.env.unwrapped, plotter._recorder, options, self._scene.env_idx
+      )
+      path = session.start()
+    except Exception as exc:
+      plotter.recording_finished(
+        f"录制初始化失败：{exc}。"
+        + (
+          "视频需可用的离屏渲染；无桌面时请用 MUJOCO_GL=egl 启动。"
+          if options.video
+          else ""
+        )
+      )
+      return
+    self._recording = session
+    self._recording_last_progress = 0.0
+    plotter.recording_started(options.silent)
+    plotter._set_data_status(f"录制全部指标 → `{path.name}`")
+    self.resume()
+    self._sync_ui_state()
+    if not options.silent:
+      return
+    # Run on the existing simulation thread. GUI callbacks may only set the
+    # cancellation Event; queued resets/checkpoint switches wait until finished.
+    self._threadpool.submit(lambda: None).result()
+    self._server.scene.set_global_visibility(False)
+    try:
+      while self._recording is not None:
+        if self._recording_cancel.is_set() or getattr(self, "_interrupted", False):
+          self._finish_metrics_recording("cancelled")
+          break
+        self.sync_viewer_to_env()
+        if not self._execute_step():
+          break
+    except Exception as exc:
+      self._finish_metrics_recording(f"error: {exc}")
+    finally:
+      if self._recording is not None:
+        self._finish_metrics_recording("interrupted")
+      self._server.scene.set_global_visibility(True)
+      self._scene.needs_update = True
+      self._pending_update_reasons.add(UpdateReason.SCENE_REQUEST)
+      self._last_tick_time = time.perf_counter()
+
+  def _finish_metrics_recording(self, reason: str) -> None:
+    session = self._recording
+    if session is None:
+      return
+    self._recording = None
+    error = None
+    try:
+      session.finish(reason)
+    except Exception as exc:
+      error = str(exc)
+    self._sim_budget = 0.0
+    if self._recording_previous_paused or reason.startswith("error") or error:
+      self.pause()
+    else:
+      self.resume()
+    plotter = self._term_overlays.metrics_plotter if self._term_overlays else None
+    if plotter is not None:
+      if session.options.silent:
+        plotter.clear_histories()
+      plotter.recording_finished(
+        f"录制结束（{reason}）：{session.samples} 帧 / "
+        f"{session.samples * session.step_dt:.2f} 仿真秒；"
+        f"`{session.path}`" + (f"；保存异常：{error}" if error else "")
+      )
+    self._sync_ui_state()
+
+  @override
+  def _execute_step(self) -> bool:
+    session = self._recording
+    if session is not None and self._recording_cancel.is_set():
+      self._finish_metrics_recording("cancelled")
+      return False
+    try:
+      with self._sim_lock:
+        if session is not None:
+          if self._scene.env_idx != session.env_idx:
+            self._finish_metrics_recording("environment_changed")
+            return False
+          session.prepare_command()
+        success = super()._execute_step()
+        if not success:
+          if session is not None:
+            self._finish_metrics_recording("error: simulation_step_failed")
+          return False
+        plotter = self._term_overlays.metrics_plotter if self._term_overlays else None
+        if plotter is not None:
+          plotter.publish_control_step(
+            self.env.unwrapped, self._step_count, self._scene.env_idx
+          )
+        if session is not None:
+          reason = session.append(self._step_count)
+          now = time.perf_counter()
+          if now - self._recording_last_progress >= 0.2 or reason is not None:
+            plotter = (
+              self._term_overlays.metrics_plotter if self._term_overlays else None
+            )
+            if plotter is not None:
+              plotter.recording_progress(
+                session.samples, session.target_samples, session.step_dt
+              )
+            self._recording_last_progress = now
+          if reason is not None:
+            self._finish_metrics_recording(reason)
+        return True
+    except Exception as exc:
+      self._finish_metrics_recording(f"error: {exc}")
+      self._last_error = str(exc)
+      self.pause()
+      return False
+
   @override
   def _process_actions(self) -> None:
     """Process queued actions and sync UI state."""
     had_actions = bool(self._actions)
     super()._process_actions()
+    if self._recording is not None and self._recording_cancel.is_set():
+      self._finish_metrics_recording("cancelled")
     if had_actions:
       self._pending_update_reasons.add(UpdateReason.ACTION)
       self._sync_ui_state()
@@ -588,6 +736,8 @@ class ViserPlayViewer(BaseViewer):
   @override
   def sync_env_to_viewer(self) -> None:
     """Synchronize environment state to viewer."""
+    if self._recording is not None and self._recording.options.silent:
+      return
     sim = self.env.unwrapped.sim
     assert isinstance(sim, Simulation)
     self._scene.paused = self._is_paused
@@ -670,6 +820,8 @@ class ViserPlayViewer(BaseViewer):
   @override
   def reset_environment(self) -> None:
     """Extend BaseViewer.reset_environment to clear reward and metrics histories."""
+    if self._recording is not None:
+      self._finish_metrics_recording("viewer_reset")
     with self._sim_lock:
       super().reset_environment()
     if self._term_overlays:
@@ -678,6 +830,8 @@ class ViserPlayViewer(BaseViewer):
   @override
   def close(self) -> None:
     """Close the viewer and cleanup resources."""
+    if self._recording is not None:
+      self._finish_metrics_recording("viewer_closed")
     if self._term_overlays:
       self._term_overlays.cleanup()
     if self._camera_overlays:
