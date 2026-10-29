@@ -44,9 +44,17 @@ def pikachu_velocity_task_ids(velocity_task_ids: list[str]) -> list[str]:
   """Get all Pikachu velocity task IDs.
 
   下文的行走步态断言是**双足特化**(人形 base 高度 0.17、飞行惩罚等),四足
-  Quad 任务有自己的基座高度/朝向,不适用 → 显式排除带 ``Quad`` 的 ID。
+  Quad/Crawl 任务有自己的基座高度/朝向,V034 实验也有独立的课程和奖励
+  契约,不适用 → 排除这些 ID,由对应的专用测试覆盖。
   """
-  return [t for t in velocity_task_ids if "Pikachu" in t and "Quad" not in t]
+  return [
+    t
+    for t in velocity_task_ids
+    if "Pikachu" in t
+    and "Quad" not in t
+    and "Crawl" not in t
+    and "V034" not in t
+  ]
 
 
 @pytest.fixture(scope="module")
@@ -233,12 +241,30 @@ def test_pikachu_velocity_uses_walking_gait_rewards(
   for task_id in pikachu_velocity_task_ids:
     cfg = load_env_cfg(task_id)
 
-    assert cfg.rewards["air_time"].func.__name__ == "alternating_feet_air_time"
+    gait_funcs = {cfg.rewards["air_time"].func.__name__}
+    if "alternating_air_time" in cfg.rewards:
+      gait_funcs.add(cfg.rewards["alternating_air_time"].func.__name__)
+    assert "alternating_feet_air_time" in gait_funcs
     assert cfg.rewards["flight"].weight < 0.0
     assert cfg.rewards["base_vertical_velocity"].weight < 0.0
-    assert cfg.rewards["base_height"].params["target_height"] == 0.17
-    assert cfg.rewards["foot_clearance"].params["target_height"] == 0.04
-    assert cfg.rewards["foot_swing_height"].params["target_height"] == 0.04
+    expected_height = 0.17
+    if "Pikachu-V033-" in task_id:
+      expected_height = 0.259412
+    elif "Pikachu-V035-" in task_id:
+      expected_height = 0.22957707433403704
+    elif "Pikachu-V031-" in task_id:
+      expected_height = 0.25941
+    elif task_id.endswith(("V03-R07", "V03-T6")):
+      expected_height = 0.26728
+    elif task_id.endswith("V03"):
+      expected_height = 0.25
+    assert cfg.rewards["base_height"].params["target_height"] == pytest.approx(
+      expected_height
+    )
+    if "foot_clearance" in cfg.rewards:
+      assert cfg.rewards["foot_clearance"].params["target_height"] == 0.04
+    if "foot_swing_height" in cfg.rewards:
+      assert cfg.rewards["foot_swing_height"].params["target_height"] == 0.04
 
 
 def test_pikachu_velocity_curriculum_stays_in_walking_range(
@@ -258,3 +284,23 @@ def test_pikachu_velocity_curriculum_stays_in_walking_range(
       stage["lin_vel_x"][1] for stage in stages if "lin_vel_x" in stage
     )
     assert max_forward_speed <= 1.0
+
+
+def test_pikachu_v03_r07_targets_pose_width_cadence_and_tracking() -> None:
+  """R07 should encode the four requested gait refinements without changing I/O."""
+  task_id = "Mjlab-Velocity-Flat-Pikachu-V03-R07"
+  assert task_id in list_tasks()
+  cfg = load_env_cfg(task_id)
+
+  assert cfg.commands["twist"].rel_standing_envs == pytest.approx(0.10)
+  assert cfg.rewards["base_height"].params["target_height"] == pytest.approx(0.26728)
+  assert "feet_lateral_distance" not in cfg.rewards
+  assert cfg.rewards["standing_posture_l2"].weight < 0.0
+  assert cfg.rewards["walking_stance_width"].params["min_distance"] == pytest.approx(
+    0.14
+  )
+  assert cfg.rewards["short_step_air_time"].params["min_air_time"] == pytest.approx(
+    0.18
+  )
+  assert cfg.rewards["linear_velocity_huber"].weight < 0.0
+  assert cfg.rewards["torque_soft_limit"].params["soft_ratio"] == pytest.approx(0.80)

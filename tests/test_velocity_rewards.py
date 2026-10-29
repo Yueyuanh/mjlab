@@ -12,9 +12,15 @@ from mjlab.managers.scene_entity_config import SceneEntityCfg
 from mjlab.sensor import RayCastData, RayCastSensor
 from mjlab.tasks.velocity.mdp.rewards import (
   alternating_feet_air_time,
+  angular_velocity_huber_error,
   base_height_penalty,
   base_vertical_velocity_penalty,
   feet_flight_time,
+  feet_lateral_separation_min,
+  joint_torque_soft_limit,
+  linear_velocity_huber_error,
+  short_step_air_time,
+  standing_posture_l2,
   upright,
 )
 from mjlab.utils.lab_api.math import quat_from_euler_xyz
@@ -274,6 +280,147 @@ def test_flight_time_only_penalizes_sustained_double_flight():
   )
 
   torch.testing.assert_close(cost, torch.tensor([0.0, 0.0, 1.0, 0.0]))
+
+
+def test_short_step_air_time_penalizes_only_supported_moving_landing():
+  env = _make_gait_reward_env()
+  env.scene["feet"].data.last_air_time[0, 0] = 0.10
+
+  cost = short_step_air_time(
+    env,
+    sensor_name="feet",
+    min_air_time=0.18,
+    std=0.08,
+    command_name="twist",
+    command_threshold=0.15,
+  )
+
+  torch.testing.assert_close(cost, torch.tensor([1.0, 0.0, 0.0, 0.0]))
+
+
+def test_linear_velocity_huber_keeps_large_error_gradient():
+  env = MagicMock()
+  asset = MagicMock()
+  asset.data.root_link_lin_vel_b = torch.tensor([[0.0, 0.0, 0.0], [0.2, -0.4, 0.0]])
+  env.scene = {"robot": asset}
+  env.command_manager.get_command.return_value = torch.tensor(
+    [[0.2, 0.0, 0.0], [0.0, 0.0, 0.0]]
+  )
+
+  cost = linear_velocity_huber_error(env, command_name="twist", delta=0.2)
+
+  torch.testing.assert_close(cost, torch.tensor([0.5, 2.0]))
+
+
+def test_angular_velocity_huber_keeps_large_yaw_error_gradient():
+  env = MagicMock()
+  asset = MagicMock()
+  asset.data.root_link_ang_vel_b = torch.tensor([[0.0, 0.0, 0.25], [0.0, 0.0, -0.75]])
+  env.scene = {"robot": asset}
+  env.command_manager.get_command.return_value = torch.tensor(
+    [[0.0, 0.0, 0.0], [0.0, 0.0, 0.25]]
+  )
+
+  cost = angular_velocity_huber_error(env, command_name="twist", delta=0.25)
+
+  torch.testing.assert_close(cost, torch.tensor([0.5, 3.5]))
+
+
+def test_walking_stance_width_is_double_support_lower_bound():
+  env = MagicMock()
+  asset = MagicMock()
+  asset.data.site_pos_w = torch.tensor(
+    [
+      [[0.0, 0.05, 0.0], [0.0, -0.05, 0.0]],
+      [[0.0, 0.08, 0.0], [0.0, -0.08, 0.0]],
+      [[0.0, 0.05, 0.0], [0.0, -0.05, 0.0]],
+    ]
+  )
+  asset.data.root_link_pose_w = torch.zeros(3, 7)
+  asset.data.root_link_pose_w[:, 3] = 1.0
+  sensor = MagicMock()
+  sensor.data.found = torch.tensor([[1, 1], [1, 1], [1, 0]])
+  env.scene.__getitem__ = MagicMock(
+    side_effect=lambda name: {"robot": asset, "feet": sensor}[name]
+  )
+  env.command_manager.get_command.return_value = torch.tensor(
+    [[0.4, 0.0, 0.0], [0.4, 0.0, 0.0], [0.4, 0.0, 0.0]]
+  )
+  env.extras = {"log": {}}
+
+  cost = feet_lateral_separation_min(
+    env,
+    sensor_name="feet",
+    min_distance=0.14,
+    std=0.04,
+    command_name="twist",
+    asset_cfg=SceneEntityCfg("robot", site_ids=[0, 1]),
+  )
+
+  torch.testing.assert_close(cost, torch.tensor([1.0, 0.0, 0.0]))
+
+
+def test_standing_posture_l2_is_unbounded_and_command_gated():
+  env = MagicMock()
+  env.device = "cpu"
+  asset = MagicMock()
+  asset.data.default_joint_pos = torch.zeros(2, 2)
+  asset.data.joint_pos = torch.tensor([[0.1, 0.0], [0.1, 0.2]])
+  asset.find_joints.return_value = ([0, 1], ["hip_joint", "knee_joint"])
+  env.scene = {"robot": asset}
+  env.command_manager.get_command.return_value = torch.tensor(
+    [[0.0, 0.0, 0.0], [0.4, 0.0, 0.0]]
+  )
+  asset_cfg = SceneEntityCfg(
+    "robot",
+    joint_names=("hip_joint", "knee_joint"),
+    joint_ids=[0, 1],
+  )
+  cfg = MagicMock(spec=RewardTermCfg)
+  cfg.params = {
+    "asset_cfg": asset_cfg,
+    "std": {".*": 0.1},
+    "command_name": "twist",
+  }
+  reward = standing_posture_l2(cfg, env)
+
+  cost = reward(
+    env,
+    std=cfg.params["std"],
+    asset_cfg=asset_cfg,
+    command_name="twist",
+  )
+
+  torch.testing.assert_close(cost, torch.tensor([0.5, 0.0]))
+
+
+def test_joint_torque_soft_limit_is_free_below_threshold():
+  env = MagicMock()
+  env.device = "cpu"
+  asset = MagicMock()
+  asset.data.qfrc_actuator = torch.tensor([[10.0, 9.0], [12.5, 4.5]])
+  asset.find_joints.return_value = ([0, 1], ["hip_pitch_joint", "ankle_joint"])
+  env.scene = {"robot": asset}
+  asset_cfg = SceneEntityCfg(
+    "robot",
+    joint_names=("hip_pitch_joint", "ankle_joint"),
+    joint_ids=[0, 1],
+  )
+  cfg = MagicMock(spec=RewardTermCfg)
+  cfg.params = {
+    "asset_cfg": asset_cfg,
+    "effort_limits": {".*hip_pitch.*": 12.5, ".*ankle.*": 9.0},
+  }
+  reward = joint_torque_soft_limit(cfg, env)
+
+  cost = reward(
+    env,
+    effort_limits=cfg.params["effort_limits"],
+    soft_ratio=0.8,
+    asset_cfg=asset_cfg,
+  )
+
+  torch.testing.assert_close(cost, torch.tensor([0.5, 0.5]))
 
 
 def test_base_vertical_velocity_penalty_is_squared():
