@@ -1,0 +1,40 @@
+{
+  "batch": "2026-10-09_17-32-05_v03-flat-r08-probe_t6",
+  "evaluated_at": "2026-10-10",
+  "task": "Mjlab-Velocity-Flat-Pikachu-V03-R07",
+  "run_dir": "logs/rsl_rl/pikachu_v03_velocity/2026-10-09_17-32-05_v03-flat-r08-probe_t6",
+  "source_checkpoint": "2026-10-09_01-48-29_v03-flat-r06b/model_59997.pt",
+  "primary_checkpoint": {
+    "file": "model_64996.pt",
+    "iteration": 64996,
+    "sha256": "048a562047ab995cf01affb016510aa3bbecf562342fd07d30b20b53cbed0958"
+  },
+  "fallback_checkpoint": {
+    "file": "model_64000.pt",
+    "reason": "training mean_episode_length=1000 and fell_over=0"
+  },
+  "asset": {
+    "file": "src/mjlab/asset_zoo/robots/pikachu/xmls/mjcf_v03/pikachu_v03_base_series_train_weight6.3.xml",
+    "total_mass_kg": 6.3813176,
+    "base_mass_kg": 4.461569,
+    "com_height_m": 0.281981607,
+    "hip_spacing_m": 0.2,
+    "base_height_m": 0.26728,
+    "j3507_actual_cfg_limit_nm": 3.0,
+    "j3507_reward_assumed_limit_nm": 9.0
+  },
+  "evaluation": {
+    "device": "cpu",
+    "seconds_per_metric_clip": 8.0,
+    "metric_startup_discard_s": 1.0,
+    "video_resolution": "1280x720",
+    "video_fps": 50,
+    "video_seconds": 5.0,
+    "profiles": [
+      "nominal: startup friction/encoder/base-COM DR disabled",
+      "dr42: startup DR enabled with seed 42"
+    ]
+  },
+  "decision": "analysis baseline only; correct inertia and actuator-limit mismatch before deployment or wider-stance retraining"
+}
+
