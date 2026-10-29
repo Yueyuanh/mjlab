@@ -1,0 +1,141 @@
+{
+  "task": "Mjlab-Velocity-Flat-Pikachu-V034-Crawl",
+  "checkpoint": null,
+  "checkpoint_sha256": null,
+  "seed": 42,
+  "num_envs": 16,
+  "seconds": 10.0,
+  "randomized": false,
+  "clips": {
+    "stand": {
+      "command": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mean_velocity": [
+        0.0015682443045079708,
+        -1.0476029501660378e-06,
+        -4.520598395174602e-06
+      ],
+      "velocity_mae": [
+        0.0016538829077035189,
+        5.210571180214174e-05,
+        0.0005345336394384503
+      ],
+      "displacement_velocity_xy": [
+        0.001561107812449336,
+        3.6490062029770343e-06
+      ],
+      "falls": 0,
+      "survival_fraction": 1.0,
+      "mean_time_to_first_fall_s": 10.000039100646973,
+      "mean_support_count": 3.992,
+      "finite": true
+    },
+    "forward": {
+      "command": [
+        0.1,
+        0.0,
+        0.0
+      ],
+      "mean_velocity": [
+        0.001568178297020495,
+        -1.040763663695543e-06,
+        -4.059284492541337e-06
+      ],
+      "velocity_mae": [
+        0.09843184798955917,
+        5.2091960242250934e-05,
+        0.0005351151339709759
+      ],
+      "displacement_velocity_xy": [
+        0.0015611819690093398,
+        3.6463104606809793e-06
+      ],
+      "falls": 0,
+      "survival_fraction": 1.0,
+      "mean_time_to_first_fall_s": 10.000039100646973,
+      "mean_support_count": 3.992,
+      "finite": true
+    },
+    "backward": {
+      "command": [
+        -0.06,
+        0.0,
+        0.0
+      ],
+      "mean_velocity": [
+        0.0015681966906413436,
+        -1.0408025445940439e-06,
+        -4.2047172428283375e-06
+      ],
+      "velocity_mae": [
+        0.06156818941235542,
+        5.2094324928475544e-05,
+        0.0005350657738745213
+      ],
+      "displacement_velocity_xy": [
+        0.0015611788257956505,
+        3.6380617984832497e-06
+      ],
+      "falls": 0,
+      "survival_fraction": 1.0,
+      "mean_time_to_first_fall_s": 10.000039100646973,
+      "mean_support_count": 3.992,
+      "finite": true
+    },
+    "lateral": {
+      "command": [
+        0.0,
+        0.04,
+        0.0
+      ],
+      "mean_velocity": [
+        0.0015681933145970106,
+        -1.0371031748945825e-06,
+        -4.196134796075057e-06
+      ],
+      "velocity_mae": [
+        0.001653829705901444,
+        0.04000105708837509,
+        0.000534969789441675
+      ],
+      "displacement_velocity_xy": [
+        0.0015612106071785092,
+        3.631005256465869e-06
+      ],
+      "falls": 0,
+      "survival_fraction": 1.0,
+      "mean_time_to_first_fall_s": 10.000039100646973,
+      "mean_support_count": 3.992,
+      "finite": true
+    },
+    "turn": {
+      "command": [
+        0.0,
+        0.0,
+        0.15
+      ],
+      "mean_velocity": [
+        0.001568204490467906,
+        -1.0372689303039806e-06,
+        -4.265731604391476e-06
+      ],
+      "velocity_mae": [
+        0.001653839717619121,
+        5.208525180933066e-05,
+        0.1500043123960495
+      ],
+      "displacement_velocity_xy": [
+        0.0015611830167472363,
+        3.6317776448413497e-06
+      ],
+      "falls": 0,
+      "survival_fraction": 1.0,
+      "mean_time_to_first_fall_s": 10.000039100646973,
+      "mean_support_count": 3.992,
+      "finite": true
+    }
+  }
+}

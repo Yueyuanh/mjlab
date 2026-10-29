@@ -1,0 +1,34 @@
+{
+  "biped": {
+    "task": "Mjlab-Velocity-Flat-Pikachu-V034-Biped",
+    "checkpoint": "/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikachu_v034/biped/2026-10-23_12-56-19_baseline_20261023/model_299.pt",
+    "checkpoint_sha256": "6c907ea1ec1b719b53018ba2f3e4226a3a5f69efa5cdee0944c43083fac6cc39",
+    "onnx": "/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikachu_v034/biped/2026-10-23_12-56-19_baseline_20261023/2026-10-23_12-56-19_baseline_20261023.onnx",
+    "onnx_sha256": "c2e7362c73434d477fbd9bf885076994e66b4f809d1119735fa466800a9efdf2",
+    "iterations_completed": 300,
+    "num_envs": 128,
+    "num_steps_per_env": 24,
+    "seed": 42,
+    "evaluation": {
+      "zero": "biped_zero.json",
+      "nominal": "biped_nominal.json",
+      "randomized": "biped_randomized.json"
+    }
+  },
+  "crawl": {
+    "task": "Mjlab-Velocity-Flat-Pikachu-V034-Crawl",
+    "checkpoint": "/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikachu_v034/crawl/2026-10-23_13-04-42_baseline_20261023_130436/model_299.pt",
+    "checkpoint_sha256": "23bc377b2617603273a6363d075805b70c9853fd53ba3af303dacf1cd3fb010d",
+    "onnx": "/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikachu_v034/crawl/2026-10-23_13-04-42_baseline_20261023_130436/2026-10-23_13-04-42_baseline_20261023_130436.onnx",
+    "onnx_sha256": "f9a0369387ccc3c5f90367e21b1720a9ed930ff7510ca79ff842ec815a56bd42",
+    "iterations_completed": 300,
+    "num_envs": 128,
+    "num_steps_per_env": 24,
+    "seed": 42,
+    "evaluation": {
+      "zero": "crawl_zero.json",
+      "nominal": "crawl_nominal.json",
+      "randomized": "crawl_randomized.json"
+    }
+  }
+}

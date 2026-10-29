@@ -49,10 +49,10 @@ Viser路径：**Controls → Scene → Debug Viz → Enabled / Twist**。两者�
 - 真实Viser实例在独立8894端口完成setup，确认Debug Viz下Enabled/Twist均存在且为True。非零命令(.15,.03,.1)在reset静止状态生成两个非零命令箭头，线箭头世界Z分量为0；实际速度为0的两条箭头按设计略去。未连接浏览器，未修改用户既有Viser服务。
 - 初次GUI诊断误把零速度箭头也计为必须存在，断言失败；修正诊断期望后通过，首次日志保留为`setup_check_attempt1.log`。产品代码无需为零长度箭头造显示。
 
-产物位于`logs/rsl_rl/pikahcu_v033/crawl_e1/diagnostics/mesh_contact_20261020/`：
+产物位于`logs/rsl_rl/pikachu_v033/crawl_e1/diagnostics/mesh_contact_20261020`：
 
-- [物理检查](../../logs/rsl_rl/pikahcu_v033/crawl_e1/diagnostics/mesh_contact_20261020/physics_check.json)
-- [接地/mesh/Viser核验](../../logs/rsl_rl/pikahcu_v033/crawl_e1/diagnostics/mesh_contact_20261020/setup_check.json)
+- [物理检查](../../logs/rsl_rl/pikachu_v033/crawl_e1/diagnostic_archive_20261022/evaluation/mesh_contact_20261020/metrics/physics_check.json)
+- [接地/mesh/Viser核验](../../logs/rsl_rl/pikachu_v033/crawl_e1/diagnostic_archive_20261022/evaluation/mesh_contact_20261020/metrics/setup_check.json)
 - `verify_setup.py`、`setup_check.log`、`physics_check.log`、各项静态检查/测试日志，以及`audit.json`、`commands.jsonl`和源码快照。
 
 当前初态查看（无外部平衡/关节冻结）：

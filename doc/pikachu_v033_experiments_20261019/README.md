@@ -26,14 +26,14 @@
 | 完整训练参数、奖励权重与实测结果 | [training_report.md](training_report.md) |
 | Crawl E1新设计、短测参数与最新回放 | [crawl_e1.md](crawl_e1.md) |
 | 最新碰撞、双足站高调整位置、四足debug箭头 | [contact_setup_20261020.md](contact_setup_20261020.md) |
-| 双足最终视频，64秒 / 8个片段 | [biped_e0/review_all.mp4](../../logs/rsl_rl/pikahcu_v033/biped_e0/2026-10-19_23-01-42_review-biped/review/review_all.mp4) |
-| 四足最终视频，64秒 / 8个片段 | [crawl/review_all.mp4](../../logs/rsl_rl/pikahcu_v033/crawl/2026-10-20_00-20-57_review-crawl/review/review_all.mp4) |
+| 双足最终视频，64秒 / 8个片段 | [biped_e0/review_all.mp4](../../logs/rsl_rl/pikachu_v033/biped_e0/2026-10-19_23-01-42_review-biped/evaluation/review/videos/review_all.mp4) |
+| 四足最终视频，64秒 / 8个片段 | [crawl/review_all.mp4](../../logs/rsl_rl/pikachu_v033/crawl/2026-10-20_00-20-57_review-crawl/evaluation/review/videos/review_all.mp4) |
 | 工作记录、失败 pilot 与限制 | [WORKLOG.md](WORKLOG.md) |
-| 状态、最终 checkpoint 与 SHA256 | [status.json](../../logs/rsl_rl/pikahcu_v033/_audit/20261019/status.json) |
-| 训练曲线 / 曲线数据 | [PNG](../../logs/rsl_rl/pikahcu_v033/_audit/20261019/training_curves.png) · [CSV](../../logs/rsl_rl/pikahcu_v033/_audit/20261019/training_curves.csv) |
-| 交付视频与模型核验 | [artifact_verification.json](../../logs/rsl_rl/pikahcu_v033/_audit/20261019/artifact_verification.json) |
-| 逐文件迁移映射与迁移前后 SHA256 | [migration_manifest.json](../../logs/rsl_rl/pikahcu_v033/_audit/20261019/migration_manifest.json) |
-| 本次整理、文档链接与回放启动核验 | [organization_verification.json](../../logs/rsl_rl/pikahcu_v033/_audit/20261019/organization_verification.json) |
+| 状态、最终 checkpoint 与 SHA256 | [status.json](../../logs/rsl_rl/pikachu_v033/_audit/20261019/metadata/status.json) |
+| 训练曲线 / 曲线数据 | [PNG](../../logs/rsl_rl/pikachu_v033/_audit/20261019/reports/figures/training_curves.png) · [CSV](../../logs/rsl_rl/pikachu_v033/_audit/20261019/reports/figures/training_curves.csv) |
+| 交付视频与模型核验 | [artifact_verification.json](../../logs/rsl_rl/pikachu_v033/_audit/20261019/reports/artifact_verification.json) |
+| 逐文件迁移映射与迁移前后 SHA256 | [migration_manifest.json](../../logs/rsl_rl/pikachu_v033/_audit/20261019/reports/migration_manifest.json) |
+| 本次整理、文档链接与回放启动核验 | [organization_verification.json](../../logs/rsl_rl/pikachu_v033/_audit/20261019/reports/organization_verification.json) |
 
 ## 原训练 checkpoint 与当前姿态的 play 指令
 
@@ -47,7 +47,7 @@ cd /home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab
 
 ```bash
 MUJOCO_GL=egl uv run --no-sync play Mjlab-Velocity-Flat-Pikachu-V033-E0 \
-  --checkpoint-file logs/rsl_rl/pikahcu_v033/biped_e0/2026-10-19_23-01-42_review-biped/model_2999.pt \
+  --checkpoint-file logs/rsl_rl/pikachu_v033/biped_e0/2026-10-19_23-01-42_review-biped/training/main/checkpoints/model_2999.pt \
   --num-envs 1 --device cuda:0 --viewer viser
 ```
 
@@ -57,7 +57,7 @@ MUJOCO_GL=egl uv run --no-sync play Mjlab-Velocity-Flat-Pikachu-V033-E0 \
 
 ```bash
 MUJOCO_GL=egl uv run --no-sync play Mjlab-Velocity-Flat-Pikachu-V033-Crawl \
-  --checkpoint-file logs/rsl_rl/pikahcu_v033/crawl/2026-10-20_00-20-57_review-crawl/model_2999.pt \
+  --checkpoint-file logs/rsl_rl/pikachu_v033/crawl/2026-10-20_00-20-57_review-crawl/training/main/checkpoints/model_2999.pt \
   --num-envs 1 --device cuda:0 --viewer viser
 ```
 
@@ -69,7 +69,7 @@ MUJOCO_GL=egl uv run --no-sync play Mjlab-Velocity-Flat-Pikachu-V033-Crawl-E1 \
   --num-envs 1 --device cuda:0 --viewer viser
 ```
 
-零动作由真实位置执行器保持初态，受力时关节可以有偏差。当前mesh接触下的物理检查见 [physics_check.json](../../logs/rsl_rl/pikahcu_v033/crawl_e1/diagnostics/mesh_contact_20261020/physics_check.json)，双足reset/四足mesh与Viser控件核验见 [setup_check.json](../../logs/rsl_rl/pikahcu_v033/crawl_e1/diagnostics/mesh_contact_20261020/setup_check.json)。之前yaw90阶段的[几何/碰撞审计](config_audit/crawl_pose_yaw90_20261020.json)及16动作阶段的[姿态检查结果](../../logs/rsl_rl/pikahcu_v033/crawl/diagnostics/pose_yaw0_elbow_hold_20261020/result.json)、[截图](../../logs/rsl_rl/pikahcu_v033/crawl/diagnostics/pose_yaw0_elbow_hold_20261020/initial_side.png)、[视频](../../logs/rsl_rl/pikahcu_v033/crawl/diagnostics/pose_yaw0_elbow_hold_20261020/zero_action_5s.mp4)作为历史保留。
+零动作由真实位置执行器保持初态，受力时关节可以有偏差。当前mesh接触下的物理检查见 [physics_check.json](../../logs/rsl_rl/pikachu_v033/crawl_e1/diagnostic_archive_20261022/evaluation/mesh_contact_20261020/metrics/physics_check.json)，双足reset/四足mesh与Viser控件核验见 [setup_check.json](../../logs/rsl_rl/pikachu_v033/crawl_e1/diagnostic_archive_20261022/evaluation/mesh_contact_20261020/metrics/setup_check.json)。之前yaw90阶段的[几何/碰撞审计](config_audit/crawl_pose_yaw90_20261020.json)及16动作阶段的[姿态检查结果](../../logs/rsl_rl/pikachu_v033/crawl/diagnostic_archive_20261022/evaluation/pose_yaw0_elbow_hold_20261020/metrics/result.json)、[截图](../../logs/rsl_rl/pikachu_v033/crawl/diagnostic_archive_20261022/evaluation/pose_yaw0_elbow_hold_20261020/images/initial_side.png)、[视频](../../logs/rsl_rl/pikachu_v033/crawl/diagnostic_archive_20261022/evaluation/pose_yaw0_elbow_hold_20261020/videos/zero_action_5s.mp4)作为历史保留。
 
 启动后打开终端打印的 Viser 地址，通常为 `http://localhost:8080`；两条依次运行，按 `Ctrl+C` 退出当前回放。远程运行时可转发对应端口。命令使用普通 Viser 策略回放，不启用冻结关节或外部平衡辅助；桌面原生窗口可去掉 `MUJOCO_GL=egl` 并把 `--viewer viser` 改成 `--viewer native`。
 
@@ -79,8 +79,8 @@ MUJOCO_GL=egl uv run --no-sync play Mjlab-Velocity-Flat-Pikachu-V033-Crawl-E1 \
 
 | 子任务 | checkpoint | SHA256 |
 |---|---|---|
-| 双足 E0 | `logs/rsl_rl/pikahcu_v033/biped_e0/2026-10-19_23-01-42_review-biped/model_2999.pt` | `3f720ea0f2935fe28fc3aacab57aba67b35ec384f3315c9be0ba5ba2b513eded` |
-| 四足 Crawl | `logs/rsl_rl/pikahcu_v033/crawl/2026-10-20_00-20-57_review-crawl/model_2999.pt` | `69aacc9d70e699edbe327a2a52e61cfacc32718207b9d8d1978f73ad4fd4cf41` |
+| 双足 E0 | `logs/rsl_rl/pikachu_v033/biped_e0/2026-10-19_23-01-42_review-biped/training/main/checkpoints/model_2999.pt` | `3f720ea0f2935fe28fc3aacab57aba67b35ec384f3315c9be0ba5ba2b513eded` |
+| 四足 Crawl | `logs/rsl_rl/pikachu_v033/crawl/2026-10-20_00-20-57_review-crawl/training/main/checkpoints/model_2999.pt` | `69aacc9d70e699edbe327a2a52e61cfacc32718207b9d8d1978f73ad4fd4cf41` |
 
 ## 目录组织
 
@@ -135,9 +135,9 @@ logs/rsl_rl/pikahcu_v033/
 ```bash
 MUJOCO_GL=egl uv run --no-sync python scripts/review_v033_policy.py \
   --task Mjlab-Velocity-Flat-Pikachu-V033-Crawl \
-  --checkpoint logs/rsl_rl/pikahcu_v033/crawl/2026-10-20_00-20-57_review-crawl/model_2999.pt \
+  --checkpoint logs/rsl_rl/pikachu_v033/crawl/2026-10-20_00-20-57_review-crawl/training/main/checkpoints/model_2999.pt \
   --clip forward --seconds 12 --num-envs 32 \
-  --out logs/rsl_rl/pikahcu_v033/crawl/manual_review_20261020
+  --out logs/rsl_rl/pikachu_v033/crawl/manual_review_20261020
 ```
 
 可选 `--clip stand|forward|backward|turn`；双足换任务名与对应 checkpoint。录像加 `--video --num-envs 1 --seconds 8 --view side`（正面为 `front`），它会保留 reset 并同时输出 JSON/CSV。
@@ -146,7 +146,7 @@ MUJOCO_GL=egl uv run --no-sync python scripts/review_v033_policy.py \
 
 ```bash
 uv run --no-sync tensorboard \
-  --logdir_spec biped_e0:logs/rsl_rl/pikahcu_v033/biped_e0/2026-10-19_23-01-42_review-biped,crawl:logs/rsl_rl/pikahcu_v033/crawl/2026-10-20_00-20-57_review-crawl \
+  --logdir_spec biped_e0:logs/rsl_rl/pikachu_v033/biped_e0/2026-10-19_23-01-42_review-biped,crawl:logs/rsl_rl/pikachu_v033/crawl/2026-10-20_00-20-57_review-crawl \
   --host 127.0.0.1
 ```
 
@@ -158,7 +158,7 @@ sha256sum -c doc/pikachu_v033_experiments_20261019/provenance/source_snapshot.sh
 sha256sum -c doc/pikachu_v033_experiments_20261019/provenance/workspace_snapshot_20261020.sha256
 ```
 
-后续直接运行 `uv run train <任务名> ...` 时默认写入 `logs/rsl_rl/pikahcu_v033/biped_e0/`、`crawl/` 或 `crawl_e1/` 下的新时间戳目录。原两任务流水线脚本对已有 `status.json` 拒绝覆盖；E1短测单独运行并保存在diagnostics中。
+后续直接运行 `uv run train <任务名> ...` 时默认写入 `logs/rsl_rl/pikachu_v033/biped_e0`、`crawl/` 或 `crawl_e1/` 下的新时间戳目录。原两任务流水线脚本对已有 `status.json` 拒绝覆盖；E1短测单独运行并保存在diagnostics中。
 
 ## 人工审核关注点
 

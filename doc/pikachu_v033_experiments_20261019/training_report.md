@@ -98,7 +98,7 @@ E0 保留原训练配方；其仅脚底接触模式不模拟手臂/躯干触地�
 | crawl/stand | -0.001/0.003/-0.004 | 0.001/0.003/0.009 | 100.0% | 0 | 1.000/0.998/0.998/0.998 | 0.003/0.001/0.002/0.003 |
 | crawl/turn | -0.017/0.000/0.078 | 0.017/0.009/0.072 | 100.0% | 0 | 0.918/0.736/0.870/0.881 | 0.010/0.007/0.012/0.022 |
 
-biped 状态：complete；checkpoint：`/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikahcu_v033/biped_e0/2026-10-19_23-01-42_review-biped/model_2999.pt`。
+biped 状态：complete；checkpoint：`/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikachu_v033/biped_e0/2026-10-19_23-01-42_review-biped/training/main/checkpoints/model_2999.pt`。
 完成时间（含评估/录像）：2026-10-20T00:20:53.327264+08:00；SHA256：`3f720ea0f2935fe28fc3aacab57aba67b35ec384f3315c9be0ba5ba2b513eded`。
 
 backward：三点及以上支撑比例=63.3%，完全腾空比例=0.2%。
@@ -106,7 +106,7 @@ forward：三点及以上支撑比例=47.9%，完全腾空比例=0.2%。
 stand：三点及以上支撑比例=99.8%，完全腾空比例=0.0%。
 turn：三点及以上支撑比例=84.8%，完全腾空比例=0.2%。
 
-crawl 状态：complete；checkpoint：`/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikahcu_v033/crawl/2026-10-20_00-20-57_review-crawl/model_2999.pt`。
+crawl 状态：complete；checkpoint：`/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikachu_v033/crawl/2026-10-20_00-20-57_review-crawl/training/main/checkpoints/model_2999.pt`。
 完成时间（含评估/录像）：2026-10-20T00:48:10.721899+08:00；SHA256：`69aacc9d70e699edbe327a2a52e61cfacc32718207b9d8d1978f73ad4fd4cf41`。
 
 ## 审核关注点
@@ -118,31 +118,31 @@ crawl 状态：complete；checkpoint：`/home/finnox/Pikachu/PikachuRobot/pikach
 ## 视频与复现
 
 流程完成后，视频使用最终实际 checkpoint 的确定性 actor，侧视和正视均为 1280×720、50fps、8 秒，包含静止、前进、后退、转向；没有筛除失败镜头。未完成时下面只列已实际产出的文件。
-- [biped/backward_front](/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikahcu_v033/biped_e0/2026-10-19_23-01-42_review-biped/review/backward_front.mp4)
-- [biped/backward_side](/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikahcu_v033/biped_e0/2026-10-19_23-01-42_review-biped/review/backward_side.mp4)
-- [biped/forward_front](/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikahcu_v033/biped_e0/2026-10-19_23-01-42_review-biped/review/forward_front.mp4)
-- [biped/forward_side](/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikahcu_v033/biped_e0/2026-10-19_23-01-42_review-biped/review/forward_side.mp4)
-- [biped/review_all](/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikahcu_v033/biped_e0/2026-10-19_23-01-42_review-biped/review/review_all.mp4)
-- [biped/stand_front](/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikahcu_v033/biped_e0/2026-10-19_23-01-42_review-biped/review/stand_front.mp4)
-- [biped/stand_side](/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikahcu_v033/biped_e0/2026-10-19_23-01-42_review-biped/review/stand_side.mp4)
-- [biped/turn_front](/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikahcu_v033/biped_e0/2026-10-19_23-01-42_review-biped/review/turn_front.mp4)
-- [biped/turn_side](/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikahcu_v033/biped_e0/2026-10-19_23-01-42_review-biped/review/turn_side.mp4)
-- [crawl/backward_front](/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikahcu_v033/crawl/2026-10-20_00-20-57_review-crawl/review/backward_front.mp4)
-- [crawl/backward_side](/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikahcu_v033/crawl/2026-10-20_00-20-57_review-crawl/review/backward_side.mp4)
-- [crawl/forward_front](/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikahcu_v033/crawl/2026-10-20_00-20-57_review-crawl/review/forward_front.mp4)
-- [crawl/forward_side](/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikahcu_v033/crawl/2026-10-20_00-20-57_review-crawl/review/forward_side.mp4)
-- [crawl/review_all](/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikahcu_v033/crawl/2026-10-20_00-20-57_review-crawl/review/review_all.mp4)
-- [crawl/stand_front](/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikahcu_v033/crawl/2026-10-20_00-20-57_review-crawl/review/stand_front.mp4)
-- [crawl/stand_side](/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikahcu_v033/crawl/2026-10-20_00-20-57_review-crawl/review/stand_side.mp4)
-- [crawl/turn_front](/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikahcu_v033/crawl/2026-10-20_00-20-57_review-crawl/review/turn_front.mp4)
-- [crawl/turn_side](/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikahcu_v033/crawl/2026-10-20_00-20-57_review-crawl/review/turn_side.mp4)
+- [biped/backward_front](../../logs/rsl_rl/pikachu_v033/biped_e0/2026-10-19_23-01-42_review-biped/evaluation/review/videos/backward_front.mp4)
+- [biped/backward_side](../../logs/rsl_rl/pikachu_v033/biped_e0/2026-10-19_23-01-42_review-biped/evaluation/review/videos/backward_side.mp4)
+- [biped/forward_front](../../logs/rsl_rl/pikachu_v033/biped_e0/2026-10-19_23-01-42_review-biped/evaluation/review/videos/forward_front.mp4)
+- [biped/forward_side](../../logs/rsl_rl/pikachu_v033/biped_e0/2026-10-19_23-01-42_review-biped/evaluation/review/videos/forward_side.mp4)
+- [biped/review_all](../../logs/rsl_rl/pikachu_v033/biped_e0/2026-10-19_23-01-42_review-biped/evaluation/review/videos/review_all.mp4)
+- [biped/stand_front](../../logs/rsl_rl/pikachu_v033/biped_e0/2026-10-19_23-01-42_review-biped/evaluation/review/videos/stand_front.mp4)
+- [biped/stand_side](../../logs/rsl_rl/pikachu_v033/biped_e0/2026-10-19_23-01-42_review-biped/evaluation/review/videos/stand_side.mp4)
+- [biped/turn_front](../../logs/rsl_rl/pikachu_v033/biped_e0/2026-10-19_23-01-42_review-biped/evaluation/review/videos/turn_front.mp4)
+- [biped/turn_side](../../logs/rsl_rl/pikachu_v033/biped_e0/2026-10-19_23-01-42_review-biped/evaluation/review/videos/turn_side.mp4)
+- [crawl/backward_front](../../logs/rsl_rl/pikachu_v033/crawl/2026-10-20_00-20-57_review-crawl/evaluation/review/videos/backward_front.mp4)
+- [crawl/backward_side](../../logs/rsl_rl/pikachu_v033/crawl/2026-10-20_00-20-57_review-crawl/evaluation/review/videos/backward_side.mp4)
+- [crawl/forward_front](../../logs/rsl_rl/pikachu_v033/crawl/2026-10-20_00-20-57_review-crawl/evaluation/review/videos/forward_front.mp4)
+- [crawl/forward_side](../../logs/rsl_rl/pikachu_v033/crawl/2026-10-20_00-20-57_review-crawl/evaluation/review/videos/forward_side.mp4)
+- [crawl/review_all](../../logs/rsl_rl/pikachu_v033/crawl/2026-10-20_00-20-57_review-crawl/evaluation/review/videos/review_all.mp4)
+- [crawl/stand_front](../../logs/rsl_rl/pikachu_v033/crawl/2026-10-20_00-20-57_review-crawl/evaluation/review/videos/stand_front.mp4)
+- [crawl/stand_side](../../logs/rsl_rl/pikachu_v033/crawl/2026-10-20_00-20-57_review-crawl/evaluation/review/videos/stand_side.mp4)
+- [crawl/turn_front](../../logs/rsl_rl/pikachu_v033/crawl/2026-10-20_00-20-57_review-crawl/evaluation/review/videos/turn_front.mp4)
+- [crawl/turn_side](../../logs/rsl_rl/pikachu_v033/crawl/2026-10-20_00-20-57_review-crawl/evaluation/review/videos/turn_side.mp4)
 
-命令原文与状态在 `/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikahcu_v033/_audit/20261019`；正式训练日志在各运行目录的 train.log，评估/录像日志为 eval.log、video.log。历史命令中的旧路径由 migration_manifest.json 映射至新位置。
+命令原文与状态在 `/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikachu_v033/_audit/20261019`；正式训练日志在各运行目录的 train.log，评估/录像日志为 eval.log、video.log。历史命令中的旧路径由 migration_manifest.json 映射至新位置。
 [目录与固定 checkpoint 回放指令](README.md)；原始训练参数 YAML 保留原文，experiment_name 反映迁移前名称。
 
 不能只凭奖励曲线判定学会四足：需要人工确认四肢确实交替支撑、没有拖肘滑行、没有持续穿模，结合速度误差与生存率审核。若退化或未收敛，本轮应标记不通过并据此继续调参。
 
-[训练曲线](/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikahcu_v033/_audit/20261019/training_curves.png) · [曲线数据](/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikahcu_v033/_audit/20261019/training_curves.csv) · [工作记录](WORKLOG.md)
+[训练曲线](../../logs/rsl_rl/pikachu_v033/_audit/20261019/reports/figures/training_curves.png) · [曲线数据](../../logs/rsl_rl/pikachu_v033/_audit/20261019/reports/figures/training_curves.csv) · [工作记录](WORKLOG.md)
 两任务的奖励定义不同，曲线仅用于查看各自训练过程，不能按奖励数值直接排名。
 [机读参数审计](config_audit/asset_audit.json) 包含实际编译的质量、关节限位、执行器参数与动作缩放。
 

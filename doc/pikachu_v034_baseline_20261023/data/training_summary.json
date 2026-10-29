@@ -1,0 +1,26 @@
+{
+  "biped": {
+    "Train/mean_reward": {
+      "first": 0.09165974706411362,
+      "last": 52.32868194580078,
+      "last_20_mean": 52.57159614562988
+    },
+    "Train/mean_episode_length": {
+      "first": 0.11,
+      "last": 20.0,
+      "last_20_mean": 20.0
+    }
+  },
+  "crawl": {
+    "Train/mean_reward": {
+      "first": 0.5153548121452332,
+      "last": 58.39814376831055,
+      "last_20_mean": 58.54414596557617
+    },
+    "Train/mean_episode_length": {
+      "first": 0.2525,
+      "last": 20.0,
+      "last_20_mean": 20.0
+    }
+  }
+}

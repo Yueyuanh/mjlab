@@ -1,0 +1,37 @@
+{
+  "task": "Mjlab-Velocity-Flat-Pikachu-V034-Crawl",
+  "checkpoint": "/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikachu_v034/crawl/2026-10-23_13-04-42_baseline_20261023_130436/model_299.pt",
+  "checkpoint_sha256": "23bc377b2617603273a6363d075805b70c9853fd53ba3af303dacf1cd3fb010d",
+  "seed": 42,
+  "num_envs": 1,
+  "seconds": 5.0,
+  "randomized": false,
+  "clips": {
+    "forward": {
+      "command": [
+        0.1,
+        0.0,
+        0.0
+      ],
+      "mean_velocity": [
+        0.009534616023302078,
+        0.0021044109016656876,
+        0.010975081473588943
+      ],
+      "velocity_mae": [
+        0.09046538174152374,
+        0.0027845988515764475,
+        0.021702183410525322
+      ],
+      "displacement_velocity_xy": [
+        0.009628832340240479,
+        0.002106421161442995
+      ],
+      "falls": 0,
+      "survival_fraction": 1.0,
+      "mean_time_to_first_fall_s": 4.999996185302734,
+      "mean_support_count": 3.984,
+      "finite": true
+    }
+  }
+}

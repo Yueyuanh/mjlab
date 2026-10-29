@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-15",
+  "server": "finnox@10.20.13.246",
+  "server_repo": "/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab",
+  "task": "Mjlab-Velocity-Flat-Pikachu-V031-E0-Mirror005",
+  "model_directory": "logs/rsl_rl/pikachu_v031_e0_mirror005/2026-10-12_00-11-23_mirror005-s42",
+  "model_file_count": 207,
+  "model_total_bytes": 1139101606,
+  "model_checksum_dry_run": "no differences",
+  "final_checkpoint_sha256": "222c63f5f861d01a3e61dbad4215649ab9d2c936e796a3fc59ca7ddac0b4e8a8",
+  "onnx_sha256": "52c73491f17100f6d25b894de661b757a86b3cacc3e6561a6f30460b5f7bfd7f",
+  "source_sync": {
+    "initial_manifest_files": 1217,
+    "local_mismatches": 0,
+    "server_mismatches": 0,
+    "preserved_local_head": "6d546de8bf6e2849f9465ed513040e34e89db650",
+    "preserved_server_head": "f1bcc86ff3b7c0d5a1a69ce2732fe8e2baf292b6",
+    "public_git_history_mutated": false,
+    "git_push_performed": false
+  },
+  "tests": {
+    "local": {"passed": 69, "skipped": 2},
+    "server": {"passed": 69, "skipped": 2}
+  },
+  "gpu_smoke": {
+    "device": "NVIDIA GeForce RTX 4060 Laptop GPU",
+    "backend": "cuda:0",
+    "mode": "nominal",
+    "seed": 42,
+    "seconds_per_clip": 3,
+    "steps_per_clip": 150,
+    "terminations": 0,
+    "standing_mean_xy_error_m_s": 0.002,
+    "forward_command_m_s": 0.4,
+    "forward_actual_m_s_rounded": 0.42,
+    "forward_mean_xy_error_m_s": 0.047,
+    "forward_net_displacement_m": 1.18,
+    "telemetry_enabled": true,
+    "index": "metrics/metrics_v03_mirror005-server-smoke_index.json"
+  },
+  "user_merge_decision": {
+    "v03_base_xml": "keep lightweight 2.381 kg model",
+    "v03_weighted_xml": "use separate weight6.3.xml"
+  }
+}

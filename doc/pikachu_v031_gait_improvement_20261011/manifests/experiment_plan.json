@@ -1,0 +1,44 @@
+{
+  "created_at": "2026-10-11T21:14:00+08:00",
+  "branch": "experiment/v031-gait-symmetry-20261011",
+  "code_commit": "ddcffc9",
+  "seed": 42,
+  "num_envs": 4096,
+  "steps_per_env": 24,
+  "save_interval": 500,
+  "baseline": {
+    "task": "Mjlab-Velocity-Flat-Pikachu-V031-T6",
+    "run": "logs/rsl_rl/pikachu_v031_velocity/2026-10-10_20-11-53",
+    "checkpoint": "model_29999.pt",
+    "checkpoint_sha256": "3295b9b14dfad53d386eb565aea01e8f51ac7e8a06e6b997ccc308bc86360a1b",
+    "env_yaml_sha256": "2f4f596ccd7c362b1c92e060966789899704561c2fb078d13247687b501502af",
+    "agent_yaml_sha256": "3c02c4135275efde6ed674605b90bc475b50279c0c3d9c29158ee9aa668f3c57",
+    "original_git_commit": "ee119be6af31641063723c74d39b889e90620382"
+  },
+  "experiments": [
+    {
+      "id": "E1",
+      "task": "Mjlab-Velocity-Flat-Pikachu-V031-E1-Clip",
+      "experiment_name": "pikachu_v031_e1_clip",
+      "iterations": 5000
+    },
+    {
+      "id": "E2",
+      "task": "Mjlab-Velocity-Flat-Pikachu-V031-E2-Symmetry",
+      "experiment_name": "pikachu_v031_e2_symmetry",
+      "iterations": 5000
+    },
+    {
+      "id": "E3",
+      "task": "Mjlab-Velocity-Flat-Pikachu-V031-E3-YawHuber",
+      "experiment_name": "pikachu_v031_e3_yaw_huber",
+      "iterations": 5000
+    },
+    {
+      "id": "E4",
+      "task": "Mjlab-Velocity-Flat-Pikachu-V031-E4-Curriculum",
+      "experiment_name": "pikachu_v031_e4_curriculum",
+      "iterations": 30000
+    }
+  ]
+}

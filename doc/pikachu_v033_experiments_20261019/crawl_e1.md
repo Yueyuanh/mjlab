@@ -1,6 +1,6 @@
 # V033 crawl_e1 参数与检查记录
 
-2026-10-20，分支 `feat/pikachu-v033-crawl-20261019`。本页对应新任务 **`Mjlab-Velocity-Flat-Pikachu-V033-Crawl-E1`**；独立源码目录 `src/mjlab/tasks/velocity/config/pikachu_v033_crawl_e1/`，默认实验名 `pikahcu_v033/crawl_e1`，默认日志目录 `logs/rsl_rl/pikahcu_v033/crawl_e1/`。
+2026-10-20，分支 `feat/pikachu-v033-crawl-20261019`。本页对应新任务 **`Mjlab-Velocity-Flat-Pikachu-V033-Crawl-E1`**；独立源码目录 `src/mjlab/tasks/velocity/config/pikachu_v033_crawl_e1/`，默认实验名 `pikahcu_v033/crawl_e1`，默认日志目录 `logs/rsl_rl/pikachu_v033/crawl_e1`。
 
 本轮完成配置重设计、物理检查、64环境×5轮PPO和checkpoint录像链路检查。**未进行E1正式长程训练，尚未学会爬行，下面的smoke视频不是最终训练效果。** 原两项3000轮训练及视频仍见 [training_report.md](training_report.md)。
 
@@ -94,7 +94,7 @@ cost = mean_j((excess_j / δ)^2)       # 四关节平均
 - 18维动作、76/96维观测保持。新增软惩罚自动以新的默认姿态为中心，容差5°、权重-1.0；现有边界测试已使用真实默认姿态，双向±5°及超出部分增长检查通过。
 - 4环境×5秒零动作：0跌倒，接触占空比约.996/.996/1/1，roll/yaw峰值偏差约.01052°，新增cost为0。非零动作目标可超过5°，验证无新增目标裁剪。
 - 相关17项回归通过，本次文件ruff格式/lint、ty、pyright通过。未重训已有模型，未停止已有Viser进程；需重启播放器加载新初态。
-- [几何/碰撞审计](config_audit/crawl_pose_yaw90_20261020.json)；[物理检查](../../logs/rsl_rl/pikahcu_v033/crawl_e1/diagnostics/pose_yaw90_20261020/physics_check.json)。日志/命令/源码留痕位于`crawl_e1/diagnostics/pose_yaw90_20261020/`，原`design_20261020`保留不覆盖。
+- [几何/碰撞审计](config_audit/crawl_pose_yaw90_20261020.json)；[物理检查](../../logs/rsl_rl/pikachu_v033/crawl_e1/diagnostic_archive_20261022/evaluation/pose_yaw90_20261020/metrics/physics_check.json)。日志/命令/源码留痕位于`crawl_e1/diagnostics/pose_yaw90_20261020/`，原`design_20261020`保留不覆盖。
 
 ## 首次设计检查与产物（yaw=0°历史）
 
@@ -108,7 +108,7 @@ cost = mean_j((excess_j / δ)^2)       # 四关节平均
 产物路径：
 
 ```text
-logs/rsl_rl/pikahcu_v033/crawl_e1/diagnostics/
+logs/rsl_rl/pikachu_v033/crawl_e1/diagnostic_archive_20261022
 ├── 2026-10-20_20-57-24_smoke-design/
 │   ├── model_4.pt, model_0.pt, *.onnx, params/, git/, events.*
 └── design_20261020/
@@ -119,7 +119,7 @@ logs/rsl_rl/pikahcu_v033/crawl_e1/diagnostics/
     └── audit.json, commands.jsonl, source_snapshot.tar.gz
 ```
 
-[物理检查JSON](../../logs/rsl_rl/pikahcu_v033/crawl_e1/diagnostics/design_20261020/physics_check.json) · [smoke视频（非最终效果）](../../logs/rsl_rl/pikahcu_v033/crawl_e1/diagnostics/design_20261020/smoke_review/forward_side.mp4) · [smoke量化结果](../../logs/rsl_rl/pikahcu_v033/crawl_e1/diagnostics/design_20261020/smoke_review/forward_side.json) · [审计/校验值](../../logs/rsl_rl/pikahcu_v033/crawl_e1/diagnostics/design_20261020/audit.json)
+[物理检查JSON](../../logs/rsl_rl/pikachu_v033/crawl_e1/diagnostic_archive_20261022/evaluation/design_20261020/metrics/physics_check.json) · [smoke视频（非最终效果）](../../logs/rsl_rl/pikachu_v033/crawl_e1/diagnostic_archive_20261022/evaluation/design_20261020__smoke_review/videos/forward_side.mp4) · [smoke量化结果](../../logs/rsl_rl/pikachu_v033/crawl_e1/diagnostic_archive_20261022/evaluation/design_20261020__smoke_review/metrics/forward_side.json) · [审计/校验值](../../logs/rsl_rl/pikachu_v033/crawl_e1/diagnostic_archive_20261022/evaluation/design_20261020/metrics/audit.json)
 
 ## 历史smoke checkpoint回放与当前初态查看
 
@@ -127,7 +127,7 @@ logs/rsl_rl/pikahcu_v033/crawl_e1/diagnostics/
 
 ```bash
 MUJOCO_GL=egl uv run --no-sync play Mjlab-Velocity-Flat-Pikachu-V033-Crawl-E1 \
-  --checkpoint-file logs/rsl_rl/pikahcu_v033/crawl_e1/diagnostics/2026-10-20_20-57-24_smoke-design/model_4.pt \
+  --checkpoint-file logs/rsl_rl/pikachu_v033/crawl_e1/diagnostic_archive_20261022/training/2026-10-20_20-57-24_smoke-design/checkpoints/model_4.pt \
   --num-envs 1 --device cuda:0 --viewer viser
 ```
 
@@ -149,4 +149,4 @@ MUJOCO_GL=egl OMP_NUM_THREADS=4 uv run --no-sync train \
   --log-root logs/rsl_rl
 ```
 
-此命令写入`logs/rsl_rl/pikahcu_v033/crawl_e1/<时间戳>_review-crawl_e1/`，不会覆盖历史Crawl及E1诊断。正式训练后再以各关节越界指标及四种命令视频判断效果。
+此命令写入`logs/rsl_rl/pikachu_v033/crawl_e1<时间戳>_review-crawl_e1/`，不会覆盖历史Crawl及E1诊断。正式训练后再以各关节越界指标及四种命令视频判断效果。

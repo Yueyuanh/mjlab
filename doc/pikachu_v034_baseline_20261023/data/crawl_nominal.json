@@ -1,0 +1,141 @@
+{
+  "task": "Mjlab-Velocity-Flat-Pikachu-V034-Crawl",
+  "checkpoint": "/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikachu_v034/crawl/2026-10-23_13-04-42_baseline_20261023_130436/model_299.pt",
+  "checkpoint_sha256": "23bc377b2617603273a6363d075805b70c9853fd53ba3af303dacf1cd3fb010d",
+  "seed": 42,
+  "num_envs": 16,
+  "seconds": 10.0,
+  "randomized": false,
+  "clips": {
+    "stand": {
+      "command": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "mean_velocity": [
+        -0.0021433138754218817,
+        8.702078048372641e-05,
+        0.007964055053889751
+      ],
+      "velocity_mae": [
+        0.003169167088344693,
+        0.00023349512775894254,
+        0.008354458957910538
+      ],
+      "displacement_velocity_xy": [
+        -0.0021881836000829935,
+        0.00010391274554422125
+      ],
+      "falls": 0,
+      "survival_fraction": 1.0,
+      "mean_time_to_first_fall_s": 10.000039100646973,
+      "mean_support_count": 3.992,
+      "finite": true
+    },
+    "forward": {
+      "command": [
+        0.1,
+        0.0,
+        0.0
+      ],
+      "mean_velocity": [
+        0.00535749364644289,
+        0.0021176617592573166,
+        0.005621384363621473
+      ],
+      "velocity_mae": [
+        0.09464246779680252,
+        0.002471205545589328,
+        0.016742533072829247
+      ],
+      "displacement_velocity_xy": [
+        0.0054047065787017345,
+        0.002121541416272521
+      ],
+      "falls": 0,
+      "survival_fraction": 1.0,
+      "mean_time_to_first_fall_s": 10.000039100646973,
+      "mean_support_count": 3.992,
+      "finite": true
+    },
+    "backward": {
+      "command": [
+        -0.06,
+        0.0,
+        0.0
+      ],
+      "mean_velocity": [
+        -0.0030460557900369167,
+        -0.00017956079682335258,
+        0.007033273112028837
+      ],
+      "velocity_mae": [
+        0.05697450414299965,
+        0.0006018384592607617,
+        0.018395088613033295
+      ],
+      "displacement_velocity_xy": [
+        -0.003097143257036805,
+        -0.00017571714124642313
+      ],
+      "falls": 0,
+      "survival_fraction": 1.0,
+      "mean_time_to_first_fall_s": 10.000039100646973,
+      "mean_support_count": 3.992,
+      "finite": true
+    },
+    "lateral": {
+      "command": [
+        0.0,
+        0.04,
+        0.0
+      ],
+      "mean_velocity": [
+        -0.0011788563570007682,
+        0.0008311682613566518,
+        0.011045504361391068
+      ],
+      "velocity_mae": [
+        0.002465689554810524,
+        0.0391688346862793,
+        0.011400765739381313
+      ],
+      "displacement_velocity_xy": [
+        -0.0012146689696237445,
+        0.0008383788517676294
+      ],
+      "falls": 0,
+      "survival_fraction": 1.0,
+      "mean_time_to_first_fall_s": 10.000039100646973,
+      "mean_support_count": 3.992,
+      "finite": true
+    },
+    "turn": {
+      "command": [
+        0.0,
+        0.0,
+        0.15
+      ],
+      "mean_velocity": [
+        -0.0017548388568684459,
+        0.00028835010016337037,
+        0.010851766914129257
+      ],
+      "velocity_mae": [
+        0.003708330914378166,
+        0.0005509146139957011,
+        0.13914823532104492
+      ],
+      "displacement_velocity_xy": [
+        -0.0017928833840414882,
+        0.00028854311676695943
+      ],
+      "falls": 0,
+      "survival_fraction": 1.0,
+      "mean_time_to_first_fall_s": 10.000039100646973,
+      "mean_support_count": 3.992,
+      "finite": true
+    }
+  }
+}

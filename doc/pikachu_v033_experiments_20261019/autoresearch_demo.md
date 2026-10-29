@@ -33,20 +33,20 @@
 
 ```bash
 # 看实际决策日志
-cat logs/rsl_rl/pikahcu_v033/_audit/e1_full_20261020/autoresearch_demo/results.tsv
+cat logs/rsl_rl/pikachu_v033/_audit/e1_full_20261020/research/data/autoresearch_demo/results.tsv
 
 # 看所有候选与回退后的HEAD；独立仓库不影响mjlab工作分支
-git -C logs/rsl_rl/pikahcu_v033/_audit/e1_full_20261020/autoresearch_demo/recipe_repo log --all --oneline --decorate
-git -C logs/rsl_rl/pikahcu_v033/_audit/e1_full_20261020/autoresearch_demo/recipe_repo diff trial-0 trial-2 -- recipe.json
-cat logs/rsl_rl/pikahcu_v033/_audit/e1_full_20261020/autoresearch_demo/recipe_repo/recipe.json
+git -C logs/rsl_rl/pikachu_v033/_audit/e1_full_20261020/autoresearch_demo/recipe_repo log --all --oneline --decorate
+git -C logs/rsl_rl/pikachu_v033/_audit/e1_full_20261020/autoresearch_demo/recipe_repo diff trial-0 trial-2 -- recipe.json
+cat logs/rsl_rl/pikachu_v033/_audit/e1_full_20261020/research/autoresearch_demo/recipe_repo/recipe.json
 ```
 
 需要重复体验时，在GPU空闲后使用新的输出目录（脚本拒绝覆盖已有实验）：
 
 ```bash
 uv run --no-sync python scripts/demo_v033_autoresearch.py \
-  --out logs/rsl_rl/pikahcu_v033/_audit/autoresearch_demo_repeat \
-  --actor-init logs/rsl_rl/pikahcu_v033/biped_e1/diagnostics/2026-10-20_22-13-28_pilot-v2-robust-standing/model_499.pt
+  --out logs/rsl_rl/pikachu_v033/_audit/autoresearch_demo_repeat \
+  --actor-init logs/rsl_rl/pikachu_v033/biped_e1/diagnostic_archive_20261022/training/2026-10-20_22-13-28_pilot-v2-robust-standing/checkpoints/model_499.pt
 ```
 
 实验规则副本在demo仓库`program.md`；实际候选列表与评分执行在`scripts/demo_v033_autoresearch.py`。

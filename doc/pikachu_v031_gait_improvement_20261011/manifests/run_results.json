@@ -1,0 +1,66 @@
+{
+  "generated_at": "2026-10-11T23:16:00+08:00",
+  "branch": "experiment/v031-gait-symmetry-20261011",
+  "training_code_commit": "ddcffc9",
+  "evaluation_code_commits": [
+    "5cd824f",
+    "61a697e",
+    "9f22239",
+    "189e439",
+    "5ff5f51",
+    "2c0c708"
+  ],
+  "seed": 42,
+  "num_envs": 4096,
+  "budget_note": "E1-E3 and E4@1000 are equal-budget causal screens. E4@2500 is the last stable pre-full-push checkpoint; E4@5000 records the failed full-disturbance transition. The original E0@29999 remains the deployed-baseline comparison.",
+  "runs": {
+    "E0": {
+      "task": "Mjlab-Velocity-Flat-Pikachu-V031-T6",
+      "run_dir": "logs/rsl_rl/pikachu_v031_velocity/2026-10-10_20-11-53",
+      "event_file": "logs/rsl_rl/pikachu_v031_velocity/2026-10-10_20-11-53/events.out.tfevents.1791634315.finnox-4090.1559824.0",
+      "actual_iterations": 30000,
+      "screen_checkpoint": "logs/rsl_rl/pikachu_v031_velocity/2026-10-10_20-11-53/model_1000.pt",
+      "screen_checkpoint_sha256": "c9c07931019db54c0c723e6e1c6941c044ac21953443e242c8cad443719dc346",
+      "final_checkpoint": "logs/rsl_rl/pikachu_v031_velocity/2026-10-10_20-11-53/model_29999.pt",
+      "final_checkpoint_sha256": "3295b9b14dfad53d386eb565aea01e8f51ac7e8a06e6b997ccc308bc86360a1b"
+    },
+    "E1": {
+      "task": "Mjlab-Velocity-Flat-Pikachu-V031-E1-Clip",
+      "run_dir": "logs/rsl_rl/pikachu_v031_e1_clip/2026-10-11_21-15-42_screen-s42",
+      "event_file": "logs/rsl_rl/pikachu_v031_e1_clip/2026-10-11_21-15-42_screen-s42/events.out.tfevents.1791724544.finnox-4090.3019068.0",
+      "actual_iterations": 1047,
+      "selected_checkpoint": "logs/rsl_rl/pikachu_v031_e1_clip/2026-10-11_21-15-42_screen-s42/model_1000.pt",
+      "selected_checkpoint_sha256": "ca65a3c5404e51fc5fb4dbbd222e43ddcd217fd5dda173b0c00a8e8789b38119"
+    },
+    "E2": {
+      "task": "Mjlab-Velocity-Flat-Pikachu-V031-E2-Symmetry",
+      "run_dir": "logs/rsl_rl/pikachu_v031_e2_symmetry/2026-10-11_21-29-49_screen-s42",
+      "event_file": "logs/rsl_rl/pikachu_v031_e2_symmetry/2026-10-11_21-29-49_screen-s42/events.out.tfevents.1791725391.finnox-4090.3073778.0",
+      "actual_iterations": 1001,
+      "selected_checkpoint": "logs/rsl_rl/pikachu_v031_e2_symmetry/2026-10-11_21-29-49_screen-s42/model_1000.pt",
+      "selected_checkpoint_sha256": "ff3e9c8125e1fd304cd5775a7063710d214f5c18208f10493dbf3c73743673f0"
+    },
+    "E3": {
+      "task": "Mjlab-Velocity-Flat-Pikachu-V031-E3-YawHuber",
+      "run_dir": "logs/rsl_rl/pikachu_v031_e3_yaw_huber/2026-10-11_21-45-39_screen-s42",
+      "event_file": "logs/rsl_rl/pikachu_v031_e3_yaw_huber/2026-10-11_21-45-39_screen-s42/events.out.tfevents.1791726341.finnox-4090.3134574.0",
+      "actual_iterations": 1001,
+      "selected_checkpoint": "logs/rsl_rl/pikachu_v031_e3_yaw_huber/2026-10-11_21-45-39_screen-s42/model_1000.pt",
+      "selected_checkpoint_sha256": "dbf020dfaf4499b2b9f774b682cdc8ed022b90070b2c81853ffd7b49ca84ca6e"
+    },
+    "E4": {
+      "task": "Mjlab-Velocity-Flat-Pikachu-V031-E4-Curriculum",
+      "run_dir": "logs/rsl_rl/pikachu_v031_e4_curriculum/2026-10-11_22-01-49_final-s42",
+      "event_file": "logs/rsl_rl/pikachu_v031_e4_curriculum/2026-10-11_22-01-49_final-s42/events.out.tfevents.1791727311.finnox-4090.3196654.0",
+      "actual_iterations": 5001,
+      "screen_checkpoint": "logs/rsl_rl/pikachu_v031_e4_curriculum/2026-10-11_22-01-49_final-s42/model_1000.pt",
+      "screen_checkpoint_sha256": "f15a7e52388f211dd78d8029a6453f9f499976b536c6e37d7aaef6da0d29c0b2",
+      "pre_full_checkpoint": "logs/rsl_rl/pikachu_v031_e4_curriculum/2026-10-11_22-01-49_final-s42/model_2500.pt",
+      "pre_full_checkpoint_sha256": "de8ec85c680e7bebcaa733b47c9afe2dc6dce30c9ff5cbd3561cd4d83dce3",
+      "transition_checkpoint": "logs/rsl_rl/pikachu_v031_e4_curriculum/2026-10-11_22-01-49_final-s42/model_3000.pt",
+      "transition_checkpoint_sha256": "20634a9a1e1a049ec2dca46235285552c60a2263ea2bdb41d7fee30482e96779",
+      "final_checkpoint": "logs/rsl_rl/pikachu_v031_e4_curriculum/2026-10-11_22-01-49_final-s42/model_5000.pt",
+      "final_checkpoint_sha256": "91ee548b9583f68b360a44264bd695e4f3ff05ce61d8363bf888905ae7b2d666"
+    }
+  }
+}

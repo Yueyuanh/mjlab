@@ -2,7 +2,7 @@
 
 2026-10-20，分支 `feat/pikachu-v033-crawl-20261019`。独立任务：
 `Mjlab-Velocity-Flat-Pikachu-V033-E1`；默认日志：
-`logs/rsl_rl/pikahcu_v033/biped_e1/`。
+`logs/rsl_rl/pikachu_v033/biped_e1`。
 
 ## 初态和手臂约束
 
@@ -136,7 +136,7 @@ foot_swing_height落地列一并对齐，修复E0中的左右混配问题。
 fall惩罚后重新启动500轮，不能将初版当作已通过的静止改进。
 
 几何、零动作失败、回归与训练证据位于
-`logs/rsl_rl/pikahcu_v033/biped_e1/diagnostics/design_20261020/`。
+`logs/rsl_rl/pikachu_v033/biped_e1/diagnostics/design_20261020`。
 
 ## 查看初态
 
@@ -181,13 +181,13 @@ startup随机化；随机化16环境保留摩擦、COM和编码器偏置，随�
 
 证据：
 
-- [当前配置及全部奖励参数](../../logs/rsl_rl/pikahcu_v033/biped_e1/diagnostics/design_20261020/design_config.json)
-- [几何/GPU接近检测及零动作失稳](../../logs/rsl_rl/pikahcu_v033/biped_e1/diagnostics/design_20261020/physics_check.json)
-- [旧actor在新环境中的对照](../../logs/rsl_rl/pikahcu_v033/biped_e1/diagnostics/design_20261020/e0_actor_in_e1.json)
-- [初版pilot失败评估](../../logs/rsl_rl/pikahcu_v033/biped_e1/diagnostics/design_20261020/pilot_v1_eval.json)
-- [当前候选静止/前进/转向评估](../../logs/rsl_rl/pikahcu_v033/biped_e1/diagnostics/design_20261020/pilot_v2_eval.json)
-- [16环境随机化静止及每环境结果](../../logs/rsl_rl/pikahcu_v033/biped_e1/diagnostics/design_20261020/pilot_v2_randomized_stand.json)
-- [源码/产物校验与审计](../../logs/rsl_rl/pikahcu_v033/biped_e1/diagnostics/design_20261020/audit.json)
+- [当前配置及全部奖励参数](../../logs/rsl_rl/pikachu_v033/biped_e1/diagnostic_archive_20261022/evaluation/design_20261020/metrics/design_config.json)
+- [几何/GPU接近检测及零动作失稳](../../logs/rsl_rl/pikachu_v033/biped_e1/diagnostic_archive_20261022/evaluation/design_20261020/metrics/physics_check.json)
+- [旧actor在新环境中的对照](../../logs/rsl_rl/pikachu_v033/biped_e1/diagnostic_archive_20261022/evaluation/design_20261020/metrics/e0_actor_in_e1.json)
+- [初版pilot失败评估](../../logs/rsl_rl/pikachu_v033/biped_e1/diagnostic_archive_20261022/evaluation/design_20261020/metrics/pilot_v1_eval.json)
+- [当前候选静止/前进/转向评估](../../logs/rsl_rl/pikachu_v033/biped_e1/diagnostic_archive_20261022/evaluation/design_20261020/metrics/pilot_v2_eval.json)
+- [16环境随机化静止及每环境结果](../../logs/rsl_rl/pikachu_v033/biped_e1/diagnostic_archive_20261022/evaluation/design_20261020/metrics/pilot_v2_randomized_stand.json)
+- [源码/产物校验与审计](../../logs/rsl_rl/pikachu_v033/biped_e1/diagnostic_archive_20261022/evaluation/design_20261020/metrics/audit.json)
 
 相关回归56通过/2跳过；本次10个Python文件ruff格式/lint、ty、pyright通过。
 原始逐步测量另存`.traces.pt`，命令、失败日志、参数YAML和源码快照均保留。
@@ -196,7 +196,7 @@ startup随机化；随机化16环境保留摩擦、COM和编码器偏置，随�
 
 ```bash
 MUJOCO_GL=egl uv run --no-sync play Mjlab-Velocity-Flat-Pikachu-V033-E1 \
-  --checkpoint-file logs/rsl_rl/pikahcu_v033/biped_e1/diagnostics/2026-10-20_22-13-28_pilot-v2-robust-standing/model_499.pt \
+  --checkpoint-file logs/rsl_rl/pikachu_v033/biped_e1/diagnostic_archive_20261022/training/2026-10-20_22-13-28_pilot-v2-robust-standing/checkpoints/model_499.pt \
   --balance False --freeze-joints False \
   --num-envs 1 --device cuda:0 --viewer viser
 ```
@@ -207,7 +207,7 @@ MUJOCO_GL=egl uv run --no-sync play Mjlab-Velocity-Flat-Pikachu-V033-E1 \
 
 | 录像 | 内容 |
 |---|---|
-| [静止正面](../../logs/rsl_rl/pikahcu_v033/biped_e1/diagnostics/2026-10-20_22-13-28_pilot-v2-robust-standing/review/stand_front.mp4) | 检查双臂姿态和双脚静止 |
-| [静止侧面](../../logs/rsl_rl/pikahcu_v033/biped_e1/diagnostics/2026-10-20_22-13-28_pilot-v2-robust-standing/review/stand_side.mp4) | 检查首秒平衡过程及后续静止 |
-| [前进侧面](../../logs/rsl_rl/pikahcu_v033/biped_e1/diagnostics/2026-10-20_22-13-28_pilot-v2-robust-standing/review/forward_side.mp4) | 检查臂腿间隙、步态和漂移 |
-| [转向侧面（未通过）](../../logs/rsl_rl/pikahcu_v033/biped_e1/diagnostics/2026-10-20_22-13-28_pilot-v2-robust-standing/review/turn_side.mp4) | 保留基本站住的失败结果 |
+| [静止正面](../../logs/rsl_rl/pikachu_v033/biped_e1/diagnostic_archive_20261022/evaluation/2026-10-20_22-13-28_pilot-v2-robust-standing__review/videos/stand_front.mp4) | 检查双臂姿态和双脚静止 |
+| [静止侧面](../../logs/rsl_rl/pikachu_v033/biped_e1/diagnostic_archive_20261022/evaluation/2026-10-20_22-13-28_pilot-v2-robust-standing__review/videos/stand_side.mp4) | 检查首秒平衡过程及后续静止 |
+| [前进侧面](../../logs/rsl_rl/pikachu_v033/biped_e1/diagnostic_archive_20261022/evaluation/2026-10-20_22-13-28_pilot-v2-robust-standing__review/videos/forward_side.mp4) | 检查臂腿间隙、步态和漂移 |
+| [转向侧面（未通过）](../../logs/rsl_rl/pikachu_v033/biped_e1/diagnostic_archive_20261022/evaluation/2026-10-20_22-13-28_pilot-v2-robust-standing__review/videos/turn_side.mp4) | 保留基本站住的失败结果 |

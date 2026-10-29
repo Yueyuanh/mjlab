@@ -15,6 +15,8 @@ Pikachu **v03**（并联四杆膝，10 驱动关节 / 14 关节）在 mjlab 上�
 | [02-stand-keyframe.md](02-stand-keyframe.md) | 站立 keyframe 标定：从「脚在髋下」到「质心在脚心上方」 |
 | [03-task-design.md](03-task-design.md) | velocity 任务设计：动作缩放、奖励、命令空间、课程 |
 | [04-worklog.md](04-worklog.md) | 工作日志（按时间**正序**；被推翻的结论保留原文并就地标注） |
+| [05-r07-improvement-plan.md](05-r07-improvement-plan.md) | R06 重新评估、R07 动作优化配置、训练阶段与硬验收线 |
+| [evaluations/](evaluations/) | 按训练 run 独立归档的新批次评估；含报告、manifest、metrics 和 720P 视频 |
 | [reports/](reports/) | 训练报告 + [曲线文本快照](reports/training-curve.md) + [速度追踪报告](reports/velocity-report.html)（HTML/PDF） |
 | [videos/](videos/) | 720P 跟踪相机录像（r04-best / r05-15000 / r01-before 三组） |
 | [metrics/](metrics/) | 逐档逐关节 metrics CSV（dashboard 可直接加载） |
@@ -77,15 +79,21 @@ uv run python scripts/v03_metrics_compare.py \
 
 | 量 | 值 | 出处 |
 |---|---|---|
-| 训练 MJCF | `src/mjlab/asset_zoo/robots/pikachu/xmls/mjcf_v03/pikachu_v03_base_series_train.xml` | `build_v03_train_xml.py` |
+| 当前训练 MJCF | `src/mjlab/asset_zoo/robots/pikachu/xmls/mjcf_v03/pikachu_v03_base_series_train_weight6.3.xml` | R08_T6 重躯干版本 |
 | 常量文件 | `src/mjlab/asset_zoo/robots/pikachu/pikachu_v03_constants.py` | — |
 | 任务配置 | `src/mjlab/tasks/velocity/config/pikachu_v03/` | — |
 | 站立高度 | 0.26728 m（静平衡微屈膝） | `refine_v03_keyframe.py` |
-| 质量 | 2.3814 kg | 训练模型实测 |
-| 质心 x | -0.02683 m | 静平衡点 |
+| 当前质量 | 6.3813 kg（轻模型为 2.3813 kg） | MuJoCo `body_subtreemass` |
+| 当前 CoM 高度 | 0.2820 m（初始微屈膝姿态） | R08_T6 资产审核 |
 | 动作维度 | 10 | 无手臂 |
 
 ## 当前状态
+
+2026-10-15 代码同步：保留 `V03-R07` 与服务器的 `V03-T6` 两个任务入口。
+前者保留历史奖励参数，后者的 J3507 软扭矩上限匹配 3 N·m 降额。
+`pikachu_v03_base_series_train.xml` 保留 2.381 kg 轻模型；重模型单独使用
+`pikachu_v03_base_series_train_weight6.3.xml`。V031 的 Mirror005/Beta 与服务器
+消融、足底遥测也已并存，详见 [同步记录](../../doc/code_sync_20261015/README.md)。
 
 | 轮次 | 配置 | 结果 |
 |---|---|---|
@@ -94,7 +102,9 @@ uv run python scripts/v03_metrics_compare.py \
 | r03 | 砍方向桶换 yaw 暴露面（6.79% → 13.49%） | ⚠️ 偏航治好，但后退/侧移退化（**走错了旋钮**） |
 | r04 | 方向桶全恢复 + `rel_heading_envs=1.0`（暴露面 23.75%），**跑满 30000 迭代** | ✅ **稳定行走达成** |
 | r05 | 加 `feet_lateral_distance`（治「站立时双脚挨太近」），**无门控** | ⚠️ 开度 9.23→16.41 cm 修好了，但**动态垮了**（原地踏步，见下） |
-| r06 | 同一项**加命令门控**（只在命令≈0 时生效）+ **从 r04@29999 热启动** | ✅ **门控有效**（r06-test@34998）：动态回到 r04 水平（前进 0.98 / 后退 0.79），走路档开度 18.7→**10.9** cm；全量训练（+25000 迭代）进行中 |
+| r06 | 同一项**加命令门控**（只在命令≈0 时生效）+ **从 r04@29999 热启动** | ✅ 全量完成（59997）：前进 1.01、后退 0.78、侧移 0.34；但走路脚宽 11.0 cm、静止姿态 RMSE 10.5°、前进约 6.6 步/s，成为 R07 的改进基线 |
+| r07 | 独立任务：静止全姿态 L2、双支撑最小步宽、短步惩罚、Huber 速度误差、扭矩软约束 | ✅ 配置与 smoke/test 已完成；该奖励族随后用于 R08_T6 重躯干探针，详见 [05](05-r07-improvement-plan.md) |
+| r08_t6 | R07 奖励 + `weight6.3` 重躯干，R06@59997 热启动续训约 5k | ⚠️ 纵向追踪与步距改善，但 3 N·m hip-roll 长时饱和、动态脚宽约 9 cm、质量惯量口径不一致；详见 [批次报告](evaluations/2026-10-09_17-32-05_v03-flat-r08-probe_t6/README.md) |
 
 **「机器人能不能稳定行走」已经答完：能。**
 r04 @ iter 29999：**前进跟踪比 0.99、方向余弦 1.00、单脚支撑 0.92、
@@ -109,8 +119,12 @@ r04 @ iter 29999：**前进跟踪比 0.99、方向余弦 1.00、单脚支撑 0.9
 | 边走边转 | ✅ 走 0.30 m/s 同时转 90°：**5.5 s 到位、残留 1.8°** |
 | 原地转 | ❌ 收敛 0.18 —— **训练分布里没有「纯转向」环境**（r05 候选） |
 
-**当前最优检查点**：
+**历史轻质量稳定基线**：
 `logs/rsl_rl/pikachu_v03_velocity/2026-10-01_14-48-28_v03-flat-r04/model_29999.pt`
+
+**当前重质量评估基线**：
+`logs/rsl_rl/pikachu_v03_velocity/2026-10-09_17-32-05_v03-flat-r08-probe_t6/model_64996.pt`
+（仅作分析基线，修正质量惯量和 actuator limit 之前不标记为 deploy-best。）
 
 ### 时间线
 

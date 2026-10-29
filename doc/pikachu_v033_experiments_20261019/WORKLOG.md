@@ -1,8 +1,8 @@
 # 工作留痕
 
 > 2026-10-20 路径说明：本文件早期条目保留当时路径。当前正式模型位于
-> `logs/rsl_rl/pikahcu_v033/biped_e0/` 与 `crawl/`，共享审计位于
-> `logs/rsl_rl/pikahcu_v033/_audit/20261019/`；旧路径通过其中的
+> `logs/rsl_rl/pikachu_v033/biped_e0` 与 `crawl/`，共享审计位于
+> `logs/rsl_rl/pikachu_v033/_audit/20261019`；旧路径通过其中的
 > `migration_manifest.json` 逐文件映射。配置审计文件已归入本文档目录的
 > `config_audit/`，实验前工作区证据归入 `provenance/`。回放指令见 README。
 
@@ -50,7 +50,7 @@
 - 本次两项play各做30秒加载/服务启动检查：最终模型从新目录加载，Viser在8080端口启动，之后发送SIGINT退出（timeout返回124是预期限时退出，不是加载失败），无残留进程；尚未将此启动检查当成人工交互审核。本次9个修改/新增Python文件通过ruff/格式/ty/pyright，任务工厂隔离回归1通过。最终核验脚本与JSON在_audit/20261019，检查全部迁移文件、checkpoint与MP4校验值、文档链接以及当前脚本路径。
 - 2026-10-20：用户暂停Viser后指定四足初态arm_roll=90°、elbow=0°。按既有镜像符号实现右roll=-π/2、左roll=+π/2，双肘0；机身、其他关节及训练权重保持原值。实际Entity初态FK检查全部关节限位通过，双腿四杆闭环误差约5.8e-9m；重置高度.234402775m下前肢球底z=-.005916184m，存在约5.9mm初始穿地，未擅自改高度或重新IK。新姿态审计见config_audit/crawl_pose_20261020.json，旧标定JSON/快照及训练产物保留，不包装为新姿态训练结果。用户现有Viser进程未停止、未修改内存姿态，需重启加载源码。本轮仅进行姿态修改与检查，未启动先前讨论的优化训练或另建查看工具。
 - 2026-10-20：用户进一步指定arm_yaw归零、elbow不参与步态。双yaw初值改0，双肘从策略动作选择中移除（18→16），保留原肘位置执行器和默认0°目标，允许物理受力偏差；未添加焊接或强写qpos。actor/critic维度现为74/94，旧四足18动作checkpoint不兼容。当前FK肘中心x=.230489m（机身前方），转轴正向约[-.9123,0,-.4096]；“中心在前方”不等同于“转轴正方向沿世界+X”。姿态截图/几何数值供用户核对，未擅自修改arm_pitch。
-- 小批量检查：4环境×5秒零动作，0跌倒，接触检测占空比约.996/.996/1/1，肘最大物理偏差约.00112°；对其余16关节施加非零动作20步后、再次reset后，双肘目标仍严格0。初始前肢球穿地约5.9mm依然保留，不能把短测试当为完整支撑/步态验收。源码/检查日志/截图/5秒视频与JSON在logs/rsl_rl/pikahcu_v033/crawl/diagnostics/pose_yaw0_elbow_hold_20261020；当前姿态JSON另存config_audit/crawl_pose_yaw0_elbow_hold_20261020.json。
+- 小批量检查：4环境×5秒零动作，0跌倒，接触检测占空比约.996/.996/1/1，肘最大物理偏差约.00112°；对其余16关节施加非零动作20步后、再次reset后，双肘目标仍严格0。初始前肢球穿地约5.9mm依然保留，不能把短测试当为完整支撑/步态验收。源码/检查日志/截图/5秒视频与JSON在logs/rsl_rl/pikachu_v033/crawl/diagnostics/pose_yaw0_elbow_hold_20261020；当前姿态JSON另存config_audit/crawl_pose_yaw0_elbow_hold_20261020.json。
 - 修复当前零动作查看链路的两个兼容问题：Crawl reset接受通用播放器的零pose_range以固定朝向/位置；无heading控制时dummy播放器不再错误填入heading范围。零动作命令（关闭balance和freeze）实测启动Viser并完成物理步进，限时20秒后正常SIGINT退出，没有中断用户原有8080服务。相关8项回归通过，动作隔离回归最终复验1通过，修改的Crawl文件/测试通过ty与pyright，5个相关Python文件ruff/格式检查通过。本轮没有启动训练。
 - 2026-10-20 20:53起（Asia/Shanghai）：按用户最新要求以完整网络/动作接口重新设计crawl_e1，替代上条16动作方案。Crawl恢复18路，elbow初值0但保留输出；独立包pikachu_v033_crawl_e1注册Mjlab-Velocity-Flat-Pikachu-V033-Crawl-E1，默认experiment_name=pikahcu_v033/crawl_e1，独立W&B项目/标签。双足工厂不变，历史16动作检查与3000轮训练产物保留。
 - E1新增arm_posture_window：双侧arm_roll/arm_yaw实际位置相对默认初态，±5°以内该项为0，超出部分除以5°后平方、四关节求均值，权重-1.0；奖励按控制dt=.02s缩放。未裁剪动作或强写关节、未新增机械硬限位、未掩码elbow。保留原全身姿态/限位奖励和机械限位，因此软代价不保证永不越界；roll初态±90°使软窗口与原机械范围相交。未重新标定初始约5.9mm前肢球穿地。

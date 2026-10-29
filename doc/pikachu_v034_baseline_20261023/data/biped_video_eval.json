@@ -1,0 +1,37 @@
+{
+  "task": "Mjlab-Velocity-Flat-Pikachu-V034-Biped",
+  "checkpoint": "/home/finnox/Pikachu/PikachuRobot/pikachu_playground/mjlab/logs/rsl_rl/pikachu_v034/biped/2026-10-23_12-56-19_baseline_20261023/model_299.pt",
+  "checkpoint_sha256": "6c907ea1ec1b719b53018ba2f3e4226a3a5f69efa5cdee0944c43083fac6cc39",
+  "seed": 42,
+  "num_envs": 1,
+  "seconds": 5.0,
+  "randomized": false,
+  "clips": {
+    "forward": {
+      "command": [
+        0.2,
+        0.0,
+        0.0
+      ],
+      "mean_velocity": [
+        0.00045073917135596275,
+        -0.0008925057481974363,
+        0.01576557755470276
+      ],
+      "velocity_mae": [
+        0.19954931735992432,
+        0.0012342900736257434,
+        0.019296428188681602
+      ],
+      "displacement_velocity_xy": [
+        0.0005015835049562156,
+        -0.0009261094965040684
+      ],
+      "falls": 0,
+      "survival_fraction": 1.0,
+      "mean_time_to_first_fall_s": 4.999996185302734,
+      "mean_support_count": 1.992,
+      "finite": true
+    }
+  }
+}
