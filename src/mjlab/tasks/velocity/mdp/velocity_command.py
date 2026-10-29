@@ -56,6 +56,7 @@ class UniformVelocityCommand(CommandTerm):
     self._joystick_enabled: viser.GuiCheckboxHandle | None = None
     self._joystick_sliders: list[viser.GuiSliderHandle] = []
     self._joystick_get_env_idx: Callable[[], int] | None = None
+    self.recording_velocity_override: tuple[int, torch.Tensor] | None = None
 
   @property
   def command(self) -> torch.Tensor:
@@ -199,6 +200,14 @@ class UniformVelocityCommand(CommandTerm):
 
   # GUI.
 
+  def set_recording_velocity_override(
+    self, env_idx: int, velocity: tuple[float, float, float]
+  ) -> None:
+    """Pin one env's body-frame command without changing training ranges."""
+    value = torch.tensor(velocity, device=self.device, dtype=self.vel_command_b.dtype)
+    self.recording_velocity_override = (env_idx, value)
+    self.vel_command_b[env_idx] = value
+
   def create_gui(
     self,
     name: str,
@@ -269,6 +278,9 @@ class UniformVelocityCommand(CommandTerm):
       idx = self._joystick_get_env_idx()
       for i, s in enumerate(self._joystick_sliders):
         self.vel_command_b[idx, i] = s.value
+    if self.recording_velocity_override is not None:
+      idx, value = self.recording_velocity_override
+      self.vel_command_b[idx] = value
 
   # Visualization.
 

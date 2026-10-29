@@ -363,7 +363,9 @@ def run_play(task_id: str, cfg: PlayConfig):
         if getattr(twist, "ranges", None) is not None and hasattr(
           twist.ranges, "heading"
         ):
-          twist.ranges.heading = (0.0, 0.0)
+          twist.ranges.heading = (
+            (0.0, 0.0) if getattr(twist, "heading_command", False) else None
+          )
       if hasattr(twist, "rel_standing_envs"):
         twist.rel_standing_envs = 1.0
         twist.rel_heading_envs = 0.0
